@@ -6,8 +6,8 @@ import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconCheck, IconX, IconLock } from '@tabler/icons-react';
-import { modals } from '@mantine/modals';
+import { IconCheck, IconX } from '@tabler/icons-react';
+
 import { useAppConfig } from '../hooks/useAppConfig';
 import { CajaCard } from '../components/caja/CajaCard';
 
@@ -160,56 +160,58 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         }
     };
 
-    const handleCerrarCaja = (id: number) => {
-        modals.openConfirmModal({
-            title: 'Cerrar Caja',
-            centered: true,
-            children: (
-                <Text size="sm">
-                    ¿Estás seguro de que deseas cerrar esta caja? Una vez cerrada, no se podrán realizar más cambios.
-                </Text>
-            ),
-            labels: { confirm: 'Cerrar ahora', cancel: 'Cancelar' },
-            confirmProps: { color: 'orange' },
-            onConfirm: async () => {
-                try {
-                    const { data: { user } } = await supabase.auth.getUser();
-
-                    const { error } = await supabase
-                        .from('cajas')
-                        .update({
-                            estado: 'cerrada',
-                            fecha_cierre: new Date().toISOString()
-                        })
-                        .eq('id', id);
-
-                    if (error) throw error;
-
-                    // Log de cierre
-                    await supabase.from('bitacora').insert({
-                        accion: 'CIERRE_CAJA',
-                        detalle: { caja_id: id },
-                        user_id: user?.id,
-                        user_email: user?.email
-                    });
-
-                    notifications.show({
-                        title: 'Caja cerrada',
-                        message: 'La caja ha sido finalizada con éxito.',
-                        color: 'orange',
-                        icon: <IconLock size={16} />,
-                    });
-                    fetchCajas();
-                } catch (error: any) {
-                    notifications.show({
-                        title: 'Error',
-                        message: error.message || 'No se pudo cerrar la caja',
-                        color: 'red'
-                    });
-                }
-            },
-        });
-    };
+    /*
+        const handleCerrarCaja = (id: number) => {
+            modals.openConfirmModal({
+                title: 'Cerrar Caja',
+                centered: true,
+                children: (
+                    <Text size="sm">
+                        ¿Estás seguro de que deseas cerrar esta caja? Una vez cerrada, no se podrán realizar más cambios.
+                    </Text>
+                ),
+                labels: { confirm: 'Cerrar ahora', cancel: 'Cancelar' },
+                confirmProps: { color: 'orange' },
+                onConfirm: async () => {
+                    try {
+                        const { data: { user } } = await supabase.auth.getUser();
+    
+                        const { error } = await supabase
+                            .from('cajas')
+                            .update({
+                                estado: 'cerrada',
+                                fecha_cierre: new Date().toISOString()
+                            })
+                            .eq('id', id);
+    
+                        if (error) throw error;
+    
+                        // Log de cierre
+                        await supabase.from('bitacora').insert({
+                            accion: 'CIERRE_CAJA',
+                            detalle: { caja_id: id },
+                            user_id: user?.id,
+                            user_email: user?.email
+                        });
+    
+                        notifications.show({
+                            title: 'Caja cerrada',
+                            message: 'La caja ha sido finalizada con éxito.',
+                            color: 'orange',
+                            icon: <IconLock size={16} />,
+                        });
+                        fetchCajas();
+                    } catch (error: any) {
+                        notifications.show({
+                            title: 'Error',
+                            message: error.message || 'No se pudo cerrar la caja',
+                            color: 'red'
+                        });
+                    }
+                },
+            });
+        };
+        */
 
 
     return (

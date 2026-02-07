@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Paper, Stack, Button, Text, Group, Divider, Tabs, Table, ActionIcon, Modal, TextInput, Title, Container, Badge, LoadingOverlay, NumberInput } from '@mantine/core';
-import { IconLogout, IconPlus, IconEdit, IconTrash, IconBuildingStore, IconBuildingBank, IconDeviceFloppy, IconX, IconListDetails, IconSettings, IconUser, IconUsers, IconDatabase, IconHistory } from '@tabler/icons-react';
+import { IconLogout, IconPlus, IconEdit, IconTrash, IconBuildingStore, IconBuildingBank, IconDeviceFloppy, IconX, IconListDetails, IconSettings, IconUser, IconHistory } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';

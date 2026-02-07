@@ -20,7 +20,7 @@ interface TransactionFormProps {
 export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage }: TransactionFormProps) {
     const [loading, setLoading] = useState(false);
     const [proveedores, setProveedores] = useState<{ value: string; label: string }[]>([]);
-    const [hasRetention, setHasRetention] = useState(false);
+    // const [hasRetention, setHasRetention] = useState(false);
 
     const form = useForm({
         initialValues: {
@@ -61,7 +61,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     .single();
 
                 // Fetch monto inicial separately (or could join, but simple query is fine)
-                const { data: cajaData, error: cajaError } = await supabase
+                const { data: cajaData } = await supabase
                     .from('cajas')
                     .select('monto_inicial')
                     .eq('id', cajaId)
@@ -113,14 +113,14 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     if (transError) throw transError;
 
                     // CHECK FOR RETENTIONS
-                    const { count } = await supabase
+                    await supabase
                         .from('retenciones')
                         .select('*', { count: 'exact', head: true })
                         .eq('transaccion_id', transactionId);
 
-                    if (count && count > 0) {
+                    /* if (count && count > 0) {
                         setHasRetention(true);
-                    }
+                    } */
 
                     form.setValues({
                         fecha_factura: dayjs(trans.fecha_factura).toDate(),

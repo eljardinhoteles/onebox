@@ -1,4 +1,4 @@
-import { SegmentedControl, Center, Paper, rem } from '@mantine/core';
+import { SegmentedControl, Center, Paper } from '@mantine/core';
 import {
     IconBox,
     IconUsers,

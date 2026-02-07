@@ -1,5 +1,5 @@
 import { Card, Group, ThemeIcon, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal } from '@mantine/core';
-import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconAlertTriangle, IconTrash, IconX } from '@tabler/icons-react';
+import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';

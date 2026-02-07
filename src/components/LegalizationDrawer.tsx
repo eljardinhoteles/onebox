@@ -4,8 +4,6 @@ import { DatePickerInput } from '@mantine/dates';
 import { supabase } from '../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX, IconFileDescription, IconAlertCircle } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import 'dayjs/locale/es';
 
 interface Transaction {
     id: number;
