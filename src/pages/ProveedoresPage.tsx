@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea } from '@mantine/core';
+import { useState, useEffect, useRef } from 'react';
+import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center } from '@mantine/core';
 import { AppModal } from '../components/ui/AppModal';
 import { AppDrawer } from '../components/ui/AppDrawer';
 import { AppActionButtons } from '../components/ui/AppActionButtons';
@@ -7,8 +7,8 @@ import { modals } from '@mantine/modals';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconCheck, IconX, IconPencil, IconTrash } from '@tabler/icons-react';
-import { useDisclosure } from '@mantine/hooks';
+import { IconCheck, IconX, IconPencil, IconTrash, IconSearch } from '@tabler/icons-react';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 
 interface ProveedoresPageProps {
     opened: boolean;
@@ -23,13 +23,26 @@ interface Proveedor {
     regimen: string;
 }
 
+const PAGE_SIZE = 50;
+
 export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
+    const [fetchingMore, setFetchingMore] = useState(false);
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [regimenes, setRegimenes] = useState<{ value: string; label: string }[]>([]);
     const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
     const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
+
+    // Paginación y Filtros
+    const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search, 400);
+    const [regimenFilter, setRegimenFilter] = useState<string | null>(null);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [totalCount, setTotalCount] = useState(0);
+
+    const loaderRef = useRef<HTMLTableRowElement>(null);
 
     const form = useForm({
         initialValues: {
@@ -45,16 +58,47 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         },
     });
 
-    const fetchProveedores = async () => {
-        setFetching(true);
+    const fetchProveedores = async (isNewSearch = false) => {
+        if (isNewSearch) {
+            setFetching(true);
+            setPage(0);
+        } else {
+            setFetchingMore(true);
+        }
+
         try {
-            const { data, error } = await supabase
+            const currentPage = isNewSearch ? 0 : page;
+            const from = currentPage * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            let query = supabase
                 .from('proveedores')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('*', { count: 'exact' })
+                .order('nombre', { ascending: true })
+                .range(from, to);
+
+            if (debouncedSearch) {
+                query = query.or(`nombre.ilike.%${debouncedSearch}%,ruc.ilike.%${debouncedSearch}%`);
+            }
+
+            if (regimenFilter) {
+                query = query.eq('regimen', regimenFilter);
+            }
+
+            const { data, error, count } = await query;
 
             if (error) throw error;
-            setProveedores(data || []);
+
+            if (isNewSearch) {
+                setProveedores(data || []);
+            } else {
+                setProveedores(prev => [...prev, ...(data || [])]);
+            }
+
+            setTotalCount(count || 0);
+            setHasMore((data?.length || 0) === PAGE_SIZE);
+            if (!isNewSearch) setPage(prev => prev + 1);
+
         } catch (error) {
             console.error('Error fetching proveedores:', error);
             notifications.show({
@@ -64,6 +108,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             });
         } finally {
             setFetching(false);
+            setFetchingMore(false);
         }
     };
 
@@ -78,8 +123,30 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         }
     };
 
+    // Observer para scroll infinito
     useEffect(() => {
-        fetchProveedores();
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !fetching && !fetchingMore) {
+                    fetchProveedores(false);
+                }
+            },
+            { threshold: 1.0 }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, fetching, fetchingMore, page]);
+
+    // Efecto para búsqueda inicial y cambios en filtros
+    useEffect(() => {
+        fetchProveedores(true);
+    }, [debouncedSearch, regimenFilter]);
+
+    useEffect(() => {
         fetchRegimenes();
     }, []);
 
@@ -98,7 +165,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
             form.reset();
             close();
-            fetchProveedores();
+            fetchProveedores(true);
         } catch (error: any) {
             notifications.show({
                 title: 'Error',
@@ -130,7 +197,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             });
 
             closeDrawer();
-            fetchProveedores();
+            fetchProveedores(true);
         } catch (error: any) {
             notifications.show({
                 title: 'Error',
@@ -180,7 +247,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                         color: 'teal',
                         icon: <IconCheck size={16} />,
                     });
-                    fetchProveedores();
+                    fetchProveedores(true);
                 } catch (error: any) {
                     notifications.show({
                         title: 'Error',
@@ -196,23 +263,29 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     const rows = proveedores.map((proveedor) => (
         <Table.Tr key={proveedor.id}>
             <Table.Td>
-                <Text fw={500} size="sm">{proveedor.nombre}</Text>
-                <Text c="dimmed" size="xs">{proveedor.ruc}</Text>
+                <Stack gap={0}>
+                    <Text fw={600} size="sm">{proveedor.nombre}</Text>
+                    <Text c="dimmed" size="xs" ff="monospace">{proveedor.ruc}</Text>
+                </Stack>
             </Table.Td>
             <Table.Td>
-                <Text size="sm">{proveedor.actividad_economica || '-'}</Text>
+                <Text size="sm" lineClamp={1}>{proveedor.actividad_economica || '-'}</Text>
             </Table.Td>
             <Table.Td>
-                <Badge variant="light" color="blue">{proveedor.regimen || 'No especificado'}</Badge>
+                <Badge variant="dot" color="blue" size="sm">{proveedor.regimen || 'No especificado'}</Badge>
             </Table.Td>
             <Table.Td>
-                <Group gap={0} justify="flex-end">
-                    <ActionIcon variant="subtle" color="gray" onClick={() => openEditDrawer(proveedor)}>
-                        <IconPencil size={16} stroke={1.5} />
-                    </ActionIcon>
-                    <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(proveedor.id)}>
-                        <IconTrash size={16} stroke={1.5} />
-                    </ActionIcon>
+                <Group gap={4} justify="flex-end">
+                    <Tooltip label="Editar" radius="md">
+                        <ActionIcon variant="subtle" color="blue" onClick={() => openEditDrawer(proveedor)} radius="md">
+                            <IconPencil size={18} stroke={1.5} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Eliminar" radius="md">
+                        <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(proveedor.id)} radius="md">
+                            <IconTrash size={18} stroke={1.5} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
             </Table.Td>
         </Table.Tr>
@@ -250,35 +323,95 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
     return (
         <>
-            <Paper p="md" radius="lg" className="bg-white/80 backdrop-blur-md border border-white/40 shadow-sm h-full flex flex-col" style={{ minHeight: '400px' }}>
+            <Paper
+                withBorder
+                shadow="sm"
+                p="md"
+                radius="md"
+                bg="white"
+                className="h-full flex flex-col"
+                style={{ minHeight: '500px' }}
+            >
+                <Stack gap="md" className="flex-1">
+                    <Group justify="space-between">
+                        <Group flex={1}>
+                            <TextInput
+                                placeholder="Buscar por nombre o RUC..."
+                                leftSection={<IconSearch size={16} />}
+                                style={{ flex: 1, maxWidth: '400px' }}
+                                value={search}
+                                onChange={(e) => setSearch(e.currentTarget.value)}
+                                radius="md"
+                            />
+                            <Select
+                                placeholder="Filtrar por Régimen"
+                                data={regimenes}
+                                clearable
+                                value={regimenFilter}
+                                onChange={setRegimenFilter}
+                                radius="md"
+                                style={{ width: '220px' }}
+                            />
+                        </Group>
+                        <Stack gap={0} align="flex-end">
+                            <Text size="xs" fw={700} c="blue">
+                                {proveedores.length} / {totalCount}
+                            </Text>
+                            <Text size="xs" c="dimmed" fw={500}>
+                                proveedores cargados
+                            </Text>
+                        </Stack>
+                    </Group>
 
-                <ScrollArea className="flex-1 -mx-4 px-4">
-                    <Table verticalSpacing="sm" highlightOnHover>
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Proveedor</Table.Th>
-                                <Table.Th>Actividad</Table.Th>
-                                <Table.Th>Régimen</Table.Th>
-                                <Table.Th />
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {fetching ? (
+                    <ScrollArea className="flex-1">
+                        <Table verticalSpacing="sm" highlightOnHover>
+                            <Table.Thead bg="white" style={{ zIndex: 5, position: 'sticky', top: 0 }}>
                                 <Table.Tr>
-                                    <Table.Td colSpan={4}>
-                                        <Text c="dimmed" ta="center" py="xl">Cargando proveedores...</Text>
-                                    </Table.Td>
+                                    <Table.Th style={{ width: '40%' }}>Proveedor</Table.Th>
+                                    <Table.Th style={{ width: '30%' }}>Actividad</Table.Th>
+                                    <Table.Th style={{ width: '20%' }}>Régimen</Table.Th>
+                                    <Table.Th style={{ width: '10%' }} />
                                 </Table.Tr>
-                            ) : rows.length > 0 ? rows : (
-                                <Table.Tr>
-                                    <Table.Td colSpan={4}>
-                                        <Text c="dimmed" ta="center" py="xl">No hay proveedores registrados aún.</Text>
-                                    </Table.Td>
-                                </Table.Tr>
-                            )}
-                        </Table.Tbody>
-                    </Table>
-                </ScrollArea>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {fetching && page === 0 ? (
+                                    <Table.Tr>
+                                        <Table.Td colSpan={4}>
+                                            <Stack align="center" py="xl" gap="xs">
+                                                <Loader size="sm" />
+                                                <Text c="dimmed" size="sm">Cargando proveedores...</Text>
+                                            </Stack>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ) : rows.length > 0 ? (
+                                    <>
+                                        {rows}
+                                        {hasMore && (
+                                            <Table.Tr ref={loaderRef}>
+                                                <Table.Td colSpan={4}>
+                                                    <Center py="md">
+                                                        <Loader size="xs" />
+                                                        <Text size="xs" c="dimmed" ml="sm">Cargando más...</Text>
+                                                    </Center>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        )}
+                                    </>
+                                ) : (
+                                    <Table.Tr>
+                                        <Table.Td colSpan={4}>
+                                            <Stack align="center" py="xl" gap="xs">
+                                                <Text c="dimmed" ta="center">
+                                                    {search || regimenFilter ? 'No se encontraron resultados para los filtros aplicados.' : 'No hay proveedores registrados aún.'}
+                                                </Text>
+                                            </Stack>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                )}
+                            </Table.Tbody>
+                        </Table>
+                    </ScrollArea>
+                </Stack>
             </Paper>
 
             {/* Modal para Crear */}

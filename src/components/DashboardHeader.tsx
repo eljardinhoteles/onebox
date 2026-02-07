@@ -1,17 +1,18 @@
-import { Group, Title, Paper, ActionIcon, Avatar, Stack, Text, rem, Tooltip, Flex } from '@mantine/core';
+import { Group, Title, Paper, ActionIcon, Avatar, rem, Tooltip, Flex } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { NotificationCenter } from './NotificationCenter';
+import { motion } from 'framer-motion';
 
 interface HeaderProps {
     title: string;
-    subtitle?: string;
+    subtitle?: string; // Mantener por compatibilidad pero no renderizar
     actions?: React.ReactNode;
     onBack?: () => void;
 }
 
-export function DashboardHeader({ title, subtitle, actions, onBack }: HeaderProps) {
+export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
     const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
@@ -23,49 +24,70 @@ export function DashboardHeader({ title, subtitle, actions, onBack }: HeaderProp
     }, []);
 
     return (
-        <Paper
-            withBorder
-            shadow="sm"
-            p="sm"
-            radius="md"
-            bg="white"
-            className="no-print"
+        <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                width: '100%',
+            }}
         >
-            <Flex
-                direction={{ base: 'column', sm: 'row' }}
-                justify="space-between"
-                align={{ base: 'stretch', sm: 'center' }}
-                gap="sm"
+            <Paper
+                shadow="sm"
+                px="xl"
+                py="md"
+                radius={0}
+                style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+                }}
+                className="no-print"
             >
-                <Group gap="sm" justify="space-between" style={{ width: '100%' }}>
-                    <Group gap="sm">
+                <Flex
+                    direction="row"
+                    justify="space-between"
+                    align="center"
+                    gap="md"
+                >
+                    <Group gap="md">
                         {onBack && (
-                            <ActionIcon variant="subtle" color="gray" onClick={onBack} size="lg" radius="xl">
-                                <IconArrowLeft style={{ width: rem(22), height: rem(22) }} stroke={1.5} />
+                            <ActionIcon variant="subtle" color="gray" onClick={onBack} size="lg" radius="md">
+                                <IconArrowLeft style={{ width: rem(20), height: rem(20) }} stroke={2} />
                             </ActionIcon>
                         )}
-                        <Stack gap={0}>
-                            <Title
-                                order={2}
-                                fw={700}
-                                size="h4"
-                                c="dark"
-                            >
-                                {title}
-                            </Title>
-                            {subtitle && <Text size="xs" c="dimmed" fw={500} lineClamp={1}>{subtitle}</Text>}
-                        </Stack>
+                        <Title
+                            order={1}
+                            fw={900}
+                            size="h3"
+                            c="dark"
+                            style={{ letterSpacing: '-1px' }}
+                        >
+                            {title}
+                        </Title>
                     </Group>
-                </Group>
 
-                <Group gap="sm" justify="flex-end" style={{ width: '100%' }}>
-                    {actions}
-                    <NotificationCenter />
-                    <Tooltip label={user?.email || 'Usuario'} withArrow>
-                        <Avatar radius="xl" src={null} color="blue" alt={user?.email} size="md" />
-                    </Tooltip>
-                </Group>
-            </Flex>
-        </Paper>
+                    <Group gap="sm">
+                        {actions}
+                        <NotificationCenter />
+                        <Tooltip label={user?.email || 'Usuario'} withArrow position="bottom">
+                            <Avatar
+                                radius="md"
+                                color="blue"
+                                size="md"
+                                variant="light"
+                                style={{ cursor: 'help' }}
+                            >
+                                {user?.email?.charAt(0).toUpperCase() || '?'}
+                            </Avatar>
+                        </Tooltip>
+                    </Group>
+                </Flex>
+            </Paper>
+        </motion.div>
     );
 }

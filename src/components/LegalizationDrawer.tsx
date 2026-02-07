@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Drawer, Stack, Text, Button, Checkbox, Table, TextInput, Group, Paper, Divider, ScrollArea, LoadingOverlay } from '@mantine/core';
+import { Drawer, Stack, Text, Button, Checkbox, Table, TextInput, Group, Paper, Divider, ScrollArea, LoadingOverlay, Select } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { supabase } from '../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
@@ -32,8 +32,8 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Form state for the new invoice
-    const [proveedorId, setProveedorId] = useState<string>('');
-    const [proveedores, setProveedores] = useState<any[]>([]);
+    const [proveedorId, setProveedorId] = useState<string | null>('');
+    const [proveedores, setProveedores] = useState<{ value: string; label: string }[]>([]);
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [invoiceDate, setInvoiceDate] = useState<Date | null>(new Date());
 
@@ -73,8 +73,13 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
     };
 
     const fetchProveedores = async () => {
-        const { data } = await supabase.from('proveedores').select('id, nombre').order('nombre');
-        setProveedores(data || []);
+        const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre');
+        if (data) {
+            setProveedores(data.map(p => ({
+                value: p.id.toString(),
+                label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''}`
+            })));
+        }
     };
 
     const totalSelected = availableExpenses
@@ -245,26 +250,16 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
                 <Divider label="Datos de la Factura Justificativa" labelPosition="center" />
 
                 <Stack gap="sm">
-                    <Group grow>
-                        <Stack gap={4}>
-                            <Text size="xs" fw={700}>Proveedor Legalizador</Text>
-                            <select
-                                value={proveedorId}
-                                onChange={(e) => setProveedorId(e.target.value)}
-                                style={{
-                                    padding: '8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ced4da',
-                                    fontSize: '14px'
-                                }}
-                            >
-                                <option value="">Selecciona un proveedor...</option>
-                                {proveedores.map(p => (
-                                    <option key={p.id} value={p.id}>{p.nombre}</option>
-                                ))}
-                            </select>
-                        </Stack>
-                    </Group>
+                    <Select
+                        label="Proveedor Legalizador"
+                        placeholder="Selecciona un proveedor..."
+                        data={proveedores}
+                        value={proveedorId}
+                        onChange={setProveedorId}
+                        searchable
+                        required
+                        radius="md"
+                    />
 
                     <TextInput
                         label="Número de Factura"

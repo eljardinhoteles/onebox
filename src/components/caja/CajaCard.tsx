@@ -1,5 +1,5 @@
-import { Card, Group, ThemeIcon, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal } from '@mantine/core';
-import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconAlertTriangle, IconTrash } from '@tabler/icons-react';
+import { Card, Group, ThemeIcon, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper } from '@mantine/core';
+import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';
@@ -153,26 +153,35 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                     </Stack>
                 </Group>
 
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Monto Inicial</Text>
-                <Group justify="space-between" align="flex-end">
-                    <Text size="xl" fw={700} className="font-mono">
-                        ${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </Text>
-                    {isLowBalance && (
-                        <Tooltip label={`Saldo bajo: ${percentageRemaining.toFixed(1)}% restante`} withArrow position="top-end">
-                            <ThemeIcon color="orange" variant="light" size="md">
-                                <IconAlertTriangle size={18} />
-                            </ThemeIcon>
-                        </Tooltip>
-                    )}
-                </Group>
+                <Stack gap={4} mt="xs">
+                    <Group justify="space-between" align="flex-end">
+                        <Stack gap={0}>
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Efectivo Disponible</Text>
+                            <Text size="xl" fw={800} className="font-mono" c={isLowBalance ? 'orange.8' : 'blue.9'}>
+                                ${caja.saldo_actual.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </Text>
+                        </Stack>
+                        <Stack gap={0} align="flex-end">
+                            <Text size="xs" c="dimmed" fw={600}>${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })} inicial</Text>
+                            {isLowBalance && (
+                                <Badge color="orange" variant="dot" size="xs">Saldo Bajo</Badge>
+                            )}
+                        </Stack>
+                    </Group>
 
-                <Group justify="space-between" mt="xs">
-                    <Text size="xs" c="dimmed" fw={600}>EFECTIVO EN CAJA</Text>
-                    <Text size="sm" fw={700} c={isLowBalance ? 'orange.7' : 'blue.7'}>
-                        ${caja.saldo_actual.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </Text>
-                </Group>
+                    <Tooltip label={`${percentageRemaining.toFixed(1)}% de fondos disponibles`} withArrow radius="md">
+                        <Paper w="100%" h={6} radius="xl" bg="gray.1" style={{ overflow: 'hidden' }}>
+                            <div
+                                style={{
+                                    width: `${Math.min(100, percentageRemaining)}%`,
+                                    height: '100%',
+                                    backgroundColor: isLowBalance ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-blue-6)',
+                                    transition: 'width 0.5s ease'
+                                }}
+                            />
+                        </Paper>
+                    </Tooltip>
+                </Stack>
 
                 <Divider my="sm" />
 

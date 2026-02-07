@@ -2,6 +2,7 @@ import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge } from '@manti
 import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Transaction } from '../../hooks/useCajaCalculations';
 
 interface TransactionTableProps {
@@ -13,6 +14,8 @@ interface TransactionTableProps {
     onRetention: (id: number) => void;
 }
 
+const MotionTr = motion.create(Table.Tr);
+
 export function TransactionTable({
     transactions,
     loading,
@@ -22,8 +25,14 @@ export function TransactionTable({
     onRetention
 }: TransactionTableProps) {
 
-    const rows = transactions.map((t) => (
-        <Table.Tr key={t.id}>
+    const rows = transactions.map((t, index) => (
+        <MotionTr
+            key={t.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2, delay: index * 0.03 }}
+        >
             <Table.Td>
                 <Text size="sm">{dayjs(t.fecha_factura).format('DD/MM/YYYY')}</Text>
             </Table.Td>
@@ -116,13 +125,13 @@ export function TransactionTable({
                     )}
                 </Group>
             </Table.Td>
-        </Table.Tr>
+        </MotionTr>
     ));
 
     return (
         <ScrollArea h={400} type="auto">
             <Table stickyHeader verticalSpacing="sm">
-                <Table.Thead bg="white">
+                <Table.Thead bg="white" style={{ zIndex: 10 }}>
                     <Table.Tr>
                         <Table.Th>Fecha</Table.Th>
                         <Table.Th>Proveedor / Factura</Table.Th>
@@ -135,17 +144,19 @@ export function TransactionTable({
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                    {!loading && rows.length > 0 ? rows : (
-                        <Table.Tr>
-                            <Table.Td colSpan={8}>
-                                {loading ? (
-                                    <Text ta="center" py="xl" c="dimmed">Cargando transacciones...</Text>
-                                ) : (
-                                    <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
-                                )}
-                            </Table.Td>
-                        </Table.Tr>
-                    )}
+                    <AnimatePresence mode="popLayout">
+                        {!loading && rows.length > 0 ? rows : (
+                            <Table.Tr>
+                                <Table.Td colSpan={8}>
+                                    {loading ? (
+                                        <Text ta="center" py="xl" c="dimmed">Cargando transacciones...</Text>
+                                    ) : (
+                                        <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
+                                    )}
+                                </Table.Td>
+                            </Table.Tr>
+                        )}
+                    </AnimatePresence>
                 </Table.Tbody>
             </Table>
         </ScrollArea>

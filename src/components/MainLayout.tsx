@@ -17,13 +17,12 @@ export function MainLayout({ children, activeSection, onSectionChange, headerAct
     <Box className="h-screen w-full bg-[#f8fafc] overflow-hidden flex flex-col relative">
       <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
 
-      <Stack gap="xl" className="h-full relative z-10">
-        <Container size="xl" w="95%" pt="md">
-          <DashboardHeader title={title} subtitle={subtitle} actions={headerActions} onBack={onBack} />
-        </Container>
+      <Stack gap={0} className="h-full relative z-10">
+        <DashboardHeader title={title} subtitle={subtitle} actions={headerActions} onBack={onBack} />
 
         <Box
           className="flex-1 overflow-y-auto pb-32 px-1 custom-scrollbar"
+          pt="xl"
         >
           {/* The user's requested change replaces the Container with a div and adds classes */}
           <Container size="xl" w="95%" pb={100}>

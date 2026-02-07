@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Paper, Title, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip } from '@mantine/core';
+import { Paper, Title, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip, ActionIcon } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { AppDrawer } from '../components/ui/AppDrawer';
 import { TransactionForm } from '../components/TransactionForm';
@@ -39,6 +39,25 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const [legalizationOpened, { open: openLegalization, close: closeLegalization }] = useDisclosure(false);
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
+
+    const [retentionReadOnlyMessage, setRetentionReadOnlyMessage] = useState<string | null>(null);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleCreate = () => {
+        setRetentionReadOnlyMessage(null);
+        setEditingTransactionId(null);
+        open();
+    };
+
+    // Atajos contextuales
+    useHotkeys([
+        ['n', () => { if (caja?.estado === 'abierta') handleCreate(); }],
+        ['l', () => { if (caja?.estado === 'abierta') openLegalization(); }],
+        ['p', handlePrint],
+    ]);
 
     const totals = useCajaCalculations(caja, transactions);
     const percentageRemaining = caja ? (totals.efectivo / caja.monto_inicial) * 100 : 100;
@@ -111,9 +130,6 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         fetchBancos();
     }, [cajaId]);
 
-    const handlePrint = () => {
-        window.print();
-    };
 
     useEffect(() => {
         if (!setHeaderActions) return;
@@ -124,30 +140,31 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         if (caja?.estado === 'abierta') {
             setHeaderActions(
                 isMonthlyCloseBlocking ? (
-                    <Tooltip label="Cierre mensual obligatorio. No se permiten nuevos gastos." withArrow position="bottom">
-                        <div style={{ display: 'inline-block' }}>
-                            <Button
-                                size="xs"
-                                radius="xl"
-                                leftSection={<IconPlus size={14} />}
-                                onClick={handleCreate}
-                                disabled
-                                data-disabled
-                                style={{ pointerEvents: 'none' }}
-                            >
-                                Registrar Gasto
-                            </Button>
-                        </div>
+                    <Tooltip label="Cierre mensual bloqueado" withArrow position="bottom">
+                        <ActionIcon
+                            variant="filled"
+                            color="gray"
+                            size="lg"
+                            radius="md"
+                            disabled
+                            style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                        >
+                            <IconPlus size={18} />
+                        </ActionIcon>
                     </Tooltip>
                 ) : (
-                    <Button
-                        size="xs"
-                        radius="xl"
-                        leftSection={<IconPlus size={14} />}
-                        onClick={handleCreate}
-                    >
-                        Registrar Gasto
-                    </Button>
+                    <Tooltip label="Registrar Gasto [N]" withArrow position="bottom" radius="md">
+                        <ActionIcon
+                            variant="filled"
+                            color="blue"
+                            size="lg"
+                            radius="md"
+                            onClick={handleCreate}
+                            style={{ boxShadow: 'var(--mantine-shadow-sm)' }}
+                        >
+                            <IconPlus size={18} />
+                        </ActionIcon>
+                    </Tooltip>
                 )
             );
         } else {
@@ -155,7 +172,6 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         }
     }, [caja, setHeaderActions]);
 
-    const [retentionReadOnlyMessage, setRetentionReadOnlyMessage] = useState<string | null>(null);
 
     const handleEdit = (id: number) => {
         const trans = transactions.find(t => t.id === id);
@@ -168,11 +184,6 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         open();
     };
 
-    const handleCreate = () => {
-        setRetentionReadOnlyMessage(null);
-        setEditingTransactionId(null);
-        open();
-    };
 
     const handleDelete = (t: Transaction) => {
         modals.openConfirmModal({
@@ -425,17 +436,21 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                         <Group>
                             {caja?.estado === 'abierta' && (
                                 <>
-                                    <Button variant="outline" color="orange" leftSection={<IconReceipt2 size={16} />} onClick={openLegalization}>
-                                        Legalizar
-                                    </Button>
+                                    <Tooltip label="Legalizar Gastos [L]" withArrow radius="md">
+                                        <Button variant="outline" color="orange" leftSection={<IconReceipt2 size={16} />} onClick={openLegalization}>
+                                            Legalizar
+                                        </Button>
+                                    </Tooltip>
                                     <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>
                                         Cerrar
                                     </Button>
                                 </>
                             )}
-                            <Button variant="light" color="blue" leftSection={<IconPrinter size={16} />} onClick={handlePrint}>
-                                Imprimir
-                            </Button>
+                            <Tooltip label="Imprimir Reporte [P]" withArrow radius="md">
+                                <Button variant="light" color="blue" leftSection={<IconPrinter size={16} />} onClick={handlePrint}>
+                                    Imprimir
+                                </Button>
+                            </Tooltip>
                         </Group>
                     </Group>
 

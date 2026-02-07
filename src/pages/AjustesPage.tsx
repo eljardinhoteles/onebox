@@ -1,21 +1,47 @@
 import { useState, useEffect } from 'react';
-import { Paper, Stack, Button, Text, Group, Divider, Tabs, Table, ActionIcon, Modal, TextInput, Title, Container, Badge, LoadingOverlay, NumberInput } from '@mantine/core';
-import { IconLogout, IconPlus, IconEdit, IconTrash, IconBuildingStore, IconBuildingBank, IconDeviceFloppy, IconX, IconListDetails, IconSettings, IconUser, IconHistory } from '@tabler/icons-react';
+import { Paper, Stack, Button, Text, Group, Table, ActionIcon, TextInput, Title, Badge, LoadingOverlay, NumberInput, Avatar, Card, ScrollArea, Tooltip, rem, Code, SimpleGrid, UnstyledButton } from '@mantine/core';
+import { IconLogout, IconPlus, IconEdit, IconTrash, IconBuildingStore, IconBuildingBank, IconDeviceFloppy, IconListDetails, IconSettings, IconUser, IconHistory, IconChevronLeft } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { AppModal } from '../components/ui/AppModal';
+import { AppActionButtons } from '../components/ui/AppActionButtons';
 import dayjs from 'dayjs';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function AjustesPage() {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
-    const [activeTab, setActiveTab] = useState<string | null>('sucursales');
+    const [activeTab, setActiveTab] = useState<string | null>(null);
     const { configs, updateConfig, loading: configLoading } = useAppConfig();
     const [alertPercentage, setAlertPercentage] = useState<number>(15);
     const [user, setUser] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
+
+    // Data states
+    const [sucursales, setSucursales] = useState<any[]>([]);
+    const [bancos, setBancos] = useState<any[]>([]);
+    const [regimenes, setRegimenes] = useState<any[]>([]);
+
+    // Stats states
+    const [counts, setCounts] = useState({ sucursales: 0, bancos: 0, regimenes: 0 });
+    const [isOnline, setIsOnline] = useState(true);
+
+    // Modal & Form states
+    const [opened, { open, close }] = useDisclosure(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+
+    const form = useForm({
+        initialValues: {
+            nombre: '',
+            direccion: '',
+        },
+        validate: {
+            nombre: (value) => (value.length < 2 ? 'Escribe al menos 2 caracteres' : null),
+        }
+    });
 
     useEffect(() => {
         const getUser = async () => {
@@ -31,21 +57,23 @@ export function AjustesPage() {
         }
     }, [configs.porcentaje_alerta_caja]);
 
-    // Data states
-    const [sucursales, setSucursales] = useState<any[]>([]);
-    const [bancos, setBancos] = useState<any[]>([]);
-    const [regimenes, setRegimenes] = useState<any[]>([]);
-
-    // Modal & Form states
-    const [opened, { open, close }] = useDisclosure(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
-
-    const form = useForm({
-        initialValues: {
-            nombre: '',
-            direccion: '', // Solo para sucursales
+    const fetchStats = async () => {
+        try {
+            const [s, b, r] = await Promise.all([
+                supabase.from('sucursales').select('*', { count: 'exact', head: true }),
+                supabase.from('bancos').select('*', { count: 'exact', head: true }),
+                supabase.from('regimenes').select('*', { count: 'exact', head: true })
+            ]);
+            setCounts({
+                sucursales: s.count || 0,
+                bancos: b.count || 0,
+                regimenes: r.count || 0
+            });
+            setIsOnline(true);
+        } catch (e) {
+            setIsOnline(false);
         }
-    });
+    };
 
     const fetchData = async () => {
         setFetching(true);
@@ -75,7 +103,11 @@ export function AjustesPage() {
     };
 
     useEffect(() => {
-        fetchData();
+        if (activeTab === null) {
+            fetchStats();
+        } else {
+            fetchData();
+        }
     }, [activeTab]);
 
     const handleLogout = async () => {
@@ -101,7 +133,6 @@ export function AjustesPage() {
         setLoading(true);
         try {
             const table = activeTab as string;
-
             const payload: any = { nombre: values.nombre };
             if (activeTab === 'sucursales') {
                 payload.direccion = values.direccion;
@@ -117,22 +148,11 @@ export function AjustesPage() {
             }
 
             if (error) throw error;
-
-            notifications.show({
-                title: editingId ? 'Registro actualizado' : 'Registro creado',
-                message: 'Los cambios se han guardado correctamente.',
-                color: 'teal',
-                icon: <IconDeviceFloppy size={16} />
-            });
-
+            notifications.show({ title: editingId ? 'Registro actualizado' : 'Registro creado', message: 'Éxito.', color: 'teal' });
             close();
             fetchData();
         } catch (error: any) {
-            notifications.show({
-                title: 'Error',
-                message: error.message || 'No se pudo guardar el registro',
-                color: 'red'
-            });
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
         } finally {
             setLoading(false);
         }
@@ -140,252 +160,288 @@ export function AjustesPage() {
 
     const handleDelete = async (id: number) => {
         const table = activeTab as string;
-        if (!confirm('¿Estás seguro de eliminar este registro?')) return;
-
+        if (!confirm('¿Seguro?')) return;
         try {
             const { error } = await supabase.from(table).delete().eq('id', id);
             if (error) throw error;
-            notifications.show({ title: 'Eliminado', message: 'Registro eliminado con éxito.', color: 'orange' });
+            notifications.show({ title: 'Eliminado', message: 'El registro ha sido removido.', color: 'orange' });
             fetchData();
         } catch (error: any) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
     };
 
-    return (
-        <Container size="xl" py="xl">
-            <Stack gap="lg">
-                <Paper p="xl" radius="lg" className="bg-white/80 backdrop-blur-md border border-white/40 shadow-sm">
-                    <Group mb="md" justify="space-between">
-                        <Group gap="xs" c="dimmed">
-                            {user && (
-                                <>
-                                    <IconUser size={18} />
-                                    <Text size="sm" fw={500}>{user.email}</Text>
-                                </>
-                            )}
-                        </Group>
-                        <Button
-                            color="red"
-                            variant="subtle"
-                            leftSection={<IconLogout size={16} />}
-                            onClick={handleLogout}
-                        >
-                            Salir
-                        </Button>
-                    </Group>
-
-                    <Divider mb="xl" />
-
-                    <Title order={2} mb="lg">Ajustes del Sistema</Title>
-
-                    <Tabs value={activeTab} onChange={setActiveTab} variant="outline" radius="md">
-                        <Tabs.List mb="md">
-                            <Tabs.Tab value="sucursales" leftSection={<IconBuildingStore size={16} />}>Sucursales</Tabs.Tab>
-                            <Tabs.Tab value="bancos" leftSection={<IconBuildingBank size={16} />}>Bancos</Tabs.Tab>
-                            <Tabs.Tab value="regimenes" leftSection={<IconListDetails size={16} />}>Regímenes</Tabs.Tab>
-                            <Tabs.Tab value="config" leftSection={<IconSettings size={16} />}>Configuración</Tabs.Tab>
-                            <Tabs.Tab value="bitacora" leftSection={<IconHistory size={16} />}>Bitácora (Audit Log)</Tabs.Tab>
-                        </Tabs.List>
-
-                        {activeTab !== 'config' && activeTab !== 'bitacora' && (
-                            <Paper withBorder p="md" radius="md" pos="relative">
-                                <LoadingOverlay visible={fetching} overlayProps={{ blur: 1 }} />
-
-                                <Group justify="space-between" mb="lg">
-                                    <Text size="sm" c="dimmed">
-                                        Gestiona los {activeTab} registrados en el sistema.
-                                    </Text>
-                                    <Button leftSection={<IconPlus size={16} />} onClick={handleOpenCreate}>
-                                        Añadir {activeTab === 'sucursales' ? 'Sucursal' :
-                                            activeTab === 'bancos' ? 'Banco' : 'Régimen'}
-                                    </Button>
-                                </Group>
-
-                                <Table striped highlightOnHover verticalSpacing="sm">
-                                    <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>Nombre</Table.Th>
-                                            {activeTab === 'sucursales' && <Table.Th>Dirección</Table.Th>}
-                                            <Table.Th ta="right">Acciones</Table.Th>
-                                        </Table.Tr>
-                                    </Table.Thead>
-                                    <Table.Tbody>
-                                        {activeTab === 'sucursales' && sucursales.map((s) => (
-                                            <Table.Tr key={s.id}>
-                                                <Table.Td fw={600}>{s.nombre}</Table.Td>
-                                                <Table.Td>
-                                                    <Text size="xs" c="dimmed">{s.direccion || 'Sin dirección'}</Text>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Group gap={4} justify="flex-end">
-                                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(s)}><IconEdit size={16} /></ActionIcon>
-                                                        <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(s.id)}><IconTrash size={16} /></ActionIcon>
-                                                    </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        ))}
-                                        {activeTab === 'bancos' && bancos.map((b) => (
-                                            <Table.Tr key={b.id}>
-                                                <Table.Td fw={600}>{b.nombre}</Table.Td>
-                                                <Table.Td>
-                                                    <Group gap={4} justify="flex-end">
-                                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(b)}><IconEdit size={16} /></ActionIcon>
-                                                        <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(b.id)}><IconTrash size={16} /></ActionIcon>
-                                                    </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        ))}
-                                        {activeTab === 'regimenes' && regimenes.map((r) => (
-                                            <Table.Tr key={r.id}>
-                                                <Table.Td fw={600}>{r.nombre}</Table.Td>
-                                                <Table.Td>
-                                                    <Group gap={4} justify="flex-end">
-                                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(r)}><IconEdit size={16} /></ActionIcon>
-                                                        <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(r.id)}><IconTrash size={16} /></ActionIcon>
-                                                    </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        ))}
-                                        {!fetching && (
-                                            (activeTab === 'sucursales' && sucursales.length === 0) ||
-                                            (activeTab === 'bancos' && bancos.length === 0) ||
-                                            (activeTab === 'regimenes' && regimenes.length === 0)
-                                        ) && (
-                                                <Table.Tr>
-                                                    <Table.Td colSpan={5} ta="center" py="xl" c="dimmed">No hay registros encontrados.</Table.Td>
-                                                </Table.Tr>
-                                            )}
-                                    </Table.Tbody>
-                                </Table>
-                            </Paper>
+    const renderTable = (data: any[], type: string) => (
+        <Table verticalSpacing="sm" highlightOnHover>
+            <Table.Thead>
+                <Table.Tr>
+                    <Table.Th>Nombre</Table.Th>
+                    {type === 'sucursal' && <Table.Th>Dirección</Table.Th>}
+                    <Table.Th ta="right">Acciones</Table.Th>
+                </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+                {data.map((item) => (
+                    <Table.Tr key={item.id}>
+                        <Table.Td>
+                            <Group gap="sm">
+                                <Avatar size="sm" color="blue" radius="md" variant="light">
+                                    {item.nombre.charAt(0).toUpperCase()}
+                                </Avatar>
+                                <Text fw={600} size="sm">{item.nombre}</Text>
+                            </Group>
+                        </Table.Td>
+                        {type === 'sucursal' && (
+                            <Table.Td>
+                                <Text size="xs" c="dimmed" lineClamp={1}>{item.direccion || 'No especificada'}</Text>
+                            </Table.Td>
                         )}
+                        <Table.Td>
+                            <Group gap={4} justify="flex-end">
+                                <Tooltip label="Editar">
+                                    <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(item)} radius="md">
+                                        <IconEdit size={18} stroke={1.5} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Eliminar">
+                                    <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(item.id)} radius="md">
+                                        <IconTrash size={18} stroke={1.5} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        </Table.Td>
+                    </Table.Tr>
+                ))}
+                {!fetching && data.length === 0 && (
+                    <Table.Tr><Table.Td colSpan={5} ta="center" py="xl" c="dimmed">No hay registros.</Table.Td></Table.Tr>
+                )}
+            </Table.Tbody>
+        </Table>
+    );
 
-                        <Tabs.Panel value="config" pt="md">
-                            <Paper withBorder p="xl" radius="md">
-                                <Stack gap="lg">
-                                    <div>
-                                        <Text fw={700} size="lg">Alertas de Caja</Text>
-                                        <Text size="sm" c="dimmed">Configura los umbrales de alerta para el gasto en cajas.</Text>
-                                    </div>
+    return (
+        <>
+            <Paper withBorder radius="md" bg="white" p="md" shadow="sm" style={{ minHeight: '500px' }}>
+                <Stack gap="xl" style={{ position: 'relative' }}>
+                    {/* Internal Header */}
+                    <Paper
+                        shadow="none"
+                        p="md"
+                        mb="xl"
+                        style={{
+                            borderBottom: '1px solid var(--mantine-color-gray-2)',
+                        }}
+                    >
+                        <Group justify="space-between" align="center">
+                            <Group gap="md">
+                                <Avatar size={40} radius="xl" color="blue" variant="light">
+                                    {user?.email?.charAt(0).toUpperCase() || <IconUser size={20} />}
+                                </Avatar>
+                                <Stack gap={0}>
+                                    <Title order={3} fw={800} size="h5" style={{ letterSpacing: '-0.5px' }}>Usuario</Title>
+                                    <Text size="xs" c="dimmed" fw={500}>{user?.email}</Text>
+                                </Stack>
+                            </Group>
 
-                                    <Group align="flex-end">
-                                        <NumberInput
-                                            label="Porcentaje de Alerta (%)"
-                                            description="Porcentaje de saldo restante para activar la alerta (ej. 15)"
-                                            value={alertPercentage}
-                                            onChange={(val) => setAlertPercentage(Number(val))}
-                                            min={0}
-                                            max={100}
-                                            suffix="%"
-                                            style={{ width: 250 }}
-                                        />
-                                        <Button
-                                            onClick={async () => {
-                                                const { success } = await updateConfig('porcentaje_alerta_caja', alertPercentage.toString());
-                                                if (success) {
-                                                    notifications.show({
-                                                        title: 'Configuración guardada',
-                                                        message: 'El porcentaje de alerta se ha actualizado correctamente.',
-                                                        color: 'teal'
-                                                    });
-                                                } else {
-                                                    notifications.show({
-                                                        title: 'Error',
-                                                        message: 'No se pudo guardar la configuración.',
-                                                        color: 'red'
-                                                    });
-                                                }
-                                            }}
-                                            loading={configLoading}
-                                            leftSection={<IconDeviceFloppy size={16} />}
-                                        >
-                                            Guardar Ajuste
-                                        </Button>
-                                    </Group>
+                            <Group gap="xs">
+                                <Tooltip label="Cerrar Sesión" radius="md">
+                                    <ActionIcon color="red" variant="subtle" size="lg" onClick={handleLogout} radius="md">
+                                        <IconLogout size={20} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        </Group>
+                    </Paper>
 
-                                    <Paper withBorder p="md" radius="md" bg="blue.0" className="border-blue-100">
-                                        <Group gap="sm" wrap="nowrap">
-                                            <IconSettings size={20} className="text-blue-600" />
-                                            <Text size="xs" c="blue.9">
-                                                Este valor se utilizará para mostrar advertencias visuales cuando el saldo disponible de una caja sea inferior al porcentaje configurado.
-                                            </Text>
+                    <AnimatePresence mode="wait">
+                        {activeTab === null ? (
+                            <motion.div
+                                key="dashboard"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <Stack gap="xl">
+                                    {/* Health / Stats Bar - Minimalist Status Bar */}
+                                    <Paper withBorder radius="md" px="md" py="xs" bg="gray.0" shadow="none">
+                                        <Group justify="space-between">
+                                            <Group gap="xl">
+                                                <Group gap="xs">
+                                                    <Badge color={isOnline ? 'teal' : 'red'} variant="filled" size="xs" circle />
+                                                    <Text size="xs" fw={700} c="dimmed">DB: <Text span c={isOnline ? 'teal.8' : 'red.8'}>{isOnline ? 'CONECTADO' : 'ERROR'}</Text></Text>
+                                                </Group>
+
+                                                <Group gap="md">
+                                                    <Text size="xs" fw={600} c="dimmed">SUCURSALES: <Text span c="blue.8">{counts.sucursales}</Text></Text>
+                                                    <Text size="xs" fw={600} c="dimmed">BANCOS: <Text span c="violet.8">{counts.bancos}</Text></Text>
+                                                    <Text size="xs" fw={600} c="dimmed">REGÍMENES: <Text span c="teal.8">{counts.regimenes}</Text></Text>
+                                                </Group>
+                                            </Group>
+                                            <Badge variant="dot" color="gray" size="xs">V 1.0.4</Badge>
                                         </Group>
                                     </Paper>
+
+                                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                                        <MenuCard icon={<IconBuildingStore size={32} color="var(--mantine-color-blue-6)" />} title="Sucursales" description="Ubicaciones físicas." onClick={() => setActiveTab('sucursales')} />
+                                        <MenuCard icon={<IconBuildingBank size={32} color="var(--mantine-color-violet-6)" />} title="Bancos" description="Depósitos bancarios." onClick={() => setActiveTab('bancos')} />
+                                        <MenuCard icon={<IconListDetails size={32} color="var(--mantine-color-teal-6)" />} title="Regímenes" description="Gestión tributaria." onClick={() => setActiveTab('regimenes')} />
+                                        <MenuCard icon={<IconSettings size={32} color="var(--mantine-color-orange-6)" />} title="Configuración" description="Alertas y parámetros." onClick={() => setActiveTab('config')} />
+                                        <MenuCard icon={<IconHistory size={32} color="var(--mantine-color-gray-6)" />} title="Bitácora" description="Historial de auditoría." onClick={() => setActiveTab('bitacora')} />
+                                    </SimpleGrid>
                                 </Stack>
-                            </Paper>
-                        </Tabs.Panel>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="tab-content"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.2 }}
+                                style={{ position: 'relative' }}
+                            >
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    size="xs"
+                                    p={0}
+                                    mb="xl"
+                                    leftSection={<IconChevronLeft size={16} />}
+                                    onClick={() => setActiveTab(null)}
+                                >
+                                    Volver al Panel
+                                </Button>
 
-                        <Tabs.Panel value="bitacora" pt="md">
-                            <Paper withBorder p="md" radius="md">
-                                <Stack>
-                                    <Group justify="space-between">
-                                        <Title order={4}>Registro de Actividad</Title>
-                                        <Badge variant="light" color="gray">{logs.length} registros recientes</Badge>
-                                    </Group>
-                                    <Table striped highlightOnHover>
-                                        <Table.Thead>
-                                            <Table.Tr>
-                                                <Table.Th>Fecha</Table.Th>
-                                                <Table.Th>Usuario</Table.Th>
-                                                <Table.Th>Acción</Table.Th>
-                                                <Table.Th>Detalle</Table.Th>
-                                            </Table.Tr>
-                                        </Table.Thead>
-                                        <Table.Tbody>
-                                            {logs.map((log) => (
-                                                <Table.Tr key={log.id}>
-                                                    <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                                                        {dayjs(log.created_at).format('DD/MM/YYYY HH:mm')}
-                                                    </Table.Td>
-                                                    <Table.Td>{log.user_email || log.user?.email || 'Sistema'}</Table.Td>
-                                                    <Table.Td>
-                                                        <Badge
-                                                            color={log.accion.includes('ELIMINAR') ? 'red' : 'blue'}
-                                                            variant="light"
-                                                        >
-                                                            {log.accion}
-                                                        </Badge>
-                                                    </Table.Td>
-                                                    <Table.Td>
-                                                        <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>
-                                                            {JSON.stringify(log.detalle, null, 2)}
-                                                        </Text>
-                                                    </Table.Td>
-                                                </Table.Tr>
-                                            ))}
-                                            {logs.length === 0 && (
-                                                <Table.Tr>
-                                                    <Table.Td colSpan={4} style={{ textAlign: 'center', color: 'gray' }}>
-                                                        No hay registros recientes
-                                                    </Table.Td>
-                                                </Table.Tr>
-                                            )}
-                                        </Table.Tbody>
-                                    </Table>
-                                </Stack>
-                            </Paper>
-                        </Tabs.Panel>
-                    </Tabs>
-                </Paper>
+                                <LoadingOverlay visible={fetching} overlayProps={{ blur: 1, radius: 'md' }} />
 
-                <Modal closeOnClickOutside={false} opened={opened} onClose={close} title={editingId ? 'Editar Registro' : 'Nuevo Registro'} centered>
-                    <form onSubmit={form.onSubmit(handleSubmit)}>
-                        <Stack>
-                            <TextInput label="Nombre" placeholder="Nombre descriptivo" required {...form.getInputProps('nombre')} />
+                                {activeTab === 'sucursales' && (
+                                    <Stack gap="md">
+                                        <SettingsHeader title="Sucursales" subtitle="Gestiona ubicaciones." onAdd={handleOpenCreate} addLabel="Añadir" />
+                                        {renderTable(sucursales, 'sucursal')}
+                                    </Stack>
+                                )}
 
-                            {activeTab === 'sucursales' && (
-                                <TextInput label="Dirección" placeholder="Dirección de la sucursal" {...form.getInputProps('direccion')} />
-                            )}
+                                {activeTab === 'bancos' && (
+                                    <Stack gap="md">
+                                        <SettingsHeader title="Bancos" subtitle="Entidades financieras." onAdd={handleOpenCreate} addLabel="Añadir" />
+                                        {renderTable(bancos, 'banco')}
+                                    </Stack>
+                                )}
 
-                            <Group justify="flex-end" mt="md">
-                                <Button variant="light" color="gray" onClick={close} leftSection={<IconX size={16} />}>Cancelar</Button>
-                                <Button type="submit" loading={loading} leftSection={<IconDeviceFloppy size={16} />}>Guardar Cambios</Button>
-                            </Group>
-                        </Stack>
-                    </form>
-                </Modal>
-            </Stack>
-        </Container>
+                                {activeTab === 'regimenes' && (
+                                    <Stack gap="md">
+                                        <SettingsHeader title="Regímenes" subtitle="Configura tipos tributarios." onAdd={handleOpenCreate} addLabel="Añadir" />
+                                        {renderTable(regimenes, 'regimen')}
+                                    </Stack>
+                                )}
+
+                                {activeTab === 'config' && (
+                                    <Stack gap="xl">
+                                        <Title order={3} size="h4" fw={700}>Configuración</Title>
+                                        <Card withBorder radius="md" p="md" bg="blue.0" maw={500} shadow="xs">
+                                            <Stack gap="md">
+                                                <Text fw={700} size="sm">Alertas de Balance</Text>
+                                                <NumberInput label="Porcentaje de alerta" value={alertPercentage} onChange={(val) => setAlertPercentage(Number(val))} min={0} max={100} suffix="%" radius="md" />
+                                                <Button onClick={async () => {
+                                                    const { success } = await updateConfig('porcentaje_alerta_caja', alertPercentage.toString());
+                                                    if (success) notifications.show({ title: 'Guardado', message: 'Ajustes actualizados.', color: 'teal' });
+                                                }} loading={configLoading} leftSection={<IconDeviceFloppy size={14} />}>Guardar Cambios</Button>
+                                            </Stack>
+                                        </Card>
+                                    </Stack>
+                                )}
+
+                                {activeTab === 'bitacora' && (
+                                    <Stack gap="md">
+                                        <Group justify="space-between" mb="xs">
+                                            <Title order={3} size="h4" fw={700}>Bitácora</Title>
+                                            <Badge variant="light" color="gray">{logs.length} eventos</Badge>
+                                        </Group>
+                                        <ScrollArea h={rem(500)}>
+                                            <Table striped highlightOnHover style={{ fontSize: rem(13) }}>
+                                                <Table.Thead bg="gray.0"><Table.Tr><Table.Th>Fecha</Table.Th><Table.Th>Usuario</Table.Th><Table.Th>Acción</Table.Th><Table.Th>Detalles</Table.Th></Table.Tr></Table.Thead>
+                                                <Table.Tbody>
+                                                    {logs.map((log: any) => (
+                                                        <Table.Tr key={log.id}>
+                                                            <Table.Td style={{ whiteSpace: 'nowrap' }}>{dayjs(log.created_at).format('DD/MM HH:mm')}</Table.Td>
+                                                            <Table.Td>{log.user_email || 'Sistema'}</Table.Td>
+                                                            <Table.Td><Badge color={log.accion.includes('ELIMINAR') ? 'red' : 'teal'} variant="dot" size="xs">{log.accion.split(' ')[0]}</Badge></Table.Td>
+                                                            <Table.Td><Tooltip label={JSON.stringify(log.detalle)} multiline w={250} withArrow><Code color="gray.1" style={{ cursor: 'help' }}>Ver</Code></Tooltip></Table.Td>
+                                                        </Table.Tr>
+                                                    ))}
+                                                </Table.Tbody>
+                                            </Table>
+                                        </ScrollArea>
+                                    </Stack>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </Stack>
+            </Paper>
+
+            <AppModal opened={opened} onClose={close} title={editingId ? `Editar ${getSingularName(activeTab)}` : `Nuevo ${getSingularName(activeTab)}`} loading={loading}>
+                <form onSubmit={form.onSubmit(handleSubmit)}>
+                    <Stack gap="md">
+                        <TextInput label="Nombre" placeholder="Nombre" required radius="md" {...form.getInputProps('nombre')} />
+                        {activeTab === 'sucursales' && <TextInput label="Dirección" placeholder="Dirección" radius="md" {...form.getInputProps('direccion')} />}
+                        <AppActionButtons onCancel={close} loading={loading} submitLabel={editingId ? 'Actualizar' : 'Crear'} />
+                    </Stack>
+                </form>
+            </AppModal>
+        </>
     );
+}
+
+// Internal Helper Components
+function MenuCard({ icon, title, description, onClick }: { icon: React.ReactNode; title: string; description: string; onClick: () => void }) {
+    return (
+        <UnstyledButton onClick={onClick} className="w-full h-full">
+            <Card
+                withBorder
+                radius="lg"
+                p="lg"
+                className="transition-all hover:shadow-md hover:border-blue-400 group cursor-pointer h-full relative"
+            >
+                <Stack gap="md">
+                    <div className="transition-transform group-hover:-translate-y-1 will-change-transform">
+                        {icon}
+                    </div>
+                    <div>
+                        <Text fw={700} size="lg" className="group-hover:text-blue-600 transition-colors">{title}</Text>
+                        <Text size="xs" c="dimmed" lh={1.4}>{description}</Text>
+                    </div>
+                </Stack>
+            </Card>
+        </UnstyledButton>
+    );
+}
+
+function SettingsHeader({ title, onAdd, addLabel }: { title: string; subtitle?: string; onAdd: () => void; addLabel: string }) {
+    return (
+        <Group justify="space-between" mb="xl">
+            <Title order={3} size="h3" fw={800} style={{ letterSpacing: '-0.5px' }}>{title}</Title>
+            <Tooltip label={addLabel} withArrow position="left">
+                <ActionIcon
+                    variant="filled"
+                    color="blue"
+                    size="xl"
+                    onClick={onAdd}
+                    radius="md"
+                    style={{ boxShadow: 'var(--mantine-shadow-sm)' }}
+                >
+                    <IconPlus size={22} />
+                </ActionIcon>
+            </Tooltip>
+        </Group>
+    );
+}
+
+function getSingularName(tab: string | null) {
+    switch (tab) {
+        case 'sucursales': return 'Sucursal';
+        case 'bancos': return 'Banco';
+        case 'regimenes': return 'Régimen';
+        default: return 'Registro';
+    }
 }

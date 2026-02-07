@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Center, Loader, Button } from '@mantine/core'
+import { Center, Loader, ActionIcon, Tooltip } from '@mantine/core'
 import { supabase } from './lib/supabaseClient'
 import { AuthPage } from './components/AuthPage'
 
@@ -9,9 +9,9 @@ import { CajaDetalle } from './pages/CajaDetalle'
 import { ProveedoresPage } from './pages/ProveedoresPage'
 import { AjustesPage } from './pages/AjustesPage'
 
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle, IconPlus } from '@tabler/icons-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
@@ -21,6 +21,17 @@ export default function App() {
   const [detailHeaderActions, setDetailHeaderActions] = useState<React.ReactNode>(null);
   const [proveedoresModalOpened, { open: openProveedoresModal, close: closeProveedoresModal }] = useDisclosure(false);
   const [cajasModalOpened, { open: openCajasModal, close: closeCajasModal }] = useDisclosure(false);
+
+  // Hotkeys globales
+  useHotkeys([
+    ['alt + 1', () => setActiveSection('cajas')],
+    ['alt + 2', () => setActiveSection('proveedores')],
+    ['alt + 3', () => setActiveSection('ajustes')],
+    ['n', () => {
+      if (activeSection === 'cajas' && !selectedCajaId) openCajasModal();
+      if (activeSection === 'proveedores') openProveedoresModal();
+    }],
+  ]);
 
   // Limpiar caja seleccionada al cambiar de sección
   useEffect(() => {
@@ -98,9 +109,21 @@ export default function App() {
 
     switch (activeSection) {
       case 'cajas':
-        return <Button size="xs" radius="xl" color="blue" onClick={openCajasModal}>Nueva Caja</Button>;
+        return (
+          <Tooltip label="Nueva Caja [N]" withArrow position="bottom" radius="md">
+            <ActionIcon size="lg" radius="md" color="blue" variant="filled" onClick={openCajasModal} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
+              <IconPlus size={18} />
+            </ActionIcon>
+          </Tooltip>
+        );
       case 'proveedores':
-        return <Button size="xs" radius="xl" color="green" onClick={openProveedoresModal}>Nuevo Proveedor</Button>;
+        return (
+          <Tooltip label="Nuevo Proveedor [N]" withArrow position="bottom" radius="md">
+            <ActionIcon size="lg" radius="md" color="green" variant="filled" onClick={openProveedoresModal} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
+              <IconPlus size={18} />
+            </ActionIcon>
+          </Tooltip>
+        );
       default:
         return null;
     }
