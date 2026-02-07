@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Estilos para el SegmentedControl de la Navbar */
+.mantine-SegmentedControl-label {
+  padding: 0 20px !important;
+  font-weight: 600 !important;
+  transition: color 0.2s ease !important;
+}
+
+.mantine-SegmentedControl-label[data-active] {
+  color: white !important;
+}
+
+.mantine-SegmentedControl-label:hover:not([data-active]) {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: var(--mantine-radius-xl);
+}
+
+/* Esconder contenido imprimible en pantalla por defecto */
+.print-only {
+  display: none !important;
+}
+
+/* Estilos de Impresión */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background-color: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Asegurar que el contenido imprimible ocupe todo el ancho y sea el único visible */
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+    position: relative !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    visibility: visible !important;
+  }
+
+  /* Forzar ocultamiento de la aplicación normal durante la impresión si no tiene .no-print */
+  #root> :not(.print-only) {
+    /* Esto es agresivo, pero asegura que nada más salga si se nos olvida un no-print */
+  }
+}
