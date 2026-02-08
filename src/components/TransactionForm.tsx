@@ -356,6 +356,8 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                         placeholder="Seleccione fecha"
                         locale="es"
                         required
+                        maxDate={new Date()}
+                        allowDeselect={false}
                         readOnly={readOnly}
                         variant={readOnly ? "filled" : "default"}
                         styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}

@@ -276,6 +276,8 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
                         value={invoiceDate}
                         onChange={(val: any) => setInvoiceDate(val)}
                         required
+                        maxDate={new Date()}
+                        allowDeselect={false}
                     />
                 </Stack>
 
