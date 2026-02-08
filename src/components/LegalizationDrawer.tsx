@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { Drawer, Stack, Text, Button, Checkbox, Table, TextInput, Group, Paper, Divider, ScrollArea, LoadingOverlay, Select } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { supabase } from '../lib/supabaseClient';
@@ -104,7 +105,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
                 .insert({
                     caja_id: cajaId,
                     proveedor_id: parseInt(proveedorId),
-                    fecha_factura: invoiceDate.toISOString().split('T')[0],
+                    fecha_factura: dayjs(invoiceDate).format('YYYY-MM-DD'),
                     numero_factura: invoiceNumber,
                     total_factura: totalSelected,
                     tipo_documento: 'factura',

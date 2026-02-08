@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { Paper, Text, Stack, TextInput, Select, Group, NumberInput, SimpleGrid } from '@mantine/core';
 import { AppModal } from '../components/ui/AppModal';
 import { AppActionButtons } from '../components/ui/AppActionButtons';
@@ -120,7 +121,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
             const { data: newCaja, error } = await supabase.from('cajas').insert([{
                 ...values,
                 monto_inicial,
-                fecha_apertura: values.fecha_apertura ? new Date(values.fecha_apertura).toISOString() : new Date().toISOString(),
+                fecha_apertura: dayjs(values.fecha_apertura).toISOString(),
             }]).select().single();
 
             if (error) throw error;
@@ -273,6 +274,8 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                             placeholder="Seleccione fecha"
                             locale="es"
                             required
+                            maxDate={new Date()}
+                            allowDeselect={false}
                             {...form.getInputProps('fecha_apertura')}
                         />
 

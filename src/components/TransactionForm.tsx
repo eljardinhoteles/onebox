@@ -209,7 +209,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     .update({
                         tipo_documento: values.tipo_documento,
                         proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
-                        fecha_factura: values.fecha_factura.toISOString().split('T')[0],
+                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
                         numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
                         total_factura: totals.total
                     })
@@ -232,7 +232,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                         caja_id: cajaId,
                         tipo_documento: values.tipo_documento,
                         proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
-                        fecha_factura: values.fecha_factura.toISOString().split('T')[0],
+                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
                         numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
                         total_factura: totals.total
                     }])
