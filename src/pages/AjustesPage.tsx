@@ -166,6 +166,16 @@ export function AjustesPage() {
             }
 
             if (error) throw error;
+
+            // Log de bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: editingId ? `EDITAR_${table.toUpperCase().slice(0, -1)}` : `CREAR_${table.toUpperCase().slice(0, -1)}`,
+                detalle: { nombre: values.nombre, table },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             notifications.show({ title: editingId ? 'Registro actualizado' : 'Registro creado', message: 'Éxito.', color: 'teal' });
             close();
             fetchData();
@@ -182,6 +192,16 @@ export function AjustesPage() {
         try {
             const { error } = await supabase.from(table).delete().eq('id', id);
             if (error) throw error;
+
+            // Log de bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: `ELIMINAR_${table.toUpperCase().slice(0, -1)}`,
+                detalle: { id, table },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             notifications.show({ title: 'Eliminado', message: 'El registro ha sido removido.', color: 'orange' });
             fetchData();
         } catch (error: any) {

@@ -156,6 +156,15 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             const { error } = await supabase.from('proveedores').insert([values]);
             if (error) throw error;
 
+            // Log de bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: 'CREAR_PROVEEDOR',
+                detalle: { nombre: values.nombre, ruc: values.ruc, regimen: values.regimen },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             notifications.show({
                 title: 'Proveedor creado',
                 message: 'El proveedor se ha registrado correctamente.',
@@ -189,11 +198,13 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
             if (error) throw error;
 
-            notifications.show({
-                title: 'Proveedor actualizado',
-                message: 'Los datos se han guardado correctamente.',
-                color: 'teal',
-                icon: <IconCheck size={16} />,
+            // Log de bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: 'EDITAR_PROVEEDOR',
+                detalle: { id: editingProveedor.id, nombre: values.nombre, ruc: values.ruc },
+                user_id: user?.id,
+                user_email: user?.email
             });
 
             closeDrawer();
@@ -240,6 +251,15 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                         .eq('id', id);
 
                     if (error) throw error;
+
+                    // Log de bitácora
+                    const { data: { user } } = await supabase.auth.getUser();
+                    await supabase.from('bitacora').insert({
+                        accion: 'ELIMINAR_PROVEEDOR',
+                        detalle: { id },
+                        user_id: user?.id,
+                        user_email: user?.email
+                    });
 
                     notifications.show({
                         title: 'Eliminado',

@@ -150,6 +150,21 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
 
             if (updateError) throw updateError;
 
+            // 4. Registrar en Bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: 'LEGALIZACION_GASTOS',
+                detalle: {
+                    main_transaccion_id: mainTrans.id,
+                    caja_id: cajaId,
+                    total: totalSelected,
+                    numero_factura: invoiceNumber,
+                    gastos_agrupados: selectedIds
+                },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             notifications.show({
                 title: 'Legalización Exitosa',
                 message: 'Los gastos han sido agrupados y justificados correctamente.',

@@ -259,6 +259,21 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
             if (itemsError) throw itemsError;
 
+            // 3. Registrar en Bitácora
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: transactionId ? 'EDITAR_GASTO' : 'CREAR_GASTO',
+                detalle: {
+                    transaccion_id: currentTransId,
+                    caja_id: cajaId,
+                    total: totals.total,
+                    numero_factura: values.numero_factura || 'S/N',
+                    proveedor_id: values.proveedor_id
+                },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             notifications.show({
                 title: 'Éxito',
                 message: transactionId ? 'Transacción actualizada' : 'Transacción registrada',
