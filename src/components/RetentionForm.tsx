@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Stack, TextInput, Select, NumberInput, Group, Paper, Text, Divider, Table, Button } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { IconCheck, IconX, IconReceipt, IconTrash } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';
+import { useQuery, useMutation } from '@tanstack/react-query';
 
 interface RetentionFormProps {
     transactionId: number;
@@ -24,9 +25,6 @@ interface TransactionItem {
 }
 
 export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = false }: RetentionFormProps) {
-    const [loading, setLoading] = useState(false);
-    const [transItems, setTransItems] = useState<TransactionItem[]>([]);
-    const [retentionId, setRetentionId] = useState<number | null>(null);
 
     const form = useForm({
         initialValues: {
@@ -42,65 +40,125 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         }
     });
 
+    // --- QUERIES ---
+
+    const { data: retentionData, isLoading: fetching } = useQuery({
+        queryKey: ['retention_detail', transactionId],
+        queryFn: async () => {
+            const { data: trans } = await supabase
+                .from('transacciones')
+                .select('*, items:transaccion_items(*)')
+                .eq('id', transactionId)
+                .single();
+
+            const { data: ret } = await supabase
+                .from('retenciones')
+                .select('*, items:retencion_items(*)')
+                .eq('transaccion_id', transactionId)
+                .single();
+
+            return { trans, ret };
+        }
+    });
+
+    const transItems = retentionData?.trans?.items || [];
+    const retentionId = retentionData?.ret?.id || null;
+
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                // Fetch transaction details
-                const { data: trans, error: transError } = await supabase
-                    .from('transacciones')
-                    .select('*, items:transaccion_items(*)')
-                    .eq('id', transactionId)
-                    .single();
-
-                if (transError) throw transError;
-                setTransItems(trans.items);
-
-                // Check if retention already exists
-                const { data: ret } = await supabase
-                    .from('retenciones')
-                    .select('*, items:retencion_items(*)')
-                    .eq('transaccion_id', transactionId)
-                    .single();
-
-                if (ret) {
-                    setRetentionId(ret.id);
-                    form.setValues({
-                        fecha_retencion: dayjs(ret.fecha_retencion).toDate(),
-                        numero_retencion: ret.numero_retencion,
-                        items: ret.items.map((item: any) => ({
-                            id: item.id,
-                            transaccion_item_id: item.transaccion_item_id,
-                            tipo: item.tipo,
-                            porcentaje_fuente: item.porcentaje_fuente,
-                            porcentaje_iva: item.porcentaje_iva,
-                        }))
-                    });
-                } else {
-                    // Pre-fill with items from transaction
-                    form.setValues({
-                        fecha_retencion: dayjs(trans.fecha_factura).toDate(),
-                        items: trans.items.map((item: any) => ({
-                            transaccion_item_id: item.id,
-                            tipo: 'bien',
-                            porcentaje_fuente: 0,
-                            porcentaje_iva: 0,
-                        }))
-                    });
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
+        if (retentionData) {
+            const { trans, ret } = retentionData;
+            if (ret) {
+                form.setValues({
+                    fecha_retencion: dayjs(ret.fecha_retencion).toDate(),
+                    numero_retencion: ret.numero_retencion,
+                    items: ret.items.map((item: any) => ({
+                        id: item.id,
+                        transaccion_item_id: item.transaccion_item_id,
+                        tipo: item.tipo,
+                        porcentaje_fuente: item.porcentaje_fuente,
+                        porcentaje_iva: item.porcentaje_iva,
+                    }))
+                });
+            } else if (trans) {
+                form.setValues({
+                    fecha_retencion: dayjs(trans.fecha_factura).toDate(),
+                    items: trans.items.map((item: any) => ({
+                        transaccion_item_id: item.id,
+                        tipo: 'bien',
+                        porcentaje_fuente: 0,
+                        porcentaje_iva: 0,
+                    }))
+                });
             }
-        };
+        }
+    }, [retentionData]);
 
-        fetchData();
-    }, [transactionId]);
+
+
+    // --- MUTATIONS ---
+
+    const saveMutation = useMutation({
+        mutationFn: async (values: any) => {
+            const { data: retData, error: retError } = await supabase
+                .from('retenciones')
+                .upsert({
+                    transaccion_id: transactionId,
+                    fecha_retencion: values.fecha_retencion.toISOString().split('T')[0],
+                    numero_retencion: values.numero_retencion,
+                    total_fuente: totals.fuente,
+                    total_iva: totals.iva,
+                    total_retenido: totals.total,
+                    user_id: (await supabase.auth.getUser()).data.user?.id
+                }, { onConflict: 'transaccion_id' })
+                .select()
+                .single();
+
+            if (retError) throw retError;
+
+            await supabase.from('retencion_items').delete().eq('retencion_id', retData.id);
+
+            const itemsToInsert = values.items.map((item: any, index: number) => {
+                const { fuente, iva } = calculateItemTotals(index);
+                const transItem = transItems.find((ti: TransactionItem) => ti.id === item.transaccion_item_id)!;
+                return {
+                    retencion_id: retData.id,
+                    transaccion_item_id: item.transaccion_item_id,
+                    tipo: item.tipo,
+                    base_imponible: transItem.monto,
+                    porcentaje_fuente: item.porcentaje_fuente,
+                    monto_fuente: fuente,
+                    porcentaje_iva: item.porcentaje_iva,
+                    monto_iva: iva
+                };
+            });
+
+            const { error: itemsError } = await supabase.from('retencion_items').insert(itemsToInsert);
+            if (itemsError) throw itemsError;
+
+            return retData;
+        },
+        onSuccess: () => {
+            notifications.show({ title: 'Éxito', message: 'Retención guardada', color: 'teal', icon: <IconCheck size={16} /> });
+            onSuccess();
+        },
+        onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red', icon: <IconX size={16} /> })
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async () => {
+            const { error } = await supabase.from('retenciones').delete().eq('id', retentionId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            notifications.show({ title: 'Eliminado', message: 'Retención eliminada', color: 'teal', icon: <IconCheck size={16} /> });
+            onSuccess();
+        },
+        onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
+    });
 
     const calculateItemTotals = (index: number) => {
         const item = form.values.items[index];
-        const transItem = transItems.find(ti => ti.id === item.transaccion_item_id);
+        const transItem = transItems.find((ti: TransactionItem) => ti.id === item.transaccion_item_id);
         if (!transItem) return { fuente: 0, iva: 0 };
 
         const montoFuente = Number(((transItem.monto * (item.porcentaje_fuente || 0)) / 100).toFixed(4));
@@ -118,112 +176,17 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         };
     }, { fuente: 0, iva: 0, total: 0 });
 
-    const handleSubmit = async (values: typeof form.values) => {
-        setLoading(true);
-        try {
-            // 1. Create/Update Retention Header
-            const { data: retData, error: retError } = await supabase
-                .from('retenciones')
-                .upsert({
-                    transaccion_id: transactionId,
-                    fecha_retencion: values.fecha_retencion.toISOString().split('T')[0],
-                    numero_retencion: values.numero_retencion,
-                    total_fuente: totals.fuente,
-                    total_iva: totals.iva,
-                    total_retenido: totals.total,
-                    user_id: (await supabase.auth.getUser()).data.user?.id
-                }, { onConflict: 'transaccion_id' })
-                .select()
-                .single();
+    const handleSubmit = (values: typeof form.values) => saveMutation.mutate(values);
 
-            if (retError) throw retError;
-
-            // 2. Clear and Insert Items
-            await supabase.from('retencion_items').delete().eq('retencion_id', retData.id);
-
-            const itemsToInsert = values.items.map((item, index) => {
-                const { fuente, iva } = calculateItemTotals(index);
-                const transItem = transItems.find(ti => ti.id === item.transaccion_item_id)!;
-                return {
-                    retencion_id: retData.id,
-                    transaccion_item_id: item.transaccion_item_id,
-                    tipo: item.tipo,
-                    base_imponible: transItem.monto,
-                    porcentaje_fuente: item.porcentaje_fuente,
-                    monto_fuente: fuente,
-                    porcentaje_iva: item.porcentaje_iva,
-                    monto_iva: iva
-                };
-            });
-
-            const { error: itemsError } = await supabase
-                .from('retencion_items')
-                .insert(itemsToInsert);
-
-            if (itemsError) throw itemsError;
-
-            notifications.show({
-                title: 'Éxito',
-                message: 'Retención guardada correctamente',
-                color: 'teal',
-                icon: <IconCheck size={16} />,
-            });
-
-            onSuccess();
-        } catch (error: any) {
-            notifications.show({
-                title: 'Error',
-                message: error.message || 'No se pudo guardar la retención',
-                color: 'red',
-                icon: <IconX size={16} />,
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
+    const openDeleteModal = () => {
         if (!retentionId) return;
-
         modals.openConfirmModal({
             title: '¿Eliminar retención?',
             centered: true,
-            children: (
-                <Text size="sm">
-                    ¿Estás seguro de que deseas eliminar esta retención? Esta acción no se puede deshacer.
-                </Text>
-            ),
+            children: <Text size="sm">¿Estás seguro de que deseas eliminar esta retención?</Text>,
             labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
             confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                setLoading(true);
-                try {
-                    const { error } = await supabase
-                        .from('retenciones')
-                        .delete()
-                        .eq('id', retentionId);
-
-                    if (error) throw error;
-
-                    notifications.show({
-                        title: 'Éxito',
-                        message: 'Retención eliminada correctamente',
-                        color: 'teal',
-                        icon: <IconCheck size={16} />,
-                    });
-
-                    onSuccess();
-                } catch (error: any) {
-                    notifications.show({
-                        title: 'Error',
-                        message: error.message || 'No se pudo eliminar la retención',
-                        color: 'red',
-                        icon: <IconX size={16} />,
-                    });
-                } finally {
-                    setLoading(false);
-                }
-            },
+            onConfirm: () => deleteMutation.mutate(),
         });
     };
 
@@ -246,6 +209,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                         required
                         readOnly={readOnly}
                         variant={readOnly ? "filled" : "default"}
+                        maxDate={new Date()}
                         {...form.getInputProps('fecha_retencion')}
                     />
                     <TextInput
@@ -349,17 +313,17 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                                 variant="light"
                                 color="red"
                                 leftSection={<IconTrash size={16} />}
-                                onClick={handleDelete}
-                                loading={loading}
+                                onClick={openDeleteModal}
+                                loading={deleteMutation.isPending}
                             >
                                 Eliminar Retención
                             </Button>
                         )}
                         <Group ml="auto">
-                            <Button variant="default" onClick={onCancel} disabled={loading}>
+                            <Button variant="default" onClick={onCancel} disabled={saveMutation.isPending}>
                                 Cancelar
                             </Button>
-                            <Button type="submit" color="orange" loading={loading}>
+                            <Button type="submit" color="orange" loading={saveMutation.isPending}>
                                 Guardar Retención
                             </Button>
                         </Group>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Paper, Title, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip, ActionIcon } from '@mantine/core';
+import { Paper, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip, ActionIcon } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -10,8 +10,9 @@ import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
     IconPlus, IconReceipt2, IconCheck,
-    IconFileInvoice, IconLock, IconFileDescription, IconPrinter, IconAlertTriangle, IconEye
+    IconFileInvoice, IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter
 } from '@tabler/icons-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
 import { DatePickerInput } from '@mantine/dates';
 import 'dayjs/locale/es';
@@ -28,10 +29,7 @@ interface CajaDetalleProps {
 }
 
 export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
-    const [caja, setCaja] = useState<any>(null);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [bancos, setBancos] = useState<{ value: string; label: string }[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
     const [retentionTransactionId, setRetentionTransactionId] = useState<number | null>(null);
     const [formOpened, { open, close }] = useDisclosure(false);
@@ -41,6 +39,8 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
 
     const [retentionReadOnlyMessage, setRetentionReadOnlyMessage] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterTipo, setFilterTipo] = useState<string | null>(null);
 
     const handlePrint = () => {
         window.print();
@@ -59,76 +59,92 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         ['p', handlePrint],
     ]);
 
-    const totals = useCajaCalculations(caja, transactions);
-    const percentageRemaining = caja ? (totals.efectivo / caja.monto_inicial) * 100 : 100;
-    const isLowBalance = percentageRemaining <= alertThreshold && caja?.estado === 'abierta';
+    // --- QUERIES ---
 
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const [cajaResponse, transResponse] = await Promise.all([
-                supabase
-                    .from('cajas')
-                    .select('*')
-                    .eq('id', cajaId)
-                    .single(),
-                supabase
-                    .from('transacciones')
-                    .select(`
-                        id,
-                        tipo_documento,
-                        fecha_factura,
-                        numero_factura,
-                        total_factura,
-                        parent_id,
-                        es_justificacion,
-                        proveedor:proveedores (nombre, ruc),
-                        retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
-                        items:transaccion_items (nombre)
-                    `)
-                    .eq('caja_id', cajaId)
-                    .order('created_at', { ascending: false })
-            ]);
+    const { data: caja, isLoading: loadingCaja } = useQuery({
+        queryKey: ['caja', cajaId],
+        queryFn: async () => {
+            const { data, error } = await supabase.from('cajas').select('*').eq('id', cajaId).single();
+            if (error) throw error;
+            return data;
+        },
+    });
 
-            if (cajaResponse.error) throw cajaResponse.error;
-            if (transResponse.error) throw transResponse.error;
+    const { data: transactions = [], isLoading: loadingTrans } = useQuery({
+        queryKey: ['transactions', cajaId],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('transacciones')
+                .select(`
+                    id, tipo_documento, fecha_factura, numero_factura, total_factura,
+                    parent_id, es_justificacion,
+                    proveedor:proveedores (nombre, ruc),
+                    retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
+                    items:transaccion_items (nombre)
+                `)
+                .eq('caja_id', cajaId)
+                .order('created_at', { ascending: false });
 
-            setCaja(cajaResponse.data);
-
-            const mappedTrans = (transResponse.data || []).map((t: any) => ({
+            if (error) throw error;
+            return (data || []).map((t: any) => ({
                 ...t,
                 proveedor: Array.isArray(t.proveedor) ? t.proveedor[0] : t.proveedor,
                 retencion: Array.isArray(t.retencion) ? t.retencion[0] : t.retencion
             }));
+        },
+    });
 
-            setTransactions(mappedTrans);
-        } catch (error) {
-            console.error('Error fetching details:', error);
-            notifications.show({
-                title: 'Error de carga',
-                message: 'No se pudieron cargar los datos de la caja',
-                color: 'red'
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchBancos = async () => {
-        try {
+    const { data: bancos = [] } = useQuery({
+        queryKey: ['bancos'],
+        queryFn: async () => {
             const { data } = await supabase.from('bancos').select('nombre').order('nombre');
-            if (data) {
-                setBancos(data.map(b => ({ value: b.nombre, label: b.nombre })));
-            }
-        } catch (error) {
-            console.error('Error fetching banks:', error);
-        }
-    };
+            return (data || []).map(b => ({ value: b.nombre, label: b.nombre }));
+        },
+    });
 
-    useEffect(() => {
-        fetchData();
-        fetchBancos();
-    }, [cajaId]);
+    const loading = loadingCaja || loadingTrans;
+
+    // --- CÁLCULOS DERIVADOS ---
+
+    const totals = useCajaCalculations(caja, transactions);
+    const percentageRemaining = caja ? (totals.efectivo / caja.monto_inicial) * 100 : 100;
+    const isLowBalance = percentageRemaining <= alertThreshold && caja?.estado === 'abierta';
+
+    // --- MUTATIONS ---
+
+    const deleteTransactionMutation = useMutation({
+        mutationFn: async (id: number) => {
+            const { error } = await supabase.from('transacciones').delete().eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+            notifications.show({ title: 'Eliminado', message: 'Registro eliminado', color: 'teal' });
+        },
+        onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
+    });
+
+    const closeCajaMutation = useMutation({
+        mutationFn: async (payload: any) => {
+            const { error } = await supabase.from('cajas').update(payload).eq('id', cajaId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+            notifications.show({ title: 'Éxito', message: 'Caja cerrada exitosamente', color: 'teal' });
+        }
+    });
+
+    const filteredTransactions = transactions.filter(t => {
+        const matchesSearch = !searchQuery ||
+            t.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.proveedor?.ruc?.includes(searchQuery) ||
+            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
+
+        return matchesSearch && matchesTipo;
+    });
 
 
     useEffect(() => {
@@ -208,25 +224,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
             ),
             labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
             confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase.from('transacciones').delete().eq('id', t.id);
-                    if (error) throw error;
-                    notifications.show({
-                        title: 'Eliminado',
-                        message: 'El registro de gasto ha sido eliminado.',
-                        color: 'teal',
-                        icon: <IconCheck size={16} />,
-                    });
-                    fetchData();
-                } catch (error: any) {
-                    notifications.show({
-                        title: 'Error',
-                        message: error.message || 'No se pudo eliminar el registro',
-                        color: 'red',
-                    });
-                }
-            },
+            onConfirm: () => deleteTransactionMutation.mutate(t.id),
         });
     };
 
@@ -335,20 +333,15 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 }
 
                 try {
-                    const { error } = await supabase
-                        .from('cajas')
-                        .update({
-                            estado: 'cerrada',
-                            fecha_cierre: closingDate ? closingDate.toISOString() : new Date().toISOString(),
-                            reposicion: totals.neto,
-                            numero_cheque_reposicion: chequeNumber,
-                            banco_reposicion: bancoReposicion
-                        })
-                        .eq('id', cajaId);
+                    const payload = {
+                        estado: 'cerrada',
+                        fecha_cierre: closingDate ? closingDate.toISOString() : new Date().toISOString(),
+                        reposicion: totals.neto,
+                        numero_cheque_reposicion: chequeNumber,
+                        banco_reposicion: bancoReposicion
+                    };
 
-                    if (error) throw error;
-                    notifications.show({ title: 'Caja Cerrada', message: 'Caja cerrada exitosamente.', color: 'teal' });
-                    fetchData();
+                    await closeCajaMutation.mutateAsync(payload);
 
                     modals.open({
                         title: <Text fw={700}>¡Cierre Exitoso!</Text>,
@@ -432,7 +425,32 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                             </Text>
                         </Alert>
                     )}
-                    <Group justify="flex-end">
+                    <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
+                        <Group gap="sm" style={{ flex: 1, minWidth: '300px' }}>
+                            <TextInput
+                                placeholder="Buscar por proveedor o RUC..."
+                                leftSection={<IconSearch size={16} />}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                                style={{ flex: 1 }}
+                                radius="md"
+                            />
+                            <Select
+                                placeholder="Filtrar por documento"
+                                leftSection={<IconFilter size={16} />}
+                                data={[
+                                    { value: 'factura', label: 'Factura' },
+                                    { value: 'nota_venta', label: 'Nota de Venta' },
+                                    { value: 'sin_factura', label: 'Sin Factura' },
+                                ]}
+                                value={filterTipo}
+                                onChange={setFilterTipo}
+                                clearable
+                                radius="md"
+                                style={{ width: '180px' }}
+                            />
+                        </Group>
+
                         <Group>
                             {caja?.estado === 'abierta' && (
                                 <>
@@ -457,15 +475,9 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     <CajaSummaryCards caja={caja} totals={totals} />
 
                     <Paper withBorder p="md" radius="lg" className="shadow-sm border-gray-100">
-                        <Group justify="space-between" mb="lg">
-                            <Group gap="xs">
-                                <IconFileDescription size={20} color="blue" />
-                                <Title order={4}>Historial de Transacciones</Title>
-                            </Group>
-                        </Group>
 
                         <TransactionTable
-                            transactions={transactions}
+                            transactions={filteredTransactions}
                             loading={loading}
                             cajaEstado={caja?.estado || 'abierta'}
                             onEdit={handleEdit}
@@ -487,7 +499,12 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     transactionId={editingTransactionId || undefined}
                     readOnly={caja?.estado !== 'abierta' || !!retentionReadOnlyMessage}
                     warningMessage={retentionReadOnlyMessage}
-                    onSuccess={() => { close(); setEditingTransactionId(null); fetchData(); }}
+                    onSuccess={() => {
+                        close();
+                        setEditingTransactionId(null);
+                        queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                        queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                    }}
                     onCancel={() => { close(); setEditingTransactionId(null); }}
                 />
             </AppDrawer>
@@ -501,7 +518,11 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 {retentionTransactionId && (
                     <RetentionForm
                         transactionId={retentionTransactionId}
-                        onSuccess={() => { closeRetention(); setRetentionTransactionId(null); fetchData(); }}
+                        onSuccess={() => {
+                            closeRetention();
+                            setRetentionTransactionId(null);
+                            queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                        }}
                         onCancel={() => { closeRetention(); setRetentionTransactionId(null); }}
                         readOnly={caja?.estado !== 'abierta'}
                     />
@@ -512,7 +533,10 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 opened={legalizationOpened}
                 onClose={closeLegalization}
                 cajaId={cajaId}
-                onSuccess={fetchData}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                    queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                }}
             />
 
             <CajaReport caja={caja} transactions={transactions} totals={totals} />

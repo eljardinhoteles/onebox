@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Drawer, ActionIcon, Indicator, Paper, Text, ScrollArea, Group, Stack, Button, ThemeIcon, Badge, Title } from '@mantine/core';
+import { notifications as mantineNotifications } from '@mantine/notifications';
 import { IconBell, IconCheck, IconTrash, IconInfoCircle, IconAlertTriangle, IconExclamationCircle, IconBellOff } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
@@ -11,20 +12,25 @@ dayjs.locale('es');
 
 export function NotificationCenter() {
     const [opened, setOpened] = useState(false);
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifList, setNotifList] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchNotifications = async () => {
-        let query = supabase
-            .from('notificaciones')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(50);
+        try {
+            const { data, error } = await supabase
+                .from('notificaciones')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
 
-        const { data } = await query;
-        if (data) {
-            setNotifications(data);
-            setUnreadCount(data.filter((n: any) => !n.leido).length);
+            if (error) throw error;
+
+            if (data) {
+                setNotifList(data);
+                setUnreadCount(data.filter((n: any) => !n.leido).length);
+            }
+        } catch (error: any) {
+            console.error('Error fetching notifications:', error);
         }
     };
 
@@ -49,28 +55,85 @@ export function NotificationCenter() {
         };
     }, []);
 
-    const markAsRead = async (id: number) => {
-        await supabase.from('notificaciones').update({ leido: true }).eq('id', id);
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, leido: true } : n));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+    const markAsRead = async (id: any) => {
+        try {
+            const { error, count } = await supabase
+                .from('notificaciones')
+                .update({ leido: true }, { count: 'exact' })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                console.warn('RLS Warning: La actualización fue exitosa pero 0 filas fueron modificadas. Verifica las políticas de Supabase.');
+            }
+
+            setNotifList(prev => prev.map(n => n.id === id ? { ...n, leido: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (error: any) {
+            console.error('Error al marcar como leída:', error);
+            mantineNotifications.show({
+                title: 'Error',
+                message: error.message || 'No se pudo actualizar la notificación',
+                color: 'red'
+            });
+        }
     };
 
     const markAllAsRead = async () => {
-        const unreadIds = notifications.filter(n => !n.leido).map(n => n.id);
+        const unreadIds = notifList.filter(n => !n.leido).map(n => n.id);
         if (unreadIds.length === 0) return;
 
-        await supabase.from('notificaciones').update({ leido: true }).in('id', unreadIds);
-        setNotifications(prev => prev.map(n => ({ ...n, leido: true })));
-        setUnreadCount(0);
+        try {
+            const { error, count } = await supabase
+                .from('notificaciones')
+                .update({ leido: true }, { count: 'exact' })
+                .in('id', unreadIds);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                console.warn('RLS Warning: 0 filas modificadas al marcar todas. Verifica políticas de UPDATE.');
+            }
+
+            setNotifList(prev => prev.map(n => ({ ...n, leido: true })));
+            setUnreadCount(0);
+        } catch (error: any) {
+            console.error('Error al marcar todas como leídas:', error);
+            mantineNotifications.show({
+                title: 'Error',
+                message: error.message || 'No se pudieron actualizar las notificaciones',
+                color: 'red'
+            });
+        }
     };
 
     const clearAll = async () => {
-        const ids = notifications.map(n => n.id);
+        const ids = notifList.map(n => n.id);
         if (ids.length === 0) return;
 
-        await supabase.from('notificaciones').delete().in('id', ids);
-        setNotifications([]);
-        setUnreadCount(0);
+        try {
+            const { error, count } = await supabase
+                .from('notificaciones')
+                .delete({ count: 'exact' })
+                .in('id', ids);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                console.warn('RLS Warning: 0 filas eliminadas. Verifica políticas de DELETE.');
+            }
+
+            setNotifList([]);
+            setUnreadCount(0);
+        } catch (error: any) {
+            console.error('Error al eliminar notificaciones:', error);
+            mantineNotifications.show({
+                title: 'Error',
+                message: error.message || 'No se pudo limpiar el historial',
+                color: 'red'
+            });
+        }
     };
 
     const getIcon = (tipo: string) => {
@@ -125,7 +188,6 @@ export function NotificationCenter() {
                     body: { padding: 0, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }
                 }}
             >
-                {/* Header Acciones */}
                 <Paper p="md" bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
                     <Group justify="space-between">
                         <Stack gap={0}>
@@ -140,7 +202,7 @@ export function NotificationCenter() {
                                     Leer todo
                                 </Button>
                             )}
-                            {notifications.length > 0 && (
+                            {notifList.length > 0 && (
                                 <ActionIcon variant="subtle" color="red" onClick={clearAll} title="Limpiar historial">
                                     <IconTrash size={16} />
                                 </ActionIcon>
@@ -150,7 +212,7 @@ export function NotificationCenter() {
                 </Paper>
 
                 <ScrollArea.Autosize mah="100%" style={{ flex: 1 }} viewportProps={{ style: { padding: 'var(--mantine-spacing-md)' } }}>
-                    {notifications.length === 0 ? (
+                    {notifList.length === 0 ? (
                         <Stack align="center" justify="center" h={400} gap="md" c="dimmed">
                             <ThemeIcon size={64} radius="xl" color="gray" variant="light">
                                 <IconBellOff size={32} stroke={1.5} />
@@ -162,7 +224,7 @@ export function NotificationCenter() {
                         </Stack>
                     ) : (
                         <Stack gap="md">
-                            {notifications.map((n) => (
+                            {notifList.map((n) => (
                                 <Paper
                                     key={n.id}
                                     p="sm"

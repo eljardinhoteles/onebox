@@ -6,7 +6,8 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import { IconPlus, IconTrash, IconCheck, IconX, IconReceipt, IconInfoCircle } from '@tabler/icons-react';
-import dayjs from 'dayjs'; // Added dayjs import
+import dayjs from 'dayjs';
+import { useQuery, useMutation } from '@tanstack/react-query';
 
 interface TransactionFormProps {
     cajaId: number;
@@ -18,9 +19,6 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage }: TransactionFormProps) {
-    const [loading, setLoading] = useState(false);
-    const [proveedores, setProveedores] = useState<{ value: string; label: string }[]>([]);
-    // const [hasRetention, setHasRetention] = useState(false);
 
     const form = useForm({
         initialValues: {
@@ -45,104 +43,172 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         }
     });
 
-    const [availableBalance, setAvailableBalance] = useState<number>(0);
-    const [originalTotal, setOriginalTotal] = useState<number>(0);
-    const [initialAmount, setInitialAmount] = useState<number>(0); // Store initial amount
+    // --- QUERIES ---
 
-    // Cargar saldo disponible de la caja
-    useEffect(() => {
-        const fetchBalance = async () => {
-            try {
-                // Fetch saldo actual
-                const { data: saldoData, error: saldoError } = await supabase
-                    .from('v_cajas_con_saldo')
-                    .select('saldo_actual')
-                    .eq('id', cajaId)
-                    .single();
+    const { data: balanceData } = useQuery({
+        queryKey: ['caja_balance', cajaId],
+        queryFn: async () => {
+            const { data: saldoData } = await supabase
+                .from('v_cajas_con_saldo')
+                .select('saldo_actual')
+                .eq('id', cajaId)
+                .single();
 
-                // Fetch monto inicial separately (or could join, but simple query is fine)
-                const { data: cajaData } = await supabase
-                    .from('cajas')
-                    .select('monto_inicial')
-                    .eq('id', cajaId)
-                    .single();
+            const { data: cajaData } = await supabase
+                .from('cajas')
+                .select('monto_inicial')
+                .eq('id', cajaId)
+                .single();
 
-                if (cajaData) {
-                    setInitialAmount(cajaData.monto_inicial);
-                }
-
-                if (saldoError) {
-                    // Fallback si la vista no existe
-                    setAvailableBalance(cajaData?.monto_inicial || 0);
-                } else {
-                    setAvailableBalance(saldoData.saldo_actual);
-                }
-            } catch (err) {
-                console.error('Error fetching balance:', err);
-            }
-        };
-        fetchBalance();
-    }, [cajaId]);
-
-    // Cargar datos de proveedores
-    useEffect(() => {
-        const fetchProveedores = async () => {
-            const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre');
-            if (data) {
-                setProveedores(data.map(p => ({
-                    value: p.id.toString(),
-                    label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''}`
-                })));
-            }
-        };
-        fetchProveedores();
-    }, []);
-
-    // Cargar datos de la transacción si es modo edición
-    useEffect(() => {
-        if (transactionId) {
-            const fetchTransaction = async () => {
-                setLoading(true);
-                try {
-                    const { data: trans, error: transError } = await supabase
-                        .from('transacciones')
-                        .select('*, items:transaccion_items(*)')
-                        .eq('id', transactionId)
-                        .single();
-
-                    if (transError) throw transError;
-
-                    // CHECK FOR RETENTIONS
-                    await supabase
-                        .from('retenciones')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('transaccion_id', transactionId);
-
-                    /* if (count && count > 0) {
-                        setHasRetention(true);
-                    } */
-
-                    form.setValues({
-                        fecha_factura: dayjs(trans.fecha_factura).toDate(),
-                        tipo_documento: trans.tipo_documento || 'factura',
-                        numero_factura: trans.numero_factura || '',
-                        proveedor_id: trans.proveedor_id ? trans.proveedor_id.toString() : '',
-                        items: trans.items.map((item: any) => ({
-                            nombre: item.nombre,
-                            monto: item.monto,
-                            con_iva: item.con_iva
-                        }))
-                    });
-                    setOriginalTotal(trans.total_factura || 0);
-                } catch (error) {
-                    console.error('Error fetching transaction:', error);
-                } finally {
-                    setLoading(false);
-                }
+            return {
+                available: saldoData?.saldo_actual ?? cajaData?.monto_inicial ?? 0,
+                initial: cajaData?.monto_inicial ?? 0
             };
-            fetchTransaction();
         }
-    }, [transactionId]);
+    });
+
+    const availableBalance = balanceData?.available ?? 0;
+    const initialAmount = balanceData?.initial ?? 0;
+
+    const { data: proveedores = [] } = useQuery({
+        queryKey: ['proveedores_simple'],
+        queryFn: async () => {
+            const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre');
+            return (data || []).map(p => ({
+                value: p.id.toString(),
+                label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''}`
+            }));
+        }
+    });
+
+    const { data: editingData, isLoading: loadingEditing } = useQuery({
+        queryKey: ['transaction_detail', transactionId],
+        queryFn: async () => {
+            if (!transactionId) return null;
+            const { data, error } = await supabase
+                .from('transacciones')
+                .select('*, items:transaccion_items(*)')
+                .eq('id', transactionId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!transactionId
+    });
+
+    const [originalTotal, setOriginalTotal] = useState<number>(0);
+
+    useEffect(() => {
+        if (editingData) {
+            form.setValues({
+                fecha_factura: dayjs(editingData.fecha_factura).toDate(),
+                tipo_documento: editingData.tipo_documento || 'factura',
+                numero_factura: editingData.numero_factura || '',
+                proveedor_id: editingData.proveedor_id ? editingData.proveedor_id.toString() : '',
+                items: editingData.items.map((item: any) => ({
+                    nombre: item.nombre,
+                    monto: item.monto,
+                    con_iva: item.con_iva
+                }))
+            });
+            setOriginalTotal(editingData.total_factura || 0);
+        }
+    }, [editingData]);
+
+
+
+    // --- MUTATIONS ---
+
+    const saveMutation = useMutation({
+        mutationFn: async (values: any) => {
+            let currentTransId = transactionId;
+            const totals = calculateTotals();
+
+            if (transactionId) {
+                const { error: updateError } = await supabase
+                    .from('transacciones')
+                    .update({
+                        tipo_documento: values.tipo_documento,
+                        proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
+                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
+                        numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
+                        total_factura: totals.total
+                    })
+                    .eq('id', transactionId);
+
+                if (updateError) throw updateError;
+
+                const { error: deleteError } = await supabase
+                    .from('transaccion_items')
+                    .delete()
+                    .eq('transaccion_id', transactionId);
+
+                if (deleteError) throw deleteError;
+            } else {
+                const { data: transData, error: transError } = await supabase
+                    .from('transacciones')
+                    .insert([{
+                        caja_id: cajaId,
+                        tipo_documento: values.tipo_documento,
+                        proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
+                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
+                        numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
+                        total_factura: totals.total
+                    }])
+                    .select()
+                    .single();
+
+                if (transError) throw transError;
+                currentTransId = transData.id;
+            }
+
+            const itemsToInsert = values.items.map((item: any) => ({
+                transaccion_id: currentTransId,
+                nombre: item.nombre,
+                monto: item.monto,
+                con_iva: item.con_iva,
+                monto_iva: item.con_iva ? item.monto * 0.15 : 0,
+                subtotal: item.monto
+            }));
+
+            const { error: itemsError } = await supabase.from('transaccion_items').insert(itemsToInsert);
+            if (itemsError) throw itemsError;
+
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: transactionId ? 'EDITAR_GASTO' : 'CREAR_GASTO',
+                detalle: {
+                    transaccion_id: currentTransId,
+                    caja_id: cajaId,
+                    total: totals.total,
+                    numero_factura: values.numero_factura || 'S/N',
+                    proveedor_id: values.proveedor_id
+                },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
+            return currentTransId;
+        },
+        onSuccess: () => {
+            notifications.show({
+                title: 'Éxito',
+                message: transactionId ? 'Transacción actualizada' : 'Transacción registrada',
+                color: 'teal',
+                icon: <IconCheck size={16} />,
+            });
+            onSuccess();
+        },
+        onError: (error: any) => {
+            notifications.show({
+                title: 'Error',
+                message: error.message || 'No se pudo procesar la transacción',
+                color: 'red',
+                icon: <IconX size={16} />,
+            });
+        }
+    });
 
     const calculateTotals = () => {
         let subtotal = 0;
@@ -169,11 +235,9 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     const totals = calculateTotals();
 
     const handleSubmit = async (values: typeof form.values) => {
-        // Validación de saldo disponible
-        const totalAValidar = totals.total;
+        const totalAValidar = calculateTotals().total;
         const disponibleReal = availableBalance + originalTotal;
 
-        // 1. Validar si supera el efectivo disponible (regla básica)
         if (totalAValidar > disponibleReal) {
             notifications.show({
                 title: 'Saldo Insuficiente',
@@ -184,7 +248,6 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             return;
         }
 
-        // 2. Validar reserva del 10% (regla de seguridad)
         const reserveThreshold = initialAmount * 0.10;
         const projectedBalance = disponibleReal - totalAValidar;
 
@@ -198,100 +261,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             return;
         }
 
-        setLoading(true);
-        try {
-            let currentTransId = transactionId;
-
-            if (transactionId) {
-                // ACTUALIZAR TRANSACCIÓN EXISTENTE
-                const { error: updateError } = await supabase
-                    .from('transacciones')
-                    .update({
-                        tipo_documento: values.tipo_documento,
-                        proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
-                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
-                        numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
-                        total_factura: totals.total
-                    })
-                    .eq('id', transactionId);
-
-                if (updateError) throw updateError;
-
-                // Limpiar items anteriores para re-insertar (estrategia simple de sync)
-                const { error: deleteError } = await supabase
-                    .from('transaccion_items')
-                    .delete()
-                    .eq('transaccion_id', transactionId);
-
-                if (deleteError) throw deleteError;
-            } else {
-                // CREAR NUEVA TRANSACCIÓN
-                const { data: transData, error: transError } = await supabase
-                    .from('transacciones')
-                    .insert([{
-                        caja_id: cajaId,
-                        tipo_documento: values.tipo_documento,
-                        proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
-                        fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
-                        numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
-                        total_factura: totals.total
-                    }])
-                    .select()
-                    .single();
-
-                if (transError) throw transError;
-                currentTransId = transData.id;
-            }
-
-            // 2. Insertar Items (Nuevo o Editado)
-            const itemsToInsert = values.items.map(item => ({
-                transaccion_id: currentTransId,
-                nombre: item.nombre,
-                monto: item.monto,
-                con_iva: item.con_iva,
-                monto_iva: item.con_iva ? item.monto * 0.15 : 0,
-                subtotal: item.monto
-            }));
-
-            const { error: itemsError } = await supabase
-                .from('transaccion_items')
-                .insert(itemsToInsert);
-
-            if (itemsError) throw itemsError;
-
-            // 3. Registrar en Bitácora
-            const { data: { user } } = await supabase.auth.getUser();
-            await supabase.from('bitacora').insert({
-                accion: transactionId ? 'EDITAR_GASTO' : 'CREAR_GASTO',
-                detalle: {
-                    transaccion_id: currentTransId,
-                    caja_id: cajaId,
-                    total: totals.total,
-                    numero_factura: values.numero_factura || 'S/N',
-                    proveedor_id: values.proveedor_id
-                },
-                user_id: user?.id,
-                user_email: user?.email
-            });
-
-            notifications.show({
-                title: 'Éxito',
-                message: transactionId ? 'Transacción actualizada' : 'Transacción registrada',
-                color: 'teal',
-                icon: <IconCheck size={16} />,
-            });
-
-            onSuccess();
-        } catch (error: any) {
-            notifications.show({
-                title: 'Error',
-                message: error.message || 'No se pudo procesar la transacción',
-                color: 'red',
-                icon: <IconX size={16} />,
-            });
-        } finally {
-            setLoading(false);
-        }
+        saveMutation.mutate(values);
     };
 
     const fields = form.values.items.map((_item, index) => (
@@ -450,7 +420,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 {!readOnly ? (
                     <AppActionButtons
                         onCancel={onCancel}
-                        loading={loading}
+                        loading={saveMutation.isPending}
                         submitLabel={transactionId ? "Actualizar Transacción" : "Guardar Transacción"}
                     />
                 ) : (

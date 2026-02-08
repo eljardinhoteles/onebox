@@ -131,7 +131,7 @@ export function TransactionTable({
     return (
         <ScrollArea h={400} type="auto">
             <Table stickyHeader verticalSpacing="sm">
-                <Table.Thead bg="white" style={{ zIndex: 10 }}>
+                <Table.Thead bg="gray.0" style={{ zIndex: 10 }}>
                     <Table.Tr>
                         <Table.Th>Fecha</Table.Th>
                         <Table.Th>Proveedor / Factura</Table.Th>

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Paper, Text, Stack, TextInput, Select, Group, NumberInput, SimpleGrid } from '@mantine/core';
 import { AppModal } from '../components/ui/AppModal';
@@ -8,6 +7,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import { IconCheck, IconX } from '@tabler/icons-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useAppConfig } from '../hooks/useAppConfig';
 import { CajaCard } from '../components/caja/CajaCard';
@@ -33,10 +33,7 @@ interface Caja {
 }
 
 export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
-    const [loading, setLoading] = useState(false);
-    const [fetching, setFetching] = useState(true);
-    const [cajas, setCajas] = useState<Caja[]>([]);
-    const [sucursales, setSucursales] = useState<{ value: string; label: string }[]>([]);
+    const queryClient = useQueryClient();
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
 
@@ -54,67 +51,47 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         },
     });
 
-    const fetchCajas = async () => {
-        setFetching(true);
-        try {
-            // Intentar cargar desde la vista balanceada
-            const { data, error } = await supabase
-                .from('v_cajas_con_saldo')
-                .select('*')
-                .order('id', { ascending: false });
+    // --- QUERIES ---
 
-            if (error) {
-                // Si la vista no existe (error PostgREST 42P01), o hay otro error, reintentar con la tabla base
-                console.warn('Fallo al cargar v_cajas_con_saldo, intentando tabla base:', error);
-
-                const { data: baseData, error: baseError } = await supabase
-                    .from('cajas')
+    const { data: cajas = [], isLoading: fetching } = useQuery({
+        queryKey: ['cajas'],
+        queryFn: async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('v_cajas_con_saldo')
                     .select('*')
                     .order('id', { ascending: false });
 
-                if (baseError) throw baseError;
+                if (error) {
+                    console.warn('Fallback a tabla base:', error);
+                    const { data: baseData, error: baseError } = await supabase
+                        .from('cajas')
+                        .select('*')
+                        .order('id', { ascending: false });
 
-                // Mapear los datos de la tabla base para que coincidan con la interfaz Caja
-                // (saldo_actual será igual a monto_inicial hasta que se cree la vista)
-                const mappedData = (baseData || []).map(c => ({
-                    ...c,
-                    saldo_actual: c.monto_inicial // Valor por defecto
-                }));
-                setCajas(mappedData as Caja[]);
-            } else {
-                setCajas(data || []);
+                    if (baseError) throw baseError;
+                    return (baseData || []).map(c => ({ ...c, saldo_actual: c.monto_inicial }));
+                }
+                return data || [];
+            } catch (error) {
+                console.error('Error in cajas query:', error);
+                throw error;
             }
-        } catch (error: any) {
-            console.error('Error fetching cajas:', error);
-            notifications.show({
-                title: 'Error de conexión',
-                message: 'No se pudieron cargar las cajas. Verifica la conexión.',
-                color: 'red'
-            });
-        } finally {
-            setFetching(false);
         }
-    };
+    });
 
-    const fetchSucursales = async () => {
-        try {
+    const { data: sucursales = [] } = useQuery({
+        queryKey: ['sucursales_list'],
+        queryFn: async () => {
             const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
-            if (data) {
-                setSucursales(data.map(s => ({ value: s.nombre, label: s.nombre })));
-            }
-        } catch (error) {
-            console.error('Error fetching sucursales:', error);
+            return (data || []).map(s => ({ value: s.nombre, label: s.nombre }));
         }
-    };
+    });
 
-    useEffect(() => {
-        fetchCajas();
-        fetchSucursales();
-    }, []);
+    // --- MUTATIONS ---
 
-    const handleSubmit = async (values: typeof form.values) => {
-        setLoading(true);
-        try {
+    const openCajaMutation = useMutation({
+        mutationFn: async (values: any) => {
             const monto_inicial = (values.saldo_anterior || 0) + (values.reposicion || 0);
             const { data: { user } } = await supabase.auth.getUser();
 
@@ -126,7 +103,6 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
 
             if (error) throw error;
 
-            // Log de apertura
             await supabase.from('bitacora').insert({
                 accion: 'APERTURA_CAJA',
                 detalle: {
@@ -138,28 +114,30 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                 user_id: user?.id,
                 user_email: user?.email
             });
-
+            return newCaja;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['cajas'] });
             notifications.show({
                 title: 'Caja creada',
                 message: 'La caja se ha abierto correctamente.',
                 color: 'teal',
                 icon: <IconCheck size={16} />,
             });
-
             form.reset();
             close();
-            fetchCajas();
-        } catch (error: any) {
+        },
+        onError: (error: any) => {
             notifications.show({
                 title: 'Error',
                 message: error.message || 'No se pudo abrir la caja',
                 color: 'red',
                 icon: <IconX size={16} />,
             });
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    // handleSubmit eliminado, ahora usamos openCajaMutation.mutate
 
     /*
         const handleCerrarCaja = (id: number) => {
@@ -231,14 +209,14 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                             caja={caja}
                             alertThreshold={alertThreshold}
                             onSelectCaja={onSelectCaja}
-                            onDelete={fetchCajas}
+                            onDelete={() => queryClient.invalidateQueries({ queryKey: ['cajas'] })}
                         />
                     ))}
                 </SimpleGrid>
             )}
 
-            <AppModal opened={opened} onClose={close} title="Nueva Apertura de Caja" loading={loading}>
-                <form onSubmit={form.onSubmit(handleSubmit)}>
+            <AppModal opened={opened} onClose={close} title="Nueva Apertura de Caja" loading={openCajaMutation.isPending}>
+                <form onSubmit={form.onSubmit((v) => openCajaMutation.mutate(v))}>
                     <Stack gap="md">
                         <Group grow>
                             <NumberInput
@@ -300,7 +278,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
 
                         <AppActionButtons
                             onCancel={close}
-                            loading={loading}
+                            loading={openCajaMutation.isPending}
                             submitLabel="Abrir Caja"
                         />
                     </Stack>

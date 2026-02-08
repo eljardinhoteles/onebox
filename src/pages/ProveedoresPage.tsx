@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center } from '@mantine/core';
+import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center, MultiSelect } from '@mantine/core';
 import { AppModal } from '../components/ui/AppModal';
 import { AppDrawer } from '../components/ui/AppDrawer';
 import { AppActionButtons } from '../components/ui/AppActionButtons';
@@ -9,6 +9,7 @@ import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import { IconCheck, IconX, IconPencil, IconTrash, IconSearch } from '@tabler/icons-react';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface ProveedoresPageProps {
     opened: boolean;
@@ -21,26 +22,26 @@ interface Proveedor {
     nombre: string;
     actividad_economica: string;
     regimen: string;
+    telefono?: string;
+    sucursales?: string[];
 }
 
 const PAGE_SIZE = 50;
 
 export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
-    const [loading, setLoading] = useState(false);
-    const [fetching, setFetching] = useState(true);
-    const [fetchingMore, setFetchingMore] = useState(false);
-    const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-    const [regimenes, setRegimenes] = useState<{ value: string; label: string }[]>([]);
+    const queryClient = useQueryClient();
     const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
     const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
 
-    // Paginación y Filtros
+    // Filtros
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 400);
     const [regimenFilter, setRegimenFilter] = useState<string | null>(null);
+
+    // El scroll infinito lo mantendremos con un estado local de página por ahora, o podríamos usar useInfiniteQuery. 
+    // Para no complicar demasiado la primera refactorización, optimizaremos la carga inicial con useQuery.
     const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [totalCount, setTotalCount] = useState(0);
+    const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
 
     const loaderRef = useRef<HTMLTableRowElement>(null);
 
@@ -50,6 +51,8 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             nombre: '',
             actividad_economica: '',
             regimen: '',
+            telefono: '',
+            sucursales: [] as string[],
         },
         validate: {
             ruc: (value) => (value.length < 10 ? 'El RUC debe tener al menos 10 dígitos' : null),
@@ -58,17 +61,13 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         },
     });
 
-    const fetchProveedores = async (isNewSearch = false) => {
-        if (isNewSearch) {
-            setFetching(true);
-            setPage(0);
-        } else {
-            setFetchingMore(true);
-        }
+    // --- QUERIES ---
 
-        try {
-            const currentPage = isNewSearch ? 0 : page;
-            const from = currentPage * PAGE_SIZE;
+    // Consulta de Proveedores (Paginada)
+    const { data: proveedoresData, isLoading: fetching } = useQuery({
+        queryKey: ['proveedores', debouncedSearch, regimenFilter, page],
+        queryFn: async () => {
+            const from = page * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
             let query = supabase
@@ -86,49 +85,48 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             }
 
             const { data, error, count } = await query;
-
             if (error) throw error;
-
-            if (isNewSearch) {
-                setProveedores(data || []);
-            } else {
-                setProveedores(prev => [...prev, ...(data || [])]);
-            }
-
-            setTotalCount(count || 0);
-            setHasMore((data?.length || 0) === PAGE_SIZE);
-            if (!isNewSearch) setPage(prev => prev + 1);
-
-        } catch (error) {
-            console.error('Error fetching proveedores:', error);
-            notifications.show({
-                title: 'Error de carga',
-                message: 'No se pudieron cargar los proveedores',
-                color: 'red'
-            });
-        } finally {
-            setFetching(false);
-            setFetchingMore(false);
+            return { data: data || [], count: count || 0 };
         }
-    };
+    });
 
-    const fetchRegimenes = async () => {
-        try {
+    const hasMore = (proveedoresData?.data.length || 0) === PAGE_SIZE;
+
+    useEffect(() => {
+        if (page === 0) {
+            setAllProveedores(proveedoresData?.data || []);
+        } else if (proveedoresData?.data) {
+            setAllProveedores(prev => [...prev, ...proveedoresData.data]);
+        }
+    }, [proveedoresData, page]);
+
+    useEffect(() => {
+        setPage(0);
+    }, [debouncedSearch, regimenFilter]);
+
+    // Regímenes y Sucursales (Caché a largo plazo)
+    const { data: regimenes = [] } = useQuery({
+        queryKey: ['regimenes'],
+        queryFn: async () => {
             const { data } = await supabase.from('regimenes').select('nombre').order('nombre');
-            if (data) {
-                setRegimenes(data.map(r => ({ value: r.nombre, label: r.nombre })));
-            }
-        } catch (error) {
-            console.error('Error fetching regimenes:', error);
+            return (data || []).map(r => ({ value: r.nombre, label: r.nombre }));
         }
-    };
+    });
+
+    const { data: sucursalesList = [] } = useQuery({
+        queryKey: ['sucursales_list'],
+        queryFn: async () => {
+            const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
+            return (data || []).map(s => ({ value: s.nombre, label: s.nombre }));
+        }
+    });
 
     // Observer para scroll infinito
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && hasMore && !fetching && !fetchingMore) {
-                    fetchProveedores(false);
+                if (entries[0].isIntersecting && hasMore && !fetching) {
+                    setPage(prev => prev + 1);
                 }
             },
             { threshold: 1.0 }
@@ -139,58 +137,45 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         }
 
         return () => observer.disconnect();
-    }, [hasMore, fetching, fetchingMore, page]);
+    }, [hasMore, fetching]);
 
-    // Efecto para búsqueda inicial y cambios en filtros
-    useEffect(() => {
-        fetchProveedores(true);
-    }, [debouncedSearch, regimenFilter]);
+    // --- MUTATIONS ---
 
-    useEffect(() => {
-        fetchRegimenes();
-    }, []);
-
-    const handleSubmit = async (values: typeof form.values) => {
-        setLoading(true);
-        try {
+    const createMutation = useMutation({
+        mutationFn: async (values: any) => {
             const { error } = await supabase.from('proveedores').insert([values]);
             if (error) throw error;
 
-            // Log de bitácora
             const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('bitacora').insert({
                 accion: 'CREAR_PROVEEDOR',
-                detalle: { nombre: values.nombre, ruc: values.ruc, regimen: values.regimen },
+                detalle: { nombre: values.nombre, ruc: values.ruc },
                 user_id: user?.id,
                 user_email: user?.email
             });
-
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['proveedores'] });
             notifications.show({
-                title: 'Proveedor creado',
-                message: 'El proveedor se ha registrado correctamente.',
+                title: 'Éxito',
+                message: 'Proveedor creado correctamente',
                 color: 'teal',
-                icon: <IconCheck size={16} />,
             });
-
             form.reset();
             close();
-            fetchProveedores(true);
-        } catch (error: any) {
+        },
+        onError: (error: any) => {
             notifications.show({
                 title: 'Error',
                 message: error.message || 'No se pudo crear el proveedor',
                 color: 'red',
-                icon: <IconX size={16} />,
             });
-        } finally {
-            setLoading(false);
         }
-    };
+    });
 
-    const handleEditSubmit = async (values: typeof form.values) => {
-        if (!editingProveedor) return;
-        setLoading(true);
-        try {
+    const updateMutation = useMutation({
+        mutationFn: async (values: any) => {
+            if (!editingProveedor) return;
             const { error } = await supabase
                 .from('proveedores')
                 .update(values)
@@ -198,28 +183,45 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
             if (error) throw error;
 
-            // Log de bitácora
             const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('bitacora').insert({
                 accion: 'EDITAR_PROVEEDOR',
-                detalle: { id: editingProveedor.id, nombre: values.nombre, ruc: values.ruc },
+                detalle: { id: editingProveedor.id, nombre: values.nombre },
                 user_id: user?.id,
                 user_email: user?.email
             });
-
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['proveedores'] });
             closeDrawer();
-            fetchProveedores(true);
-        } catch (error: any) {
+        },
+        onError: (error: any) => {
             notifications.show({
                 title: 'Error',
                 message: error.message || 'No se pudo actualizar',
                 color: 'red',
-                icon: <IconX size={16} />,
             });
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: number) => {
+            const { error } = await supabase.from('proveedores').delete().eq('id', id);
+            if (error) throw error;
+
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: 'ELIMINAR_PROVEEDOR',
+                detalle: { id },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['proveedores'] });
+            notifications.show({ title: 'Eliminado', message: 'Proveedor eliminado', color: 'teal' });
+        }
+    });
 
     const openEditDrawer = (proveedor: Proveedor) => {
         setEditingProveedor(proveedor);
@@ -228,6 +230,8 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             nombre: proveedor.nombre,
             actividad_economica: proveedor.actividad_economica || '',
             regimen: proveedor.regimen || '',
+            telefono: proveedor.telefono || '',
+            sucursales: proveedor.sucursales || [],
         });
         openDrawer();
     };
@@ -243,44 +247,11 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             ),
             labels: { confirm: 'Eliminar proveedor', cancel: 'Cancelar' },
             confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase
-                        .from('proveedores')
-                        .delete()
-                        .eq('id', id);
-
-                    if (error) throw error;
-
-                    // Log de bitácora
-                    const { data: { user } } = await supabase.auth.getUser();
-                    await supabase.from('bitacora').insert({
-                        accion: 'ELIMINAR_PROVEEDOR',
-                        detalle: { id },
-                        user_id: user?.id,
-                        user_email: user?.email
-                    });
-
-                    notifications.show({
-                        title: 'Eliminado',
-                        message: 'El proveedor ha sido eliminado.',
-                        color: 'teal',
-                        icon: <IconCheck size={16} />,
-                    });
-                    fetchProveedores(true);
-                } catch (error: any) {
-                    notifications.show({
-                        title: 'Error',
-                        message: error.message || 'No se pudo eliminar',
-                        color: 'red',
-                        icon: <IconX size={16} />,
-                    });
-                }
-            },
+            onConfirm: () => deleteMutation.mutate(id),
         });
     };
 
-    const rows = proveedores.map((proveedor) => (
+    const rows = allProveedores.map((proveedor) => (
         <Table.Tr key={proveedor.id}>
             <Table.Td>
                 <Stack gap={0}>
@@ -289,7 +260,18 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 </Stack>
             </Table.Td>
             <Table.Td>
-                <Text size="sm" lineClamp={1}>{proveedor.actividad_economica || '-'}</Text>
+                <Text size="sm" fw={500}>{proveedor.telefono || '-'}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Group gap={4}>
+                    {proveedor.sucursales && proveedor.sucursales.length > 0 ? (
+                        proveedor.sucursales.map(s => (
+                            <Badge key={s} size="xs" variant="outline" radius="sm">{s}</Badge>
+                        ))
+                    ) : (
+                        <Text size="xs" c="dimmed">Todas</Text>
+                    )}
+                </Group>
             </Table.Td>
             <Table.Td>
                 <Badge variant="dot" color="blue" size="sm">{proveedor.regimen || 'No especificado'}</Badge>
@@ -325,18 +307,34 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 required
                 {...form.getInputProps('nombre')}
             />
+            <Group grow>
+                <TextInput
+                    label="Teléfono de Contacto"
+                    placeholder="Ej: +593..."
+                    {...form.getInputProps('telefono')}
+                />
+                <Select
+                    label="Régimen"
+                    placeholder="Seleccione el régimen"
+                    data={regimenes}
+                    required
+                    searchable
+                    {...form.getInputProps('regimen')}
+                />
+            </Group>
+            <MultiSelect
+                label="Sucursales"
+                placeholder="Seleccione sucursales (vacío = todas)"
+                data={sucursalesList}
+                searchable
+                clearable
+                hidePickedOptions
+                {...form.getInputProps('sucursales')}
+            />
             <TextInput
                 label="Actividad Económica"
                 placeholder="Ej: Venta de materiales..."
                 {...form.getInputProps('actividad_economica')}
-            />
-            <Select
-                label="Régimen"
-                placeholder="Seleccione el régimen"
-                data={regimenes}
-                required
-                searchable
-                {...form.getInputProps('regimen')}
             />
         </Stack>
     );
@@ -375,7 +373,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                         </Group>
                         <Stack gap={0} align="flex-end">
                             <Text size="xs" fw={700} c="blue">
-                                {proveedores.length} / {totalCount}
+                                {allProveedores.length} / {proveedoresData?.count || 0}
                             </Text>
                             <Text size="xs" c="dimmed" fw={500}>
                                 proveedores cargados
@@ -387,8 +385,9 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                         <Table verticalSpacing="sm" highlightOnHover>
                             <Table.Thead bg="white" style={{ zIndex: 5, position: 'sticky', top: 0 }}>
                                 <Table.Tr>
-                                    <Table.Th style={{ width: '40%' }}>Proveedor</Table.Th>
-                                    <Table.Th style={{ width: '30%' }}>Actividad</Table.Th>
+                                    <Table.Th style={{ width: '30%' }}>Proveedor</Table.Th>
+                                    <Table.Th style={{ width: '15%' }}>Contacto</Table.Th>
+                                    <Table.Th style={{ width: '25%' }}>Sucursales</Table.Th>
                                     <Table.Th style={{ width: '20%' }}>Régimen</Table.Th>
                                     <Table.Th style={{ width: '10%' }} />
                                 </Table.Tr>
@@ -396,7 +395,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                             <Table.Tbody>
                                 {fetching && page === 0 ? (
                                     <Table.Tr>
-                                        <Table.Td colSpan={4}>
+                                        <Table.Td colSpan={5}>
                                             <Stack align="center" py="xl" gap="xs">
                                                 <Loader size="sm" />
                                                 <Text c="dimmed" size="sm">Cargando proveedores...</Text>
@@ -408,7 +407,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                                         {rows}
                                         {hasMore && (
                                             <Table.Tr ref={loaderRef}>
-                                                <Table.Td colSpan={4}>
+                                                <Table.Td colSpan={5}>
                                                     <Center py="md">
                                                         <Loader size="xs" />
                                                         <Text size="xs" c="dimmed" ml="sm">Cargando más...</Text>
@@ -435,12 +434,12 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             </Paper>
 
             {/* Modal para Crear */}
-            <AppModal opened={opened} onClose={close} title="Nuevo Proveedor" loading={loading}>
-                <form onSubmit={form.onSubmit(handleSubmit)}>
+            <AppModal opened={opened} onClose={close} title="Nuevo Proveedor" loading={createMutation.isPending}>
+                <form onSubmit={form.onSubmit((v) => createMutation.mutate(v))}>
                     {formFields}
                     <AppActionButtons
                         onCancel={close}
-                        loading={loading}
+                        loading={createMutation.isPending}
                         submitLabel="Guardar Proveedor"
                         color="green"
                     />
@@ -453,13 +452,13 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 onClose={closeDrawer}
                 title="Editar Proveedor"
                 size="md"
-                loading={loading}
+                loading={updateMutation.isPending}
             >
-                <form onSubmit={form.onSubmit(handleEditSubmit)}>
+                <form onSubmit={form.onSubmit((v) => updateMutation.mutate(v))}>
                     {formFields}
                     <AppActionButtons
                         onCancel={closeDrawer}
-                        loading={loading}
+                        loading={updateMutation.isPending}
                         submitLabel="Actualizar Datos"
                         color="blue"
                     />

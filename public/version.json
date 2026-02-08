@@ -1,5 +1,5 @@
 {
-    "version": "1.0.1",
-    "build_time": "2026-02-07T20:35:00Z",
-    "notes": "Mejoras de bitácora y persistencia"
+    "version": "1.1.0",
+    "build_time": "2026-02-08T11:48:00Z",
+    "notes": "Refactorización integral a TanStack Query y mejoras de performance"
 }
