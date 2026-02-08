@@ -33,11 +33,41 @@ export default function App() {
     }],
   ]);
 
-  // Limpiar caja seleccionada al cambiar de sección
+  // PERSISTENCIA: Cargar estado inicial desde la URL
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get('section');
+    const cajaId = params.get('cajaId');
+
+    if (section && ['cajas', 'proveedores', 'ajustes'].includes(section)) {
+      setActiveSection(section);
+    }
+    if (cajaId) {
+      setSelectedCajaId(parseInt(cajaId));
+    }
+  }, []);
+
+  // PERSISTENCIA: Sincronizar estado con la URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('section', activeSection);
+
+    if (selectedCajaId) {
+      params.set('cajaId', selectedCajaId.toString());
+    } else {
+      params.delete('cajaId');
+    }
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [activeSection, selectedCajaId]);
+
+  // Limpiar caja seleccionada al cambiar de sección (solo si cambia manualmente)
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
     setSelectedCajaId(null);
     setDetailHeaderActions(null);
-  }, [activeSection]);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -147,7 +177,7 @@ export default function App() {
   return (
     <MainLayout
       activeSection={activeSection}
-      onSectionChange={setActiveSection}
+      onSectionChange={handleSectionChange}
       headerActions={renderHeaderActions()}
       title={title}
       subtitle={subtitle}

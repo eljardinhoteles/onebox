@@ -15,6 +15,24 @@ export function AjustesPage() {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [activeTab, setActiveTab] = useState<string | null>(null);
+
+    // PERSISTENCIA: Cargar pestaña desde URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab) setActiveTab(tab);
+    }, []);
+
+    // PERSISTENCIA: Sincronizar pestaña con URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTab) {
+            params.set('tab', activeTab);
+        } else {
+            params.delete('tab');
+        }
+        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }, [activeTab]);
     const { configs, updateConfig, loading: configLoading } = useAppConfig();
     const [alertPercentage, setAlertPercentage] = useState<number>(15);
     const [user, setUser] = useState<any>(null);
