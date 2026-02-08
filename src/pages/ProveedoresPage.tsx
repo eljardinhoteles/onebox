@@ -7,7 +7,7 @@ import { modals } from '@mantine/modals';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconCheck, IconX, IconPencil, IconTrash, IconSearch } from '@tabler/icons-react';
+import { IconPlus, IconPencil, IconTrash, IconSearch, IconFilter, IconChevronDown, IconDotsVertical } from '@tabler/icons-react';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 

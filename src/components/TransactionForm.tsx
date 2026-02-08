@@ -81,7 +81,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         }
     });
 
-    const { data: editingData, isLoading: loadingEditing } = useQuery({
+    const { data: editingData } = useQuery({
         queryKey: ['transaction_detail', transactionId],
         queryFn: async () => {
             if (!transactionId) return null;

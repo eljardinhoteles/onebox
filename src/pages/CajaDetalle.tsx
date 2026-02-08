@@ -9,7 +9,7 @@ import { RetentionForm } from '../components/RetentionForm';
 import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
-    IconPlus, IconReceipt2, IconCheck,
+    IconPlus, IconReceipt2,
     IconFileInvoice, IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

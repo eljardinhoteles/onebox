@@ -42,7 +42,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
 
     // --- QUERIES ---
 
-    const { data: retentionData, isLoading: fetching } = useQuery({
+    const { data: retentionData } = useQuery({
         queryKey: ['retention_detail', transactionId],
         queryFn: async () => {
             const { data: trans } = await supabase
@@ -158,7 +158,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
 
     const calculateItemTotals = (index: number) => {
         const item = form.values.items[index];
-        const transItem = transItems.find((ti: TransactionItem) => ti.id === item.transaccion_item_id);
+        const transItem = transItems.find((ti: any) => ti.id === item.transaccion_item_id);
         if (!transItem) return { fuente: 0, iva: 0 };
 
         const montoFuente = Number(((transItem.monto * (item.porcentaje_fuente || 0)) / 100).toFixed(4));
@@ -235,7 +235,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                     </Table.Thead>
                     <Table.Tbody>
                         {form.values.items.map((item, index) => {
-                            const transItem = transItems.find(ti => ti.id === item.transaccion_item_id);
+                            const transItem = transItems.find((ti: any) => ti.id === item.transaccion_item_id);
                             return (
                                 <Table.Tr key={item.transaccion_item_id}>
                                     <Table.Td>
