@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Center, Loader, ActionIcon, Tooltip } from '@mantine/core'
+import { Center, Loader, ActionIcon, Tooltip, Button, Stack, Text } from '@mantine/core'
 import { supabase } from './lib/supabaseClient'
 import { AuthPage } from './components/AuthPage'
 
@@ -11,7 +11,9 @@ import { AjustesPage } from './pages/AjustesPage'
 
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle, IconPlus } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle, IconPlus, IconRefresh } from '@tabler/icons-react';
+
+const APP_VERSION = '1.0.1'; // Debe coincidir con public/version.json inicialmente
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
@@ -104,9 +106,48 @@ export default function App() {
       })
       .subscribe();
 
+    // SISTEMA DE ACTUALIZACIÓN: Verificar versión cada 5 minutos
+    const checkVersion = async () => {
+      try {
+        const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const data = await response.json();
+
+        if (data.version && data.version !== APP_VERSION) {
+          notifications.show({
+            id: 'update-available',
+            title: 'Nueva versión disponible',
+            message: (
+              <Stack gap="xs">
+                <Text size="sm">Una nueva versión del sistema está lista ({data.version}). Por favor, actualiza para obtener las últimas mejoras.</Text>
+                <Button
+                  size="xs"
+                  leftSection={<IconRefresh size={14} />}
+                  onClick={() => window.location.reload()}
+                  color="blue"
+                >
+                  Actualizar ahora
+                </Button>
+              </Stack>
+            ),
+            color: 'blue',
+            loading: true,
+            autoClose: false,
+            withCloseButton: false,
+          });
+        }
+      } catch (e) {
+        console.warn('Fallo al verificar actualización:', e);
+      }
+    };
+
+    // Verificar al cargar y cada 5 mins
+    checkVersion();
+    const versionInterval = setInterval(checkVersion, 5 * 60 * 1000);
+
     return () => {
       subscription.unsubscribe()
       supabase.removeChannel(notificationSubscription);
+      clearInterval(versionInterval);
     }
   }, [])
 
