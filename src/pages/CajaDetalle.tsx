@@ -86,6 +86,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
                 `)
                 .eq('caja_id', cajaId)
+                .is('parent_id', null)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;

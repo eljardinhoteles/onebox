@@ -47,7 +47,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         queryFn: async () => {
             const { data: trans } = await supabase
                 .from('transacciones')
-                .select('*, items:transaccion_items(*)')
+                .select('*, items:transaccion_items!transaccion_items_transaccion_id_fkey(*)')
                 .eq('id', transactionId)
                 .single();
 
