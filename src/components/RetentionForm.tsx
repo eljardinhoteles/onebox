@@ -135,6 +135,20 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
             const { error: itemsError } = await supabase.from('retencion_items').insert(itemsToInsert);
             if (itemsError) throw itemsError;
 
+            // --- Auditoría en Bitácora ---
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: retentionId ? 'EDITAR_RETENCION' : 'CREAR_RETENCION',
+                detalle: {
+                    retencion_id: retData.id,
+                    transaccion_id: transactionId,
+                    numero_retencion: values.numero_retencion,
+                    total_retenido: totals.total
+                },
+                user_id: user?.id,
+                user_email: user?.email
+            });
+
             return retData;
         },
         onSuccess: () => {
@@ -148,6 +162,19 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         mutationFn: async () => {
             const { error } = await supabase.from('retenciones').delete().eq('id', retentionId);
             if (error) throw error;
+
+            // --- Auditoría en Bitácora ---
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('bitacora').insert({
+                accion: 'ELIMINAR_RETENCION',
+                detalle: {
+                    retencion_id: retentionId,
+                    transaccion_id: transactionId,
+                    numero_retencion: form.values.numero_retencion
+                },
+                user_id: user?.id,
+                user_email: user?.email
+            });
         },
         onSuccess: () => {
             notifications.show({ title: 'Eliminado', message: 'Retención eliminada', color: 'teal', icon: <IconCheck size={16} /> });

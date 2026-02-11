@@ -48,7 +48,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
     const fetchAvailableExpenses = async () => {
         setLoading(true);
         try {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('transacciones')
                 .select(`
                     id,
@@ -56,18 +56,28 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
                     numero_factura,
                     total_factura,
                     proveedor:proveedores (id, nombre),
-                    items:transaccion_items (nombre)
+                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
                 `)
                 .eq('caja_id', cajaId)
                 .eq('tipo_documento', 'sin_factura')
                 .is('parent_id', null);
 
+            if (error) throw error;
+
+            console.log('Available expenses for caja', cajaId, ':', data);
+
             setAvailableExpenses((data || []).map((t: any) => ({
                 ...t,
                 proveedor: Array.isArray(t.proveedor) ? t.proveedor[0] : t.proveedor
             })));
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching available expenses:', error);
+            notifications.show({
+                title: 'Error al cargar gastos',
+                message: error.message || 'No se pudieron cargar los gastos disponibles',
+                color: 'red',
+                icon: <IconAlertCircle size={16} />
+            });
         } finally {
             setLoading(false);
         }

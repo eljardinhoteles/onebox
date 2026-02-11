@@ -5,7 +5,7 @@ export interface Transaction {
     fecha_factura: string;
     numero_factura: string;
     total_factura: number;
-    tipo_documento: 'factura' | 'nota_venta' | 'sin_factura';
+    tipo_documento: 'factura' | 'nota_venta' | 'liquidacion_compra' | 'sin_factura';
     proveedor: {
         nombre: string;
         ruc: string;

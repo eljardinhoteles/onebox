@@ -1,5 +1,5 @@
 import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge } from '@mantine/core';
-import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ interface TransactionTableProps {
     onEdit: (id: number) => void;
     onDelete: (t: Transaction) => void;
     onRetention: (id: number) => void;
+    onNovedades: (t: Transaction) => void;
 }
 
 const MotionTr = motion.create(Table.Tr);
@@ -22,7 +23,8 @@ export function TransactionTable({
     cajaEstado,
     onEdit,
     onDelete,
-    onRetention
+    onRetention,
+    onNovedades
 }: TransactionTableProps) {
 
     const rows = transactions.map((t, index) => (
@@ -54,13 +56,25 @@ export function TransactionTable({
                 </Group>
             </Table.Td>
             <Table.Td>
-                <Badge
-                    variant="dot"
-                    color={t.tipo_documento === 'factura' ? 'blue' : t.tipo_documento === 'nota_venta' ? 'orange' : 'gray'}
-                    size="sm"
-                >
-                    {t.tipo_documento.replace('_', ' ').toUpperCase()}
-                </Badge>
+                <Stack gap={2}>
+                    <Badge
+                        variant="dot"
+                        color={
+                            t.tipo_documento === 'factura' ? 'blue' :
+                                t.tipo_documento === 'nota_venta' ? 'orange' :
+                                    t.tipo_documento === 'liquidacion_compra' ? 'teal' :
+                                        'gray'
+                        }
+                        size="sm"
+                    >
+                        {t.tipo_documento.replace(/_/g, ' ').toUpperCase()}
+                    </Badge>
+                    {t.numero_factura && t.numero_factura !== 'S/N' && (
+                        <Text size="xs" c="dimmed" fw={500} ml={12}>
+                            {t.numero_factura}
+                        </Text>
+                    )}
+                </Stack>
             </Table.Td>
             <Table.Td ta="right">
                 <Text fw={700} size="sm" c="red.6">
@@ -92,6 +106,14 @@ export function TransactionTable({
                         title="Comprobante de Retención"
                     >
                         <IconFileInvoice size={16} />
+                    </ActionIcon>
+                    <ActionIcon
+                        variant="subtle"
+                        color="grape"
+                        onClick={() => onNovedades(t)}
+                        title="Novedades y Auditoría"
+                    >
+                        <IconMessage2 size={16} />
                     </ActionIcon>
                     <ActionIcon
                         variant="subtle"
@@ -129,9 +151,9 @@ export function TransactionTable({
     ));
 
     return (
-        <ScrollArea h={400} type="auto">
-            <Table stickyHeader verticalSpacing="sm">
-                <Table.Thead bg="gray.0" style={{ zIndex: 10 }}>
+        <ScrollArea h={450} type="auto" offsetScrollbars>
+            <Table stickyHeader verticalSpacing="xs">
+                <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                     <Table.Tr>
                         <Table.Th>Fecha</Table.Th>
                         <Table.Th>Proveedor / Factura</Table.Th>

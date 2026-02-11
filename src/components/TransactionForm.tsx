@@ -5,7 +5,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconPlus, IconTrash, IconCheck, IconX, IconReceipt, IconInfoCircle } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconCheck, IconX, IconReceipt, IconInfoCircle, IconPrinter } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useQuery, useMutation } from '@tanstack/react-query';
 
@@ -16,9 +16,10 @@ interface TransactionFormProps {
     onCancel: () => void;
     readOnly?: boolean;
     warningMessage?: string | null;
+    currentBalance?: number;
 }
 
-export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage }: TransactionFormProps) {
+export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage, currentBalance }: TransactionFormProps) {
 
     const form = useForm({
         initialValues: {
@@ -45,30 +46,38 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
     // --- QUERIES ---
 
-    const { data: balanceData } = useQuery({
-        queryKey: ['caja_balance', cajaId],
+    const { data: dbData } = useQuery({
+        queryKey: ['caja_meta', cajaId],
         queryFn: async () => {
-            const { data: saldoData } = await supabase
-                .from('v_cajas_con_saldo')
-                .select('saldo_actual')
-                .eq('id', cajaId)
-                .single();
-
             const { data: cajaData } = await supabase
                 .from('cajas')
                 .select('monto_inicial')
                 .eq('id', cajaId)
                 .single();
 
+            // Solo consultamos el saldo si NO nos pasaron el actual
+            let dbBalance = 0;
+            if (currentBalance === undefined) {
+                const { data: saldoData } = await supabase
+                    .from('v_cajas_con_saldo')
+                    .select('saldo_actual')
+                    .eq('id', cajaId)
+                    .single();
+                dbBalance = saldoData?.saldo_actual ?? 0;
+            }
+
             return {
-                available: saldoData?.saldo_actual ?? cajaData?.monto_inicial ?? 0,
-                initial: cajaData?.monto_inicial ?? 0
+                initial: cajaData?.monto_inicial ?? 0,
+                fallbackBalance: dbBalance
             };
-        }
+        },
+        // Invalidamos si cambia si tenemos o no balance externo
+        enabled: true
     });
 
-    const availableBalance = balanceData?.available ?? 0;
-    const initialAmount = balanceData?.initial ?? 0;
+    const initialAmount = dbData?.initial ?? 0;
+    // Si tenemos prop, la usamos. Si no, usamos lo de la BD.
+    const availableBalance = currentBalance !== undefined ? currentBalance : (dbData?.fallbackBalance ?? 0);
 
     const { data: proveedores = [] } = useQuery({
         queryKey: ['proveedores_simple'],
@@ -81,13 +90,13 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         }
     });
 
-    const { data: editingData } = useQuery({
+    const { data: editingData, isError: isErrorFetching, error: errorFetching } = useQuery({
         queryKey: ['transaction_detail', transactionId],
         queryFn: async () => {
             if (!transactionId) return null;
             const { data, error } = await supabase
                 .from('transacciones')
-                .select('*, items:transaccion_items(*)')
+                .select('*, items:transaccion_items!transaccion_items_transaccion_id_fkey(*)')
                 .eq('id', transactionId)
                 .single();
 
@@ -97,10 +106,29 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         enabled: !!transactionId
     });
 
+    useEffect(() => {
+        if (!transactionId) {
+            setOriginalTotal(0);
+            form.reset();
+        }
+    }, [transactionId]);
+
+    useEffect(() => {
+        if (isErrorFetching && errorFetching) {
+            notifications.show({
+                title: 'Error al cargar gasto',
+                message: errorFetching.message || 'No se pudieron cargar los detalles para editar',
+                color: 'red',
+                icon: <IconX size={16} />,
+            });
+        }
+    }, [isErrorFetching, errorFetching]);
+
     const [originalTotal, setOriginalTotal] = useState<number>(0);
 
     useEffect(() => {
         if (editingData) {
+            console.log("Editing Data Loaded:", editingData);
             form.setValues({
                 fecha_factura: dayjs(editingData.fecha_factura).toDate(),
                 tipo_documento: editingData.tipo_documento || 'factura',
@@ -108,11 +136,13 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 proveedor_id: editingData.proveedor_id ? editingData.proveedor_id.toString() : '',
                 items: editingData.items.map((item: any) => ({
                     nombre: item.nombre,
-                    monto: item.monto,
+                    monto: Number(item.monto), // Ensure number
                     con_iva: item.con_iva
                 }))
             });
-            setOriginalTotal(editingData.total_factura || 0);
+            const total = Number(editingData.total_factura) || 0;
+            console.log("Setting original total:", total);
+            setOriginalTotal(total);
         }
     }, [editingData]);
 
@@ -137,7 +167,18 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     })
                     .eq('id', transactionId);
 
-                if (updateError) throw updateError;
+                console.log('Update payload:', {
+                    tipo_documento: values.tipo_documento,
+                    proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
+                    fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
+                    numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
+                    total_factura: totals.total
+                });
+
+                if (updateError) {
+                    console.error('Update error:', updateError);
+                    throw updateError;
+                }
 
                 const { error: deleteError } = await supabase
                     .from('transaccion_items')
@@ -169,7 +210,9 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 monto: item.monto,
                 con_iva: item.con_iva,
                 monto_iva: item.con_iva ? item.monto * 0.15 : 0,
-                subtotal: item.monto
+                subtotal: item.monto,
+                // Si estamos editando y existe un parent_id, lo mantenemos en los nuevos items
+                parent_id: editingData?.parent_id || null
             }));
 
             const { error: itemsError } = await supabase.from('transaccion_items').insert(itemsToInsert);
@@ -233,6 +276,80 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     };
 
     const totals = calculateTotals();
+
+    const handlePrintReceipt = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const fecha = dayjs(form.values.fecha_factura).format('DD/MM/YYYY');
+        const itemsHtml = form.values.items.map(item => `
+            <tr>
+                <td style="padding: 5px; border-bottom: 1px solid #eee;">${item.nombre}</td>
+                <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right;">$${item.monto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Recibo de Caja - Sin Factura</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; color: #333; }
+                        .ticket { padding: 10px; }
+                        h2 { text-align: center; margin: 0; font-size: 16px; text-transform: uppercase; }
+                        .info { margin-top: 10px; font-size: 12px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+                        .total { margin-top: 15px; border-top: 2px dashed #000; padding-top: 5px; text-align: right; font-weight: bold; font-size: 14px; }
+                        .signatures { margin-top: 50px; display: flex; flex-direction: column; gap: 40px; align-items: center; font-size: 10px; }
+                        .sig-line { width: 150px; border-top: 1px solid #000; text-align: center; padding-top: 2px; }
+                        @media print {
+                            body { width: 100%; margin: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="ticket">
+                        <h2>COMPROBANTE DE EGRESO</h2>
+                        <div style="text-align: center; font-size: 10px;">(DOCUMENTO INTERNO - SIN FACTURA)</div>
+                        
+                        <div class="info">
+                            <div><b>FECHA:</b> ${fecha}</div>
+                            <div><b>CAJA NO:</b> ${cajaId}</div>
+                            <div><b>DETALLE:</b></div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="padding: 5px; border-bottom: 2px solid #000; text-align: left;">DESCRIPCIÓN</th>
+                                    <th style="padding: 5px; border-bottom: 2px solid #000; text-align: right;">VALOR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+
+                        <div class="total">
+                            TOTAL ENTREGADO: $${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </div>
+
+                        <div class="signatures">
+                            <div class="sig-line">ENTREGADO CONFORME</div>
+                            <div class="sig-line">RECIBE CONFORME (FIRMA)</div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        }
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     const handleSubmit = async (values: typeof form.values) => {
         const totalAValidar = calculateTotals().total;
@@ -388,11 +505,15 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
                 <Paper withBorder p="md" radius="md" bg="gray.0">
                     <Stack gap="xs">
-                        <Group justify="space-between">
-                            <Text size="sm" c="dimmed">Efectivo Disponible en Caja:</Text>
-                            <Text size="sm" fw={600}>${(availableBalance + originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                        </Group>
-                        <Divider variant="dotted" />
+                        {!transactionId && (
+                            <>
+                                <Group justify="space-between">
+                                    <Text size="sm" c="dimmed">Efectivo Disponible en Caja:</Text>
+                                    <Text size="sm" fw={600}>${(availableBalance + originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                </Group>
+                                <Divider variant="dotted" />
+                            </>
+                        )}
                         <Group justify="space-between">
                             <Text size="sm">Subtotal:</Text>
                             <Text size="sm" fw={500}>${totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
@@ -408,14 +529,21 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                                 ${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                         </Group>
-                        <Group justify="space-between">
-                            <Text size="xs" fw={600} c="dimmed">SALDO TRAS GASTO:</Text>
-                            <Text size="sm" fw={700} c={(availableBalance + originalTotal - totals.total) < 0 ? 'red.7' : 'green.7'}>
-                                ${(availableBalance + originalTotal - totals.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </Text>
-                        </Group>
+
                     </Stack>
                 </Paper>
+
+                {form.values.tipo_documento === 'sin_factura' && (
+                    <Button
+                        variant="light"
+                        color="orange"
+                        leftSection={<IconPrinter size={16} />}
+                        onClick={handlePrintReceipt}
+                        fullWidth
+                    >
+                        Imprimir Recibo de Egreso
+                    </Button>
+                )}
 
                 {!readOnly ? (
                     <AppActionButtons

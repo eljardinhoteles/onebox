@@ -22,6 +22,7 @@ import { CajaSummaryCards } from '../components/caja/CajaSummaryCards';
 import { TransactionTable } from '../components/caja/TransactionTable';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { MonthlyCloseAlert } from '../components/MonthlyCloseAlert';
+import { TransactionNovedadesDrawer } from '../components/caja/TransactionNovedadesDrawer';
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -35,6 +36,8 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const [formOpened, { open, close }] = useDisclosure(false);
     const [retentionOpened, { open: openRetention, close: closeRetention }] = useDisclosure(false);
     const [legalizationOpened, { open: openLegalization, close: closeLegalization }] = useDisclosure(false);
+    const [novedadesOpened, { open: openNovedades, close: closeNovedades }] = useDisclosure(false);
+    const [selectedTransactionForNovedades, setSelectedTransactionForNovedades] = useState<Transaction | null>(null);
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
 
@@ -70,7 +73,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         },
     });
 
-    const { data: transactions = [], isLoading: loadingTrans } = useQuery({
+    const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -80,7 +83,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     parent_id, es_justificacion,
                     proveedor:proveedores (nombre, ruc),
                     retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
-                    items:transaccion_items (nombre)
+                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
                 `)
                 .eq('caja_id', cajaId)
                 .order('created_at', { ascending: false });
@@ -88,8 +91,19 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
             if (error) throw error;
             return (data || []).map((t: any) => ({
                 ...t,
+                total_factura: Number(t.total_factura),
                 proveedor: Array.isArray(t.proveedor) ? t.proveedor[0] : t.proveedor,
-                retencion: Array.isArray(t.retencion) ? t.retencion[0] : t.retencion
+                retencion: Array.isArray(t.retencion) ? {
+                    ...t.retencion[0],
+                    total_fuente: Number(t.retencion[0].total_fuente),
+                    total_iva: Number(t.retencion[0].total_iva),
+                    total_retenido: Number(t.retencion[0].total_retenido)
+                } : (t.retencion ? {
+                    ...t.retencion,
+                    total_fuente: Number(t.retencion.total_fuente),
+                    total_iva: Number(t.retencion.total_iva),
+                    total_retenido: Number(t.retencion.total_retenido)
+                } : null)
             }));
         },
     });
@@ -139,6 +153,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         const matchesSearch = !searchQuery ||
             t.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.proveedor?.ruc?.includes(searchQuery) ||
+            t.numero_factura?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
 
         const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
@@ -425,10 +440,21 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                             </Text>
                         </Alert>
                     )}
+                    {isError && (
+                        <Alert
+                            variant="light"
+                            color="red"
+                            title="Error al cargar transacciones"
+                            icon={<IconAlertTriangle size={18} />}
+                            radius="md"
+                        >
+                            <Text size="sm">{error instanceof Error ? error.message : 'Ha ocurrido un error desconocido'}</Text>
+                        </Alert>
+                    )}
                     <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
                         <Group gap="sm" style={{ flex: 1, minWidth: '300px' }}>
                             <TextInput
-                                placeholder="Buscar por proveedor o RUC..."
+                                placeholder="Buscar por proveedor, RUC o número de factura..."
                                 leftSection={<IconSearch size={16} />}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -441,6 +467,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                                 data={[
                                     { value: 'factura', label: 'Factura' },
                                     { value: 'nota_venta', label: 'Nota de Venta' },
+                                    { value: 'liquidacion_compra', label: 'Liquidación de Compra' },
                                     { value: 'sin_factura', label: 'Sin Factura' },
                                 ]}
                                 value={filterTipo}
@@ -483,6 +510,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onRetention={(id) => { setRetentionTransactionId(id); openRetention(); }}
+                            onNovedades={(t) => { setSelectedTransactionForNovedades(t); openNovedades(); }}
                         />
                     </Paper>
                 </Stack>
@@ -497,13 +525,16 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 <TransactionForm
                     cajaId={cajaId}
                     transactionId={editingTransactionId || undefined}
-                    readOnly={caja?.estado !== 'abierta' || !!retentionReadOnlyMessage}
                     warningMessage={retentionReadOnlyMessage}
+                    currentBalance={totals.efectivo}
                     onSuccess={() => {
                         close();
                         setEditingTransactionId(null);
                         queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                         queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                        if (editingTransactionId) {
+                            queryClient.invalidateQueries({ queryKey: ['transaction_detail', editingTransactionId] });
+                        }
                     }}
                     onCancel={() => { close(); setEditingTransactionId(null); }}
                 />
@@ -537,6 +568,16 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                     queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
                 }}
+            />
+
+            <TransactionNovedadesDrawer
+                opened={novedadesOpened}
+                onClose={() => { closeNovedades(); setSelectedTransactionForNovedades(null); }}
+                transactionId={selectedTransactionForNovedades?.id || null}
+                transactionDetail={selectedTransactionForNovedades ?
+                    `${selectedTransactionForNovedades.proveedor?.nombre || 'Gasto'} - $${selectedTransactionForNovedades.total_factura}` :
+                    undefined
+                }
             />
 
             <CajaReport caja={caja} transactions={transactions} totals={totals} />
