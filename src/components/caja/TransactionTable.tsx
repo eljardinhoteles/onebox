@@ -1,4 +1,4 @@
-import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge } from '@mantine/core';
+import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
@@ -56,25 +56,42 @@ export function TransactionTable({
                 </Group>
             </Table.Td>
             <Table.Td>
-                <Stack gap={2}>
-                    <Badge
-                        variant="dot"
-                        color={
-                            t.tipo_documento === 'factura' ? 'blue' :
-                                t.tipo_documento === 'nota_venta' ? 'orange' :
-                                    t.tipo_documento === 'liquidacion_compra' ? 'teal' :
-                                        'gray'
-                        }
-                        size="sm"
-                    >
-                        {t.tipo_documento.replace(/_/g, ' ').toUpperCase()}
-                    </Badge>
-                    {t.numero_factura && t.numero_factura !== 'S/N' && (
-                        <Text size="xs" c="dimmed" fw={500} ml={12}>
-                            {t.numero_factura}
-                        </Text>
-                    )}
-                </Stack>
+                <Tooltip
+                    label={
+                        <Stack gap={0} p={4}>
+                            <Text size="xs" fw={700} mb={2} c="blue.1">Items:</Text>
+                            {t.items?.map((i: any, idx: number) => (
+                                <Text key={idx} size="xs" style={{ whiteSpace: 'normal' }}>• {i.nombre}</Text>
+                            ))}
+                        </Stack>
+                    }
+                    multiline
+                    w={220}
+                    withArrow
+                    transitionProps={{ duration: 200 }}
+                    disabled={!t.items || t.items.length === 0}
+                    color="dark"
+                >
+                    <Stack gap={2} style={{ cursor: 'help' }}>
+                        <Badge
+                            variant="dot"
+                            color={
+                                t.tipo_documento === 'factura' ? 'blue' :
+                                    t.tipo_documento === 'nota_venta' ? 'orange' :
+                                        t.tipo_documento === 'liquidacion_compra' ? 'teal' :
+                                            'gray'
+                            }
+                            size="sm"
+                        >
+                            {t.tipo_documento.replace(/_/g, ' ').toUpperCase()}
+                        </Badge>
+                        {t.numero_factura && t.numero_factura !== 'S/N' && (
+                            <Text size="xs" c="dimmed" fw={500} ml={12}>
+                                {t.numero_factura}
+                            </Text>
+                        )}
+                    </Stack>
+                </Tooltip>
             </Table.Td>
             <Table.Td ta="right">
                 <Text fw={700} size="sm" c="red.6">
@@ -151,7 +168,7 @@ export function TransactionTable({
     ));
 
     return (
-        <ScrollArea h={450} type="auto" offsetScrollbars>
+        <ScrollArea h={600} type="auto" offsetScrollbars>
             <Table stickyHeader verticalSpacing="xs">
                 <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                     <Table.Tr>

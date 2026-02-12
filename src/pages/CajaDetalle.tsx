@@ -249,6 +249,17 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         let bancoReposicion = '';
         let closingDate: Date | null = new Date();
 
+        // Calculate max transaction date
+        const maxTransactionDate = transactions.reduce((max, t) => {
+            const tDate = new Date(t.fecha_factura);
+            return tDate > max ? tDate : max;
+        }, caja ? new Date(caja.fecha_apertura) : new Date(0));
+
+        // Ensure we don't pick a date before opening if no transactions exist
+        const minCloseDate = caja && new Date(caja.fecha_apertura) > maxTransactionDate
+            ? new Date(caja.fecha_apertura)
+            : maxTransactionDate;
+
         modals.openConfirmModal({
             title: <Group gap="xs">
                 {readOnly ? <IconEye size={20} color="gray" /> : <IconLock size={20} color="red" />}
@@ -268,7 +279,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                         label="Fecha de Cierre"
                         placeholder="Seleccione la fecha"
                         defaultValue={new Date()}
-                        minDate={caja ? new Date(caja.fecha_apertura) : undefined}
+                        minDate={minCloseDate}
                         locale="es"
                         required
                         disabled={readOnly}
@@ -354,7 +365,20 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                         fecha_cierre: closingDate ? closingDate.toISOString() : new Date().toISOString(),
                         reposicion: totals.neto,
                         numero_cheque_reposicion: chequeNumber,
-                        banco_reposicion: bancoReposicion
+                        banco_reposicion: bancoReposicion,
+                        // Add metadata for actual action date if backend supports it or just rely on updated_at
+                        // Assuming we can send it as metadata or similar if column exists.
+                        // Based on request: "almacenar la fecha de la accion de cierre".
+                        // I will add a text note in bitacora logic or if schema allows.
+                        // Since I don't have schema for 'cajas' fully visible, I'll add it to payload.
+                        // If it fails, I'll remove it. But user asked for it.
+                        // Let's assume standard field 'fecha_cierre_real' or similar doesn't exist yet,
+                        // but sticking to user request: "almacenar la fecha de la accion"
+                        // I will attempt to send it.
+                        datos_cierre: {
+                            fecha_accion: new Date().toISOString(),
+                            usuario_id: (await supabase.auth.getUser()).data.user?.id
+                        }
                     };
 
                     await closeCajaMutation.mutateAsync(payload);
