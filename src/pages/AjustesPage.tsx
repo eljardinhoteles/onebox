@@ -10,6 +10,7 @@ import { AppModal } from '../components/ui/AppModal';
 import { AppActionButtons } from '../components/ui/AppActionButtons';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CierreHistory } from '../components/CierreHistory';
 
 export function AjustesPage() {
     const [loading, setLoading] = useState(false);
@@ -326,6 +327,7 @@ export function AjustesPage() {
                                         <MenuCard icon={<IconListDetails size={32} color="var(--mantine-color-teal-6)" />} title="Regímenes" description="Gestión tributaria." onClick={() => setActiveTab('regimenes')} />
                                         <MenuCard icon={<IconSettings size={32} color="var(--mantine-color-orange-6)" />} title="Configuración" description="Alertas y parámetros." onClick={() => setActiveTab('config')} />
                                         <MenuCard icon={<IconHistory size={32} color="var(--mantine-color-gray-6)" />} title="Bitácora" description="Historial de auditoría." onClick={() => setActiveTab('bitacora')} />
+                                        <MenuCard icon={<IconBuildingBank size={32} color="var(--mantine-color-grape-6)" />} title="Historial Cierres" description="Reposiciones y cajas cerradas." onClick={() => setActiveTab('history')} />
                                     </SimpleGrid>
                                 </Stack>
                             </motion.div>
@@ -410,6 +412,12 @@ export function AjustesPage() {
                                                 </Table.Tbody>
                                             </Table>
                                         </ScrollArea>
+                                    </Stack>
+                                )}
+
+                                {activeTab === 'history' && (
+                                    <Stack gap="md">
+                                        <CierreHistory />
                                     </Stack>
                                 )}
                             </motion.div>

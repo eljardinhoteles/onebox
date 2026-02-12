@@ -109,8 +109,8 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                 padding="lg"
                 radius="md"
                 withBorder
-                bg={caja.estado === 'abierta' ? 'white' : 'gray.0'}
-                className={`transition-all ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-75 grayscale-[0.5]'} `}
+                bg={caja.estado === 'abierta' ? 'white' : 'gray.1'}
+                className={`transition-all ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
                 style={isLowBalance ? { border: '1px solid var(--mantine-color-orange-4)', boxShadow: '0 0 0 1px var(--mantine-color-orange-1)' } : {}}
             >
                 <Group justify="space-between" align="flex-start" mb="md">

@@ -60,6 +60,31 @@ body {
     margin: 0 !important;
     padding: 20px !important;
     visibility: visible !important;
+    background-color: white !important;
+  }
+
+  /* Mejora de paginación para tablas */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+
+  html,
+  body,
+  #root,
+  .mantine-AppShell-root,
+  .mantine-AppShell-main {
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   /* Forzar ocultamiento de la aplicación normal durante la impresión si no tiene .no-print */

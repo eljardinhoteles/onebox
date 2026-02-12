@@ -30,6 +30,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         initialValues: {
             fecha_retencion: new Date(),
             numero_retencion: '',
+            ajuste_centavos: 0,
             items: [] as any[],
         },
         validate: {
@@ -71,6 +72,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                 form.setValues({
                     fecha_retencion: dayjs(ret.fecha_retencion).toDate(),
                     numero_retencion: ret.numero_retencion,
+                    ajuste_centavos: Number(ret.ajuste_centavos || 0),
                     items: ret.items.map((item: any) => ({
                         id: item.id,
                         transaccion_item_id: item.transaccion_item_id,
@@ -108,6 +110,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                     total_fuente: totals.fuente,
                     total_iva: totals.iva,
                     total_retenido: totals.total,
+                    ajuste_centavos: values.ajuste_centavos || 0,
                     user_id: (await supabase.auth.getUser()).data.user?.id
                 }, { onConflict: 'transaccion_id' })
                 .select()
@@ -194,14 +197,21 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         return { fuente: montoFuente, iva: montoIva };
     };
 
-    const totals = form.values.items.reduce((acc, _, index) => {
+    const subtotals = form.values.items.reduce((acc, _, index) => {
         const { fuente, iva } = calculateItemTotals(index);
         return {
             fuente: Number((Number(acc.fuente) + Number(fuente)).toFixed(2)),
             iva: Number((Number(acc.iva) + Number(iva)).toFixed(2)),
-            total: Number((Number(acc.total) + Number(fuente) + Number(iva)).toFixed(2))
+            subtotal: Number((Number(acc.subtotal) + Number(fuente) + Number(iva)).toFixed(2))
         };
-    }, { fuente: 0, iva: 0, total: 0 });
+    }, { fuente: 0, iva: 0, subtotal: 0 });
+
+    const ajuste = Number(form.values.ajuste_centavos || 0);
+    const totals = {
+        fuente: subtotals.fuente,
+        iva: subtotals.iva,
+        total: Number((subtotals.subtotal + ajuste).toFixed(2))
+    };
 
     const handleSubmit = (values: typeof form.values) => saveMutation.mutate(values);
 
@@ -324,11 +334,29 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                             <Text size="sm" fw={500}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                         </Group>
                         <Divider />
-                        <Group justify="space-between">
-                            <Text size="md" fw={700}>Total Retenido:</Text>
-                            <Text size="lg" fw={700} color="orange.7">
-                                ${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
+                        <Group justify="space-between" align="center">
+                            <NumberInput
+                                label="Ajuste de Centavos"
+                                description="+/- para diferencias decimales"
+                                placeholder="0.00"
+                                prefix="$"
+                                hideControls
+                                decimalScale={2}
+                                fixedDecimalScale
+                                allowNegative
+                                step={0.01}
+                                size="xs"
+                                style={{ flex: 1, maxWidth: 200 }}
+                                readOnly={readOnly}
+                                variant={readOnly ? "filled" : "default"}
+                                {...form.getInputProps('ajuste_centavos')}
+                            />
+                            <Stack gap={0} align="flex-end">
+                                <Text size="xs" c="dimmed">Total Retenido</Text>
+                                <Text size="lg" fw={700} c="orange.7">
+                                    ${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                            </Stack>
                         </Group>
                     </Stack>
                 </Paper>

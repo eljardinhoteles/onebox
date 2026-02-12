@@ -1,4 +1,5 @@
 import { Table, Text, Stack, Group, Title, Divider, Paper, Flex, Box } from '@mantine/core';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
 
 interface Transaction {
@@ -31,11 +32,11 @@ interface CajaReportProps {
     totals: any;
 }
 
-export function CajaReport({ caja, transactions, totals }: CajaReportProps) {
+export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, transactions, totals }, ref) => {
     if (!caja) return null;
 
     return (
-        <div className="print-only p-8 bg-white text-black font-sans">
+        <div ref={ref} className="print-only p-8 bg-white text-black font-sans">
             {/* Membrete / Cabezal */}
             <Stack gap="xs" mb="xl">
                 <Group justify="space-between" align="flex-start">
@@ -85,6 +86,7 @@ export function CajaReport({ caja, transactions, totals }: CajaReportProps) {
                             <Text fw={900} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                         </Group>
                         <Text size="sm" fw={600}>Número de Cheque: {caja.numero_cheque_reposicion || '---'}</Text>
+                        <Text size="sm" fw={600}>Banco: {caja.banco_reposicion || '---'}</Text>
                     </Stack>
                 </Paper>
             )}
@@ -153,7 +155,12 @@ export function CajaReport({ caja, transactions, totals }: CajaReportProps) {
             {/* Espacio para auditoría interna */}
             <Box mt={50}>
                 <Text size="xs" c="dimmed" ta="center">Este reporte es un documento de control interno generado por el Sistema de Gestión de Caja © 2026</Text>
+                {caja.datos_cierre && caja.datos_cierre.fecha_accion && (
+                    <Text size="xs" c="dimmed" ta="center" mt={4}>
+                        Generado el: {dayjs(caja.datos_cierre.fecha_accion).format('DD/MM/YYYY HH:mm:ss')} por usuario ID: {caja.datos_cierre.usuario_id || 'N/A'}
+                    </Text>
+                )}
             </Box>
         </div>
     );
-}
+});

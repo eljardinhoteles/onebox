@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { Paper, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip, ActionIcon } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
@@ -45,9 +46,11 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterTipo, setFilterTipo] = useState<string | null>(null);
 
-    const handlePrint = () => {
-        window.print();
-    };
+    const componentRef = useRef<HTMLDivElement>(null);
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        documentTitle: `Reporte-Caja-${cajaId}`,
+    });
 
     const handleCreate = () => {
         setRetentionReadOnlyMessage(null);
@@ -59,7 +62,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     useHotkeys([
         ['n', () => { if (caja?.estado === 'abierta') handleCreate(); }],
         ['l', () => { if (caja?.estado === 'abierta') openLegalization(); }],
-        ['p', handlePrint],
+        ['p', () => handlePrint()],
     ]);
 
     // --- QUERIES ---
@@ -552,6 +555,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                     transactionId={editingTransactionId || undefined}
                     warningMessage={retentionReadOnlyMessage}
                     currentBalance={totals.efectivo}
+                    readOnly={!!retentionReadOnlyMessage || caja?.estado !== 'abierta'}
                     onSuccess={() => {
                         close();
                         setEditingTransactionId(null);
@@ -605,7 +609,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 }
             />
 
-            <CajaReport caja={caja} transactions={transactions} totals={totals} />
+            <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} />
         </Stack >
     );
 }
