@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
 import { DatePickerInput } from '@mantine/dates';
 import 'dayjs/locale/es';
+import dayjs from 'dayjs';
 
 import { useCajaCalculations, type Transaction } from '../hooks/useCajaCalculations';
 import { CajaSummaryCards } from '../components/caja/CajaSummaryCards';
@@ -252,17 +253,6 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         let bancoReposicion = '';
         let closingDate: Date | null = new Date();
 
-        // Calculate max transaction date
-        const maxTransactionDate = transactions.reduce((max, t) => {
-            const tDate = new Date(t.fecha_factura);
-            return tDate > max ? tDate : max;
-        }, caja ? new Date(caja.fecha_apertura) : new Date(0));
-
-        // Ensure we don't pick a date before opening if no transactions exist
-        const minCloseDate = caja && new Date(caja.fecha_apertura) > maxTransactionDate
-            ? new Date(caja.fecha_apertura)
-            : maxTransactionDate;
-
         modals.openConfirmModal({
             title: <Group gap="xs">
                 {readOnly ? <IconEye size={20} color="gray" /> : <IconLock size={20} color="red" />}
@@ -282,7 +272,6 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                         label="Fecha de Cierre"
                         placeholder="Seleccione la fecha"
                         defaultValue={new Date()}
-                        minDate={minCloseDate}
                         locale="es"
                         required
                         disabled={readOnly}
@@ -365,7 +354,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 try {
                     const payload = {
                         estado: 'cerrada',
-                        fecha_cierre: closingDate ? closingDate.toISOString() : new Date().toISOString(),
+                        fecha_cierre: closingDate ? dayjs(closingDate).toISOString() : new Date().toISOString(),
                         reposicion: totals.neto,
                         numero_cheque_reposicion: chequeNumber,
                         banco_reposicion: bancoReposicion,
@@ -549,6 +538,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 onClose={() => { close(); setEditingTransactionId(null); }}
                 title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (editingTransactionId ? "Editar Gasto" : "Registrar Gasto")}
                 size="lg"
+                closeOnClickOutside={false}
             >
                 <TransactionForm
                     cajaId={cajaId}
