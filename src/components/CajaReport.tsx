@@ -45,7 +45,7 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                         <Text fw={700} size="sm" c="dimmed">ID CAJA: #{caja.id}</Text>
                     </Stack>
                     <Stack gap={0} align="flex-end">
-                        <Text fw={700} size="sm">FECHA DE EMISIÓN</Text>
+                        <Text fw={700} size="sm">FECHA DE IMPRESIÓN</Text>
                         <Text size="sm">{dayjs().format('DD/MM/YYYY HH:mm')}</Text>
                     </Stack>
                 </Group>
@@ -140,16 +140,14 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                             </Table.Tr>
                         );
                     })}
-                </Table.Tbody>
-                <Table.Tfoot>
                     <Table.Tr bg="gray.1">
-                        <Table.Th colSpan={3} ta="right">TOTALES ACUMULADOS:</Table.Th>
-                        <Table.Th ta="right">${totals.facturado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Th>
-                        <Table.Th ta="right">${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Th>
-                        <Table.Th ta="right" c="red.8">-${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Th>
-                        <Table.Th ta="right" fw={800}>${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Th>
+                        <Table.Td colSpan={3} ta="right" fw={700}>TOTALES ACUMULADOS:</Table.Td>
+                        <Table.Td ta="right" fw={700}>${totals.facturado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                        <Table.Td ta="right" fw={700}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                        <Table.Td ta="right" fw={700} c="red.8">-${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                        <Table.Td ta="right" fw={800}>${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                     </Table.Tr>
-                </Table.Tfoot>
+                </Table.Tbody>
             </Table>
 
             {/* Espacio para auditoría interna */}

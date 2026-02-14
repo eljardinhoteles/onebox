@@ -15,10 +15,10 @@ interface CajaSummaryCardsProps {
 
 export function CajaSummaryCards({ caja, totals }: CajaSummaryCardsProps) {
     return (
-        <Grid gutter="md">
+        <Grid gutter={{ base: 'xs', sm: 'md' }}>
             {/* Monto Inicial */}
             <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                <Paper withBorder p="md" radius="md" shadow="xs">
+                <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="md" shadow="xs">
                     <Group justify="space-between" align="start">
                         <Stack gap={0}>
                             <Text size="xs" c="dimmed" fw={700} tt="uppercase">Monto Inicial</Text>
@@ -36,7 +36,7 @@ export function CajaSummaryCards({ caja, totals }: CajaSummaryCardsProps) {
 
             {/* Total Facturado */}
             <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                <Paper withBorder p="md" radius="md" shadow="xs">
+                <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="md" shadow="xs">
                     <Group justify="space-between" align="start">
                         <Stack gap={0}>
                             <Text size="xs" c="dimmed" fw={700} tt="uppercase">Total Facturado</Text>
@@ -48,13 +48,13 @@ export function CajaSummaryCards({ caja, totals }: CajaSummaryCardsProps) {
                             <IconCalculator size={20} stroke={1.5} />
                         </ThemeIcon>
                     </Group>
-                    <Text size="xs" c="dimmed" mt="xs">Suma de gastos realizados</Text>
+                    <Text size="xs" c="dimmed" mt="xs">Suma de gastos facturados</Text>
                 </Paper>
             </Grid.Col>
 
             {/* Retenciones */}
             <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                <Paper withBorder p="md" radius="md" shadow="xs">
+                <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="md" shadow="xs">
                     <Group justify="space-between" align="start">
                         <Stack gap={0}>
                             <Text size="xs" c="dimmed" fw={700} tt="uppercase">Retenciones</Text>
@@ -75,7 +75,7 @@ export function CajaSummaryCards({ caja, totals }: CajaSummaryCardsProps) {
 
             {/* Efectivo Final */}
             <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                <Paper withBorder p="md" radius="md" shadow="xs" bg="teal.0">
+                <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="md" shadow="xs" bg="teal.0">
                     <Group justify="space-between" align="start">
                         <Stack gap={0}>
                             <Text size="xs" c="teal.9" fw={700} tt="uppercase">Efectivo en Caja</Text>

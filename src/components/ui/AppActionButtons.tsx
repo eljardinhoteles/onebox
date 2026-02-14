@@ -6,6 +6,7 @@ interface AppActionButtonsProps extends GroupProps {
     cancelLabel?: string;
     loading?: boolean;
     color?: string;
+    showSubmit?: boolean;
 }
 
 export function AppActionButtons({
@@ -14,6 +15,7 @@ export function AppActionButtons({
     cancelLabel = 'Cancelar',
     loading = false,
     color = 'blue',
+    showSubmit = true,
     ...props
 }: AppActionButtonsProps) {
     return (
@@ -21,9 +23,11 @@ export function AppActionButtons({
             <Button variant="default" onClick={onCancel} disabled={loading}>
                 {cancelLabel}
             </Button>
-            <Button type="submit" color={color} loading={loading}>
-                {submitLabel}
-            </Button>
+            {showSubmit && (
+                <Button type="submit" color={color} loading={loading}>
+                    {submitLabel}
+                </Button>
+            )}
         </Group>
     );
 }

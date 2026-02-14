@@ -1,7 +1,5 @@
-import { Group, Title, Paper, ActionIcon, Avatar, rem, Tooltip, Flex } from '@mantine/core';
+import { Group, Title, Paper, ActionIcon, rem, Flex } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { NotificationCenter } from './NotificationCenter';
 import { motion } from 'framer-motion';
 
@@ -13,15 +11,7 @@ interface HeaderProps {
 }
 
 export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
-    const [user, setUser] = useState<any>(null);
 
-    useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-        };
-        getUser();
-    }, []);
 
     return (
         <motion.div
@@ -42,9 +32,6 @@ export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
                 radius={0}
                 style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
                 }}
                 className="no-print"
             >
@@ -52,7 +39,7 @@ export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
                     direction="row"
                     justify="space-between"
                     align="center"
-                    gap="md"
+                    gap="sm"
                 >
                     <Group gap="md">
                         {onBack && (
@@ -63,7 +50,7 @@ export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
                         <Title
                             order={1}
                             fw={900}
-                            size="h3"
+                            size="h4"
                             c="dark"
                             style={{ letterSpacing: '-1px' }}
                         >
@@ -74,17 +61,7 @@ export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
                     <Group gap="sm">
                         {actions}
                         <NotificationCenter />
-                        <Tooltip label={user?.email || 'Usuario'} withArrow position="bottom">
-                            <Avatar
-                                radius="md"
-                                color="blue"
-                                size="md"
-                                variant="light"
-                                style={{ cursor: 'help' }}
-                            >
-                                {user?.email?.charAt(0).toUpperCase() || '?'}
-                            </Avatar>
-                        </Tooltip>
+
                     </Group>
                 </Flex>
             </Paper>

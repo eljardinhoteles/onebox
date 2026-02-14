@@ -25,6 +25,7 @@ export interface Transaction {
     } | null;
     parent_id: number | null;
     es_justificacion: boolean;
+    has_manual_novedad?: boolean;
 }
 
 export function useCajaCalculations(caja: any, transactions: Transaction[]) {

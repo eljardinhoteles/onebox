@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Paper, Text, Stack, Group, Button, Divider, TextInput, Select, Alert, Tooltip, ActionIcon } from '@mantine/core';
+import { Paper, Text, Stack, Group, Button, Alert, Tooltip, ActionIcon, Menu, PillsInput, Pill } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -11,13 +11,11 @@ import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
     IconPlus, IconReceipt2,
-    IconFileInvoice, IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter
+    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
-import { DatePickerInput } from '@mantine/dates';
 import 'dayjs/locale/es';
-import dayjs from 'dayjs';
 
 import { useCajaCalculations, type Transaction } from '../hooks/useCajaCalculations';
 import { CajaSummaryCards } from '../components/caja/CajaSummaryCards';
@@ -25,11 +23,19 @@ import { TransactionTable } from '../components/caja/TransactionTable';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { MonthlyCloseAlert } from '../components/MonthlyCloseAlert';
 import { TransactionNovedadesDrawer } from '../components/caja/TransactionNovedadesDrawer';
+import { CierreCajaModal } from '../components/caja/CierreCajaModal';
 
 interface CajaDetalleProps {
     cajaId: number;
     setHeaderActions?: (actions: React.ReactNode) => void;
 }
+
+const TIPO_LABELS: Record<string, string> = {
+    factura: 'Factura',
+    nota_venta: 'N. Venta',
+    liquidacion_compra: 'Liq. Compra',
+    sin_factura: 'S/ Factura',
+};
 
 export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const queryClient = useQueryClient();
@@ -39,6 +45,8 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     const [retentionOpened, { open: openRetention, close: closeRetention }] = useDisclosure(false);
     const [legalizationOpened, { open: openLegalization, close: closeLegalization }] = useDisclosure(false);
     const [novedadesOpened, { open: openNovedades, close: closeNovedades }] = useDisclosure(false);
+    const [closingOpened, { open: openClosing, close: closeClosing }] = useDisclosure(false);
+    const [isClosingInReadOnlyMode, setIsClosingInReadOnlyMode] = useState(false);
     const [selectedTransactionForNovedades, setSelectedTransactionForNovedades] = useState<Transaction | null>(null);
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
@@ -84,7 +92,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 .from('transacciones')
                 .select(`
                     id, tipo_documento, fecha_factura, numero_factura, total_factura,
-                    parent_id, es_justificacion,
+                    parent_id, es_justificacion, has_manual_novedad,
                     proveedor:proveedores (nombre, ruc),
                     retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
                     items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
@@ -94,6 +102,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
+
             return (data || []).map((t: any) => ({
                 ...t,
                 total_factura: Number(t.total_factura),
@@ -113,13 +122,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         },
     });
 
-    const { data: bancos = [] } = useQuery({
-        queryKey: ['bancos'],
-        queryFn: async () => {
-            const { data } = await supabase.from('bancos').select('nombre').order('nombre');
-            return (data || []).map(b => ({ value: b.nombre, label: b.nombre }));
-        },
-    });
+    // Removed banks query as it's now internal to CierreCajaModal
 
     const loading = loadingCaja || loadingTrans;
 
@@ -143,16 +146,7 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
     });
 
-    const closeCajaMutation = useMutation({
-        mutationFn: async (payload: any) => {
-            const { error } = await supabase.from('cajas').update(payload).eq('id', cajaId);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-            notifications.show({ title: 'Éxito', message: 'Caja cerrada exitosamente', color: 'teal' });
-        }
-    });
+    // closeCajaMutation removed as it's now handled inside CierreCajaModal
 
     const filteredTransactions = transactions.filter(t => {
         const matchesSearch = !searchQuery ||
@@ -249,150 +243,8 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     };
 
     const openClosingModal = (readOnly: boolean = false) => {
-        let chequeNumber = '';
-        let bancoReposicion = '';
-        let closingDate: Date | null = new Date();
-
-        modals.openConfirmModal({
-            title: <Group gap="xs">
-                {readOnly ? <IconEye size={20} color="gray" /> : <IconLock size={20} color="red" />}
-                <Text fw={700}>{readOnly ? 'Simulación de Cierre' : 'Cierre de Caja Definitivo'}</Text>
-            </Group>,
-            centered: true,
-            size: 'md',
-            children: (
-                <Stack gap="md">
-                    <Text size="sm">
-                        {readOnly
-                            ? 'A continuación se muestran los totales calculados hasta el momento. No puedes cerrar la caja porque hay gastos pendientes de legalizar.'
-                            : 'Vas a proceder al cierre de la caja. Una vez cerrada, no podrás registrar más gastos ni editar los existentes.'}
-                    </Text>
-
-                    <DatePickerInput
-                        label="Fecha de Cierre"
-                        placeholder="Seleccione la fecha"
-                        defaultValue={new Date()}
-                        locale="es"
-                        required
-                        disabled={readOnly}
-                        onChange={(value: any) => { closingDate = value; }}
-                    />
-
-                    <Paper withBorder p="md" radius="md" bg="gray.0">
-                        <Stack gap="xs">
-                            <Group justify="space-between">
-                                <Text size="sm">Monto Inicial:</Text>
-                                <Text size="sm" fw={600}>${caja?.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                            </Group>
-                            <Group justify="space-between">
-                                <Text size="sm" c="red.6">Total Gastos Netos:</Text>
-                                <Text size="sm" fw={600} c="red.6">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                            </Group>
-                            <Divider />
-                            <Group justify="space-between">
-                                <Text size="sm" fw={700}>Efectivo Final en Caja:</Text>
-                                <Text size="sm" fw={700}>${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                            </Group>
-
-                            <Paper withBorder p="sm" radius="md" bg="orange.0" className="border-orange-100" mt="xs">
-                                <Group gap="xs" mb={4} justify="space-between">
-                                    <Group gap="xs">
-                                        <IconFileInvoice size={16} color="orange" />
-                                        <Text size="xs" fw={700} c="orange.6" tt="uppercase">Retenciones Totales</Text>
-                                    </Group>
-                                    <Text size="sm" fw={800} c="orange.9">
-                                        ${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </Text>
-                                </Group>
-                            </Paper>
-                        </Stack>
-                    </Paper>
-
-                    <Group grow>
-                        <Select
-                            label="Banco del Cheque"
-                            placeholder="Seleccione banco"
-                            data={bancos}
-                            required
-                            searchable
-                            disabled={readOnly}
-                            onChange={(value) => { bancoReposicion = value || ''; }}
-                        />
-                        <TextInput
-                            label="Número de Cheque"
-                            placeholder="Ej: CH-123456"
-                            required
-                            disabled={readOnly}
-                            onChange={(e) => { chequeNumber = e.currentTarget.value; }}
-                        />
-                    </Group>
-
-                    {!readOnly ? (
-                        <Text size="xs" c="dimmed" fs="italic">
-                            * El estado de la caja cambiará a "Cerrada" y se registrará la fecha seleccionada.
-                        </Text>
-                    ) : (
-                        <Paper withBorder p="xs" bg="blue.0" c="blue.9" className="border-blue-200">
-                            <Group gap="xs">
-                                <IconAlertTriangle size={16} />
-                                <Text size="xs" fw={500}>Modo solo lectura.</Text>
-                            </Group>
-                        </Paper>
-                    )}
-                </Stack>
-            ),
-            labels: { confirm: 'Confirmar Cierre', cancel: readOnly ? 'Cerrar' : 'Cancelar' },
-            confirmProps: { color: 'red', disabled: readOnly, display: readOnly ? 'none' : 'block' },
-            onConfirm: async () => {
-                if (readOnly) return;
-
-                if (!chequeNumber || !bancoReposicion) {
-                    notifications.show({ title: 'Error', message: 'Debes ingresar banco y número de cheque', color: 'red' });
-                    return;
-                }
-
-                try {
-                    const payload = {
-                        estado: 'cerrada',
-                        fecha_cierre: closingDate ? dayjs(closingDate).toISOString() : new Date().toISOString(),
-                        reposicion: totals.neto,
-                        numero_cheque_reposicion: chequeNumber,
-                        banco_reposicion: bancoReposicion,
-                        // Add metadata for actual action date if backend supports it or just rely on updated_at
-                        // Assuming we can send it as metadata or similar if column exists.
-                        // Based on request: "almacenar la fecha de la accion de cierre".
-                        // I will add a text note in bitacora logic or if schema allows.
-                        // Since I don't have schema for 'cajas' fully visible, I'll add it to payload.
-                        // If it fails, I'll remove it. But user asked for it.
-                        // Let's assume standard field 'fecha_cierre_real' or similar doesn't exist yet,
-                        // but sticking to user request: "almacenar la fecha de la accion"
-                        // I will attempt to send it.
-                        datos_cierre: {
-                            fecha_accion: new Date().toISOString(),
-                            usuario_id: (await supabase.auth.getUser()).data.user?.id
-                        }
-                    };
-
-                    await closeCajaMutation.mutateAsync(payload);
-
-                    modals.open({
-                        title: <Text fw={700}>¡Cierre Exitoso!</Text>,
-                        centered: true,
-                        children: (
-                            <Stack gap="md">
-                                <Text size="sm">La caja ha sido finalizada correctamente.</Text>
-                                <Button leftSection={<IconPrinter size={16} />} onClick={() => { modals.closeAll(); setTimeout(handlePrint, 500); }} fullWidth>
-                                    Imprimir Reporte
-                                </Button>
-                                <Button variant="light" color="gray" onClick={() => modals.closeAll()} fullWidth>Cerrar</Button>
-                            </Stack>
-                        )
-                    });
-                } catch (error: any) {
-                    notifications.show({ title: 'Error', message: error.message || 'Error al cerrar caja', color: 'red' });
-                }
-            },
-        });
+        setIsClosingInReadOnlyMode(readOnly);
+        openClosing();
     };
 
     const handleCloseCaja = () => {
@@ -438,9 +290,9 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
     if (!caja && loading) return <Text p="xl" ta="center">Cargando...</Text>;
 
     return (
-        <Stack gap="lg">
+        <Stack gap="md">
             <div className="no-print">
-                <Stack gap="lg">
+                <Stack gap="md">
                     <MonthlyCloseAlert />
                     {isLowBalance && (
                         <Alert
@@ -469,30 +321,61 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                         </Alert>
                     )}
                     <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
-                        <Group gap="sm" style={{ flex: 1, minWidth: '300px' }}>
-                            <TextInput
-                                placeholder="Buscar por proveedor, RUC o número de factura..."
-                                leftSection={<IconSearch size={16} />}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                        <Group gap="xs" style={{ flex: 1, minWidth: '300px' }}>
+                            <PillsInput
+                                radius="md"
                                 style={{ flex: 1 }}
-                                radius="md"
-                            />
-                            <Select
-                                placeholder="Filtrar por documento"
-                                leftSection={<IconFilter size={16} />}
-                                data={[
-                                    { value: 'factura', label: 'Factura' },
-                                    { value: 'nota_venta', label: 'Nota de Venta' },
-                                    { value: 'liquidacion_compra', label: 'Liquidación de Compra' },
-                                    { value: 'sin_factura', label: 'Sin Factura' },
-                                ]}
-                                value={filterTipo}
-                                onChange={setFilterTipo}
-                                clearable
-                                radius="md"
-                                style={{ width: '180px' }}
-                            />
+                                leftSection={<IconSearch size={16} />}
+                                rightSection={
+                                    <Menu position="bottom-end" shadow="sm" width={220} withArrow transitionProps={{ transition: 'pop-top-right' }}>
+                                        <Menu.Target>
+                                            <ActionIcon variant="subtle" color={filterTipo ? 'blue' : 'gray'} radius="md">
+                                                <IconFilter size={18} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Label>Filtrar por Documento</Menu.Label>
+                                            <Menu.Divider />
+                                            {Object.entries(TIPO_LABELS).map(([val, label]) => (
+                                                <Menu.Item
+                                                    key={val}
+                                                    onClick={() => setFilterTipo(val)}
+                                                    bg={filterTipo === val ? 'blue.0' : undefined}
+                                                    c={filterTipo === val ? 'blue.7' : undefined}
+                                                >
+                                                    {label}
+                                                </Menu.Item>
+                                            ))}
+                                            {filterTipo && (
+                                                <>
+                                                    <Menu.Divider />
+                                                    <Menu.Item color="red" onClick={() => setFilterTipo(null)}>
+                                                        Limpiar Filtro
+                                                    </Menu.Item>
+                                                </>
+                                            )}
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                }
+                            >
+                                <Pill.Group>
+                                    {filterTipo && (
+                                        <Pill
+                                            withRemoveButton
+                                            onRemove={() => setFilterTipo(null)}
+                                            size="sm"
+                                            color="blue"
+                                        >
+                                            {TIPO_LABELS[filterTipo]}
+                                        </Pill>
+                                    )}
+                                    <PillsInput.Field
+                                        placeholder={filterTipo ? "" : "Buscar por proveedor, RUC o factura..."}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                                    />
+                                </Pill.Group>
+                            </PillsInput>
                         </Group>
 
                         <Group>
@@ -504,21 +387,27 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
                                         </Button>
                                     </Tooltip>
                                     <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>
-                                        Cerrar
+                                        Cerrar Caja
                                     </Button>
                                 </>
                             )}
-                            <Tooltip label="Imprimir Reporte [P]" withArrow radius="md">
-                                <Button variant="light" color="blue" leftSection={<IconPrinter size={16} />} onClick={handlePrint}>
-                                    Imprimir
-                                </Button>
+                            <Tooltip label="Imprimir Reporte [P]" withArrow radius="md" position="bottom">
+                                <ActionIcon
+                                    variant="light"
+                                    color="blue"
+                                    size="lg"
+                                    radius="md"
+                                    onClick={handlePrint}
+                                >
+                                    <IconPrinter size={18} />
+                                </ActionIcon>
                             </Tooltip>
                         </Group>
                     </Group>
 
                     <CajaSummaryCards caja={caja} totals={totals} />
 
-                    <Paper withBorder p="md" radius="lg" className="shadow-sm border-gray-100">
+                    <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100">
 
                         <TransactionTable
                             transactions={filteredTransactions}
@@ -600,6 +489,30 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
             />
 
             <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} />
-        </Stack >
+
+            <CierreCajaModal
+                opened={closingOpened}
+                close={closeClosing}
+                caja={caja}
+                totals={totals}
+                readOnly={isClosingInReadOnlyMode}
+                onSuccess={() => {
+                    closeClosing();
+                    modals.open({
+                        title: <Text fw={700}>¡Cierre Exitoso!</Text>,
+                        centered: true,
+                        children: (
+                            <Stack gap="md">
+                                <Text size="sm">La caja ha sido finalizada correctamente con el arqueo verificado.</Text>
+                                <Button leftSection={<IconPrinter size={16} />} onClick={() => { modals.closeAll(); setTimeout(handlePrint, 500); }} fullWidth>
+                                    Imprimir Reporte
+                                </Button>
+                                <Button variant="light" color="gray" onClick={() => modals.closeAll()} fullWidth>Cerrar</Button>
+                            </Stack>
+                        )
+                    });
+                }}
+            />
+        </Stack>
     );
 }

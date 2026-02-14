@@ -1,29 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center, MultiSelect } from '@mantine/core';
-import { AppModal } from '../components/ui/AppModal';
-import { AppDrawer } from '../components/ui/AppDrawer';
-import { AppActionButtons } from '../components/ui/AppActionButtons';
+import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import { IconPencil, IconTrash, IconSearch } from '@tabler/icons-react';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ProveedorFormModal } from '../components/proveedores/ProveedorFormModal';
+import type { Proveedor } from '../components/proveedores/ProveedorFormModal';
 
 interface ProveedoresPageProps {
     opened: boolean;
     close: () => void;
-}
-
-interface Proveedor {
-    id: number;
-    ruc: string;
-    nombre: string;
-    actividad_economica: string;
-    regimen: string;
-    telefono?: string;
-    sucursales?: string[];
 }
 
 const PAGE_SIZE = 50;
@@ -38,28 +26,10 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     const [debouncedSearch] = useDebouncedValue(search, 400);
     const [regimenFilter, setRegimenFilter] = useState<string | null>(null);
 
-    // El scroll infinito lo mantendremos con un estado local de página por ahora, o podríamos usar useInfiniteQuery. 
-    // Para no complicar demasiado la primera refactorización, optimizaremos la carga inicial con useQuery.
     const [page, setPage] = useState(0);
     const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
 
     const loaderRef = useRef<HTMLTableRowElement>(null);
-
-    const form = useForm({
-        initialValues: {
-            ruc: '',
-            nombre: '',
-            actividad_economica: '',
-            regimen: '',
-            telefono: '',
-            sucursales: [] as string[],
-        },
-        validate: {
-            ruc: (value) => (value.length < 10 ? 'El RUC debe tener al menos 10 dígitos' : null),
-            nombre: (value) => (value.length < 2 ? 'El nombre es obligatorio' : null),
-            regimen: (value) => (value ? null : 'Debes seleccionar un régimen'),
-        },
-    });
 
     // --- QUERIES ---
 
@@ -104,20 +74,12 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         setPage(0);
     }, [debouncedSearch, regimenFilter]);
 
-    // Regímenes y Sucursales (Caché a largo plazo)
+    // Regímenes (Caché a largo plazo) - Se queda aquí para el filtro
     const { data: regimenes = [] } = useQuery({
         queryKey: ['regimenes'],
         queryFn: async () => {
             const { data } = await supabase.from('regimenes').select('nombre').order('nombre');
             return (data || []).map(r => ({ value: r.nombre, label: r.nombre }));
-        }
-    });
-
-    const { data: sucursalesList = [] } = useQuery({
-        queryKey: ['sucursales_list'],
-        queryFn: async () => {
-            const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
-            return (data || []).map(s => ({ value: s.nombre, label: s.nombre }));
         }
     });
 
@@ -141,71 +103,22 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
     // --- MUTATIONS ---
 
-    const createMutation = useMutation({
-        mutationFn: async (values: any) => {
-            const { error } = await supabase.from('proveedores').insert([values]);
-            if (error) throw error;
-
-            const { data: { user } } = await supabase.auth.getUser();
-            await supabase.from('bitacora').insert({
-                accion: 'CREAR_PROVEEDOR',
-                detalle: { nombre: values.nombre, ruc: values.ruc },
-                user_id: user?.id,
-                user_email: user?.email
-            });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['proveedores'] });
-            notifications.show({
-                title: 'Éxito',
-                message: 'Proveedor creado correctamente',
-                color: 'teal',
-            });
-            form.reset();
-            close();
-        },
-        onError: (error: any) => {
-            notifications.show({
-                title: 'Error',
-                message: error.message || 'No se pudo crear el proveedor',
-                color: 'red',
-            });
-        }
-    });
-
-    const updateMutation = useMutation({
-        mutationFn: async (values: any) => {
-            if (!editingProveedor) return;
-            const { error } = await supabase
-                .from('proveedores')
-                .update(values)
-                .eq('id', editingProveedor.id);
-
-            if (error) throw error;
-
-            const { data: { user } } = await supabase.auth.getUser();
-            await supabase.from('bitacora').insert({
-                accion: 'EDITAR_PROVEEDOR',
-                detalle: { id: editingProveedor.id, nombre: values.nombre },
-                user_id: user?.id,
-                user_email: user?.email
-            });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['proveedores'] });
-            closeDrawer();
-        },
-        onError: (error: any) => {
-            notifications.show({
-                title: 'Error',
-                message: error.message || 'No se pudo actualizar',
-                color: 'red',
-            });
-        }
-    });
-
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
+            // 1. Verificar si existen transacciones vinculadas
+            const { data: linked, error: checkError } = await supabase
+                .from('transacciones')
+                .select('id')
+                .eq('proveedor_id', id)
+                .limit(1)
+                .maybeSingle();
+
+            if (checkError) throw checkError;
+            if (linked) {
+                throw new Error('No se puede eliminar este proveedor porque tiene transacciones asociadas en el sistema.');
+            }
+
+            // 2. Eliminar si no hay vínculos
             const { error } = await supabase.from('proveedores').delete().eq('id', id);
             if (error) throw error;
 
@@ -220,19 +133,18 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['proveedores'] });
             notifications.show({ title: 'Eliminado', message: 'Proveedor eliminado', color: 'teal' });
+        },
+        onError: (error: any) => {
+            notifications.show({
+                title: 'No se pudo eliminar',
+                message: error.message || 'Error al procesar la solicitud',
+                color: 'red'
+            });
         }
     });
 
     const openEditDrawer = (proveedor: Proveedor) => {
         setEditingProveedor(proveedor);
-        form.setValues({
-            ruc: proveedor.ruc,
-            nombre: proveedor.nombre,
-            actividad_economica: proveedor.actividad_economica || '',
-            regimen: proveedor.regimen || '',
-            telefono: proveedor.telefono || '',
-            sucursales: proveedor.sucursales || [],
-        });
         openDrawer();
     };
 
@@ -292,52 +204,6 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             </Table.Td>
         </Table.Tr>
     ));
-
-    const formFields = (
-        <Stack gap="md">
-            <TextInput
-                label="RUC"
-                placeholder="Ingrese el RUC"
-                required
-                {...form.getInputProps('ruc')}
-            />
-            <TextInput
-                label="Razón Social / Nombre"
-                placeholder="Nombre de la empresa o persona"
-                required
-                {...form.getInputProps('nombre')}
-            />
-            <Group grow>
-                <TextInput
-                    label="Teléfono de Contacto"
-                    placeholder="Ej: +593..."
-                    {...form.getInputProps('telefono')}
-                />
-                <Select
-                    label="Régimen"
-                    placeholder="Seleccione el régimen"
-                    data={regimenes}
-                    required
-                    searchable
-                    {...form.getInputProps('regimen')}
-                />
-            </Group>
-            <MultiSelect
-                label="Sucursales"
-                placeholder="Seleccione sucursales (vacío = todas)"
-                data={sucursalesList}
-                searchable
-                clearable
-                hidePickedOptions
-                {...form.getInputProps('sucursales')}
-            />
-            <TextInput
-                label="Actividad Económica"
-                placeholder="Ej: Venta de materiales..."
-                {...form.getInputProps('actividad_economica')}
-            />
-        </Stack>
-    );
 
     return (
         <>
@@ -433,37 +299,16 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 </Stack>
             </Paper>
 
-            {/* Modal para Crear */}
-            <AppModal opened={opened} onClose={close} title="Nuevo Proveedor" loading={createMutation.isPending}>
-                <form onSubmit={form.onSubmit((v) => createMutation.mutate(v))}>
-                    {formFields}
-                    <AppActionButtons
-                        onCancel={close}
-                        loading={createMutation.isPending}
-                        submitLabel="Guardar Proveedor"
-                        color="green"
-                    />
-                </form>
-            </AppModal>
-
-            {/* Drawer para Editar */}
-            <AppDrawer
-                opened={drawerOpened}
-                onClose={closeDrawer}
-                title="Editar Proveedor"
-                size="md"
-                loading={updateMutation.isPending}
-            >
-                <form onSubmit={form.onSubmit((v) => updateMutation.mutate(v))}>
-                    {formFields}
-                    <AppActionButtons
-                        onCancel={closeDrawer}
-                        loading={updateMutation.isPending}
-                        submitLabel="Actualizar Datos"
-                        color="blue"
-                    />
-                </form>
-            </AppDrawer>
+            {/* Modal Unificado para Crear y Editar */}
+            <ProveedorFormModal
+                opened={opened || drawerOpened}
+                onClose={() => {
+                    if (opened) close();
+                    if (drawerOpened) closeDrawer();
+                    setEditingProveedor(null);
+                }}
+                editingProveedor={editingProveedor}
+            />
         </>
     );
 }

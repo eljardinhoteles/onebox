@@ -1,5 +1,5 @@
 import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip } from '@mantine/core';
-import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2 } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -55,7 +55,11 @@ export function TransactionTable({
                     )}
                 </Group>
             </Table.Td>
-            <Table.Td>
+            <Table.Td
+                onClick={() => onEdit(t.id)}
+                style={{ cursor: 'pointer' }}
+                className="hover:bg-blue-50/30 transition-colors"
+            >
                 <Tooltip
                     label={
                         <Stack gap={0} p={4}>
@@ -118,24 +122,24 @@ export function TransactionTable({
                     <ActionIcon
                         variant="subtle"
                         color="orange"
-                        onClick={() => onRetention(t.id)}
+                        onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
                         disabled={t.tipo_documento === 'sin_factura'}
                         title="Comprobante de Retención"
                     >
-                        <IconFileInvoice size={16} />
+                        {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={16} /> : <IconFileInvoice size={16} />}
                     </ActionIcon>
                     <ActionIcon
                         variant="subtle"
                         color="grape"
-                        onClick={() => onNovedades(t)}
+                        onClick={(e) => { e.stopPropagation(); onNovedades(t); }}
                         title="Novedades y Auditoría"
                     >
-                        <IconMessage2 size={16} />
+                        {t.has_manual_novedad ? <IconMessage2Filled size={16} /> : <IconMessage2 size={16} />}
                     </ActionIcon>
                     <ActionIcon
                         variant="subtle"
                         color="blue"
-                        onClick={() => onEdit(t.id)}
+                        onClick={(e) => { e.stopPropagation(); onEdit(t.id); }}
                     >
                         {cajaEstado !== 'abierta' || (t.retencion && t.retencion.total_retenido > 0) ?
                             <IconEye size={16} /> :
@@ -146,7 +150,8 @@ export function TransactionTable({
                         <ActionIcon
                             variant="subtle"
                             color="red"
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
                                 if (t.retencion && t.retencion.total_retenido > 0) {
                                     notifications.show({
                                         title: 'Acción no permitida',
@@ -169,16 +174,16 @@ export function TransactionTable({
 
     return (
         <ScrollArea h={600} type="auto" offsetScrollbars>
-            <Table stickyHeader verticalSpacing="xs">
+            <Table stickyHeader verticalSpacing="xs" highlightOnHover>
                 <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                     <Table.Tr>
                         <Table.Th>Fecha</Table.Th>
-                        <Table.Th>Proveedor / Factura</Table.Th>
+                        <Table.Th>Proveedor</Table.Th>
                         <Table.Th>Documento</Table.Th>
-                        <Table.Th ta="right">Total Factura</Table.Th>
+                        <Table.Th ta="right">Total</Table.Th>
                         <Table.Th ta="right">Ret. Fuente</Table.Th>
                         <Table.Th ta="right">Ret. IVA</Table.Th>
-                        <Table.Th ta="right">Neto a Pagar</Table.Th>
+                        <Table.Th ta="right">Gasto Neto</Table.Th>
                         <Table.Th ta="right">Acciones</Table.Th>
                     </Table.Tr>
                 </Table.Thead>

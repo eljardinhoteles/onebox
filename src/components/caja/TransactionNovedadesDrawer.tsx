@@ -53,6 +53,7 @@ export function TransactionNovedadesDrawer({ opened, onClose, transactionId, tra
         onSuccess: () => {
             setNota('');
             queryClient.invalidateQueries({ queryKey: ['transaction_novedades', transactionId] });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
             notifications.show({
                 title: 'Nota añadida',
                 message: 'La novedad ha sido registrada exitosamente.',
@@ -79,6 +80,7 @@ export function TransactionNovedadesDrawer({ opened, onClose, transactionId, tra
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transaction_novedades', transactionId] });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
             notifications.show({
                 title: 'Nota anulada',
                 message: 'La anotación se mantiene en el historial pero ha sido marcada como anulada.',

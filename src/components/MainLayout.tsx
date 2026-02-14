@@ -21,11 +21,11 @@ export function MainLayout({ children, activeSection, onSectionChange, headerAct
         <DashboardHeader title={title} subtitle={subtitle} actions={headerActions} onBack={onBack} />
 
         <Box
-          className="flex-1 overflow-y-auto pb-32 px-1 custom-scrollbar"
+          className="flex-1 overflow-y-auto pb-32 custom-scrollbar"
           pt="xl"
+          px={{ base: 'xs', sm: 'md' }}
         >
-          {/* The user's requested change replaces the Container with a div and adds classes */}
-          <Container size="xl" w="95%" pb={100}>
+          <Container size="xl" w="100%" pb={100} p={0}>
             {children}
           </Container>
         </Box>
