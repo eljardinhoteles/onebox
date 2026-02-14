@@ -259,7 +259,8 @@ export function AjustesPage() {
     );
 
     return (
-        <>
+        <Stack gap="lg">
+            <Title order={2} fw={700}>Ajustes</Title>
             <Paper withBorder radius="md" bg="white" p="md" shadow="sm" style={{ minHeight: '500px' }}>
                 <Stack gap="xl" style={{ position: 'relative' }}>
                     {/* Internal Header */}
@@ -435,7 +436,7 @@ export function AjustesPage() {
                     </Stack>
                 </form>
             </AppModal>
-        </>
+        </Stack>
     );
 }
 

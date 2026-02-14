@@ -156,18 +156,26 @@ export function NotificationCenter() {
 
     return (
         <>
-            <Indicator inline label={unreadCount} size={16} disabled={unreadCount === 0} color="red" offset={4}>
-                <ActionIcon
-                    variant="light"
-                    color="blue"
-                    radius="xl"
-                    size="lg"
-                    className="shadow-sm"
-                    onClick={() => setOpened(true)}
-                >
-                    <IconBell size={20} stroke={1.5} />
-                </ActionIcon>
-            </Indicator>
+            {unreadCount > 0 && (
+                <Indicator inline label={unreadCount} size={16} color="red" offset={4}>
+                    <ActionIcon
+                        variant="default"
+                        radius="xl"
+                        size={48}
+                        onClick={() => setOpened(true)}
+                        style={{
+                            border: '1px solid rgba(0, 0, 0, 0.06)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                            backdropFilter: 'blur(20px)',
+                            WebkitBackdropFilter: 'blur(20px)',
+                            color: '#868e96',
+                            animation: 'bellAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        }}
+                    >
+                        <IconBell size={20} stroke={1.5} />
+                    </ActionIcon>
+                </Indicator>
+            )}
 
             <Drawer
                 opened={opened}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center } from '@mantine/core';
+import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
@@ -206,7 +206,8 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     ));
 
     return (
-        <>
+        <Stack gap="lg">
+            <Title order={2} fw={700}>Proveedores</Title>
             <Paper
                 withBorder
                 shadow="sm"
@@ -309,6 +310,6 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 }}
                 editingProveedor={editingProveedor}
             />
-        </>
+        </Stack>
     );
 }

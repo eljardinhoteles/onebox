@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Paper, Text, Stack, Group, Button, Alert, Tooltip, ActionIcon, Menu, PillsInput, Pill } from '@mantine/core';
+import { Paper, Text, Stack, Group, Button, Alert, Tooltip, ActionIcon, Menu, PillsInput, Pill, Title } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -11,10 +11,11 @@ import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
     IconPlus, IconReceipt2,
-    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter
+    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter, IconArrowLeft
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
+import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 
 import { useCajaCalculations, type Transaction } from '../hooks/useCajaCalculations';
@@ -28,6 +29,8 @@ import { CierreCajaModal } from '../components/caja/CierreCajaModal';
 interface CajaDetalleProps {
     cajaId: number;
     setHeaderActions?: (actions: React.ReactNode) => void;
+    setOnAdd?: (fn: (() => void) | undefined) => void;
+    onBack?: () => void;
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -37,7 +40,7 @@ const TIPO_LABELS: Record<string, string> = {
     sin_factura: 'S/ Factura',
 };
 
-export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
+export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {
     const queryClient = useQueryClient();
     const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
     const [retentionTransactionId, setRetentionTransactionId] = useState<number | null>(null);
@@ -84,6 +87,16 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
             return data;
         },
     });
+
+    // Exponer handleCreate al padre para el FAB
+    useEffect(() => {
+        if (setOnAdd && caja?.estado === 'abierta') {
+            setOnAdd(() => handleCreate);
+        } else if (setOnAdd) {
+            setOnAdd(undefined);
+        }
+        return () => setOnAdd?.(undefined);
+    }, [caja?.estado]);
 
     const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
@@ -293,6 +306,19 @@ export function CajaDetalle({ cajaId, setHeaderActions }: CajaDetalleProps) {
         <Stack gap="md">
             <div className="no-print">
                 <Stack gap="md">
+                    <Group align="center" gap="sm">
+                        {onBack && (
+                            <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" onClick={onBack}>
+                                <IconArrowLeft size={20} />
+                            </ActionIcon>
+                        )}
+                        <div>
+                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'}</Title>
+                            <Text size="sm" c="dimmed">
+                                {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
+                            </Text>
+                        </div>
+                    </Group>
                     <MonthlyCloseAlert />
                     {isLowBalance && (
                         <Alert

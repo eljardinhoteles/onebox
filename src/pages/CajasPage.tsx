@@ -1,4 +1,5 @@
-import { Paper, Text, SimpleGrid } from '@mantine/core';
+import { useState } from 'react';
+import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -30,6 +31,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     const queryClient = useQueryClient();
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
+    const [filter, setFilter] = useState('todas');
 
     const { data: cajas = [], isLoading: fetching } = useQuery({
         queryKey: ['cajas'],
@@ -58,17 +60,41 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         }
     });
 
+    const activasCount = cajas.filter((c: Caja) => c.estado === 'abierta').length;
+    const cerradasCount = cajas.filter((c: Caja) => c.estado === 'cerrada').length;
+
+    const filteredCajas = cajas.filter((c: Caja) => {
+        if (filter === 'activas') return c.estado === 'abierta';
+        if (filter === 'cerradas') return c.estado === 'cerrada';
+        return true;
+    });
+
     return (
-        <>
+        <Stack gap="lg">
+            <Group justify="space-between" align="center" wrap="wrap">
+                <Title order={2} fw={700}>Cajas Chicas</Title>
+                <SegmentedControl
+                    value={filter}
+                    onChange={setFilter}
+                    radius="xl"
+                    size="xs"
+                    color="blue"
+                    data={[
+                        { value: 'todas', label: `Todas ${cajas.length}` },
+                        { value: 'activas', label: `Activas ${activasCount}` },
+                        { value: 'cerradas', label: `Cerradas ${cerradasCount}` },
+                    ]}
+                />
+            </Group>
             {fetching ? (
                 <Text ta="center" py="xl" c="dimmed">Cargando cajas...</Text>
-            ) : cajas.length === 0 ? (
+            ) : filteredCajas.length === 0 ? (
                 <Paper p="xl" withBorder radius="md" ta="center">
-                    <Text c="dimmed">No hay cajas registradas</Text>
+                    <Text c="dimmed">No hay cajas {filter !== 'todas' ? filter : 'registradas'}</Text>
                 </Paper>
             ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                    {cajas.map((caja: Caja) => (
+                    {filteredCajas.map((caja: Caja) => (
                         <CajaCard
                             key={caja.id}
                             caja={caja}
@@ -81,6 +107,6 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
             )}
 
             <AperturaCajaModal opened={opened} close={close} />
-        </>
+        </Stack>
     );
 }

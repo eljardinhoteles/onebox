@@ -478,13 +478,19 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
                 <Select
                     label="Proveedor"
-                    placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional (Sin proveedor)" : "Seleccione..."}
+                    placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional (Sin proveedor)" : "Seleccione un proveedor..."}
                     data={proveedores}
                     searchable
                     clearable={!readOnly && form.values.tipo_documento === 'sin_factura'}
                     readOnly={readOnly}
                     variant={readOnly ? "filled" : "default"}
                     styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                    leftSection={<IconInfoCircle size={16} stroke={1.5} />}
+                    comboboxProps={{
+                        shadow: 'md',
+                        transitionProps: { transition: 'pop-top-left', duration: 200 },
+                        withinPortal: true
+                    }}
                     {...form.getInputProps('proveedor_id')}
                 />
 

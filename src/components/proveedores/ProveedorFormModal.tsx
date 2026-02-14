@@ -174,6 +174,7 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['proveedores'] });
+            queryClient.invalidateQueries({ queryKey: ['proveedores_simple'] });
             notifications.show({
                 title: 'Éxito',
                 message: editingProveedor ? 'Proveedor actualizado' : 'Proveedor creado correctamente',

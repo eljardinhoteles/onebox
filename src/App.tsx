@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Center, Loader, ActionIcon, Tooltip } from '@mantine/core'
+import { Center, Loader } from '@mantine/core'
 import { supabase } from './lib/supabaseClient'
 import { AuthPage } from './components/AuthPage'
 
@@ -11,7 +11,7 @@ import { AjustesPage } from './pages/AjustesPage'
 
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle, IconPlus } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } from '@tabler/icons-react';
 
 
 
@@ -20,7 +20,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('cajas')
   const [selectedCajaId, setSelectedCajaId] = useState<number | null>(null);
-  const [detailHeaderActions, setDetailHeaderActions] = useState<React.ReactNode>(null);
+  const [detailOnAdd, setDetailOnAdd] = useState<(() => void) | undefined>(undefined);
   const [proveedoresModalOpened, { open: openProveedoresModal, close: closeProveedoresModal }] = useDisclosure(false);
   const [cajasModalOpened, { open: openCajasModal, close: closeCajasModal }] = useDisclosure(false);
 
@@ -68,7 +68,6 @@ export default function App() {
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
     setSelectedCajaId(null);
-    setDetailHeaderActions(null);
   };
 
   useEffect(() => {
@@ -128,7 +127,7 @@ export default function App() {
     switch (activeSection) {
       case 'cajas':
         return selectedCajaId
-          ? <CajaDetalle cajaId={selectedCajaId} setHeaderActions={setDetailHeaderActions} />
+          ? <CajaDetalle cajaId={selectedCajaId} setOnAdd={setDetailOnAdd} onBack={() => setSelectedCajaId(null)} />
           : <CajasPage opened={cajasModalOpened} close={closeCajasModal} onSelectCaja={setSelectedCajaId} />;
       case 'proveedores': return <ProveedoresPage opened={proveedoresModalOpened} close={closeProveedoresModal} />;
       case 'ajustes': return <AjustesPage />;
@@ -136,54 +135,24 @@ export default function App() {
     }
   };
 
-  const renderHeaderActions = () => {
-    if (selectedCajaId) return detailHeaderActions;
-
-    switch (activeSection) {
-      case 'cajas':
-        return (
-          <Tooltip label="Nueva Caja [N]" withArrow position="bottom" radius="md">
-            <ActionIcon size="lg" radius="md" color="blue" variant="filled" onClick={openCajasModal} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
-              <IconPlus size={18} />
-            </ActionIcon>
-          </Tooltip>
-        );
-      case 'proveedores':
-        return (
-          <Tooltip label="Nuevo Proveedor [N]" withArrow position="bottom" radius="md">
-            <ActionIcon size="lg" radius="md" color="green" variant="filled" onClick={openProveedoresModal} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
-              <IconPlus size={18} />
-            </ActionIcon>
-          </Tooltip>
-        );
-      default:
-        return null;
-    }
+  // FAB contextual: dispara la acción de creación según la sección activa
+  const handleFabAction = () => {
+    if (activeSection === 'cajas' && selectedCajaId && detailOnAdd) detailOnAdd();
+    else if (activeSection === 'cajas' && !selectedCajaId) openCajasModal();
+    else if (activeSection === 'proveedores') openProveedoresModal();
   };
 
-  const getSectionInfo = () => {
-    if (selectedCajaId && activeSection === 'cajas') {
-      return { title: 'Detalle de Caja', subtitle: `ID: ${selectedCajaId}` };
-    }
-
-    switch (activeSection) {
-      case 'cajas': return { title: 'Cajas & Finanzas', subtitle: 'Control de aperturas y cierres de caja' };
-      case 'proveedores': return { title: 'Proveedores', subtitle: 'Listado de contactos y regímenes tributarios' };
-      case 'ajustes': return { title: 'Ajustes', subtitle: 'Configuración de sucursales, bancos y regímenes' };
-      default: return { title: 'Sistema de Caja', subtitle: '' };
-    }
-  };
-
-  const { title, subtitle } = getSectionInfo();
+  // Mostrar FAB si hay acción disponible
+  const showFab =
+    (activeSection === 'cajas' && !selectedCajaId) ||
+    (activeSection === 'cajas' && selectedCajaId && !!detailOnAdd) ||
+    activeSection === 'proveedores';
 
   return (
     <MainLayout
       activeSection={activeSection}
       onSectionChange={handleSectionChange}
-      headerActions={renderHeaderActions()}
-      title={title}
-      subtitle={subtitle}
-      onBack={selectedCajaId ? () => setSelectedCajaId(null) : undefined}
+      onAdd={showFab ? handleFabAction : undefined}
     >
       {renderContent()}
     </MainLayout>
