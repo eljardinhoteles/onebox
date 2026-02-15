@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Stack, TextInput, Select, Button, Group, ActionIcon, NumberInput, Checkbox, Paper, Divider, Text, Alert } from '@mantine/core';
+import { Stack, TextInput, Select, Button, Group, ActionIcon, NumberInput, Checkbox, Paper, Divider, Text, Alert, Autocomplete } from '@mantine/core';
 import { AppActionButtons } from './ui/AppActionButtons';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -88,6 +88,33 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''}`
             }));
         }
+    });
+
+    // Historial de items únicos para autocompletar
+    const { data: itemSuggestions = [] } = useQuery({
+        queryKey: ['item_suggestions'],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from('transaccion_items')
+                .select('nombre')
+                .order('id', { ascending: false })
+                .limit(500);
+
+            if (!data) return [];
+
+            // Deduplicar nombres
+            const seen = new Set<string>();
+            const unique: string[] = [];
+            for (const item of data) {
+                const key = item.nombre.trim().toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    unique.push(item.nombre);
+                }
+            }
+            return unique;
+        },
+        staleTime: 1000 * 60 * 5,
     });
 
     const { data: editingData, isError: isErrorFetching, error: errorFetching } = useQuery({
@@ -383,11 +410,16 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
     const fields = form.values.items.map((_item, index) => (
         <Group key={index} align="flex-end" gap="xs">
-            <TextInput
+            <Autocomplete
                 placeholder="Nombre del producto/servicio"
                 label={index === 0 ? "Producto" : null}
                 style={{ flex: 1 }}
+                data={itemSuggestions}
                 {...form.getInputProps(`items.${index}.nombre`)}
+                comboboxProps={{
+                    shadow: 'md',
+                    withinPortal: true
+                }}
                 readOnly={readOnly}
                 variant={readOnly ? "filled" : "default"}
                 styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
@@ -488,7 +520,6 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     leftSection={<IconInfoCircle size={16} stroke={1.5} />}
                     comboboxProps={{
                         shadow: 'md',
-                        transitionProps: { transition: 'pop-top-left', duration: 200 },
                         withinPortal: true
                     }}
                     {...form.getInputProps('proveedor_id')}

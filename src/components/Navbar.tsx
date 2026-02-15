@@ -1,6 +1,6 @@
 import { Paper, UnstyledButton, Text, ActionIcon } from '@mantine/core';
 import {
-    IconBox,
+    IconReceipt2,
     IconUsers,
     IconSettings,
     IconPlus,
@@ -8,7 +8,7 @@ import {
 import { NotificationCenter } from './NotificationCenter';
 
 const NAV_ITEMS = [
-    { value: 'cajas', label: 'Cajas', icon: IconBox, color: '#228be6' },
+    { value: 'cajas', label: 'Cajas', icon: IconReceipt2, color: '#228be6' },
     { value: 'proveedores', label: 'Proveedores', icon: IconUsers, color: '#228be6' },
     { value: 'ajustes', label: 'Ajustes', icon: IconSettings, color: '#228be6' },
 ];

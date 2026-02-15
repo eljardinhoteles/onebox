@@ -150,8 +150,22 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 </Table.Tbody>
             </Table>
 
+            {/* Firmas de Responsabilidad */}
+            <Group grow mt={100} align="flex-end" px="xl">
+                <Stack gap={4} align="center">
+                    <Divider w="70%" color="black" />
+                    <Text size="sm" fw={700}>REVISADO POR CONTABILIDAD</Text>
+                </Stack>
+
+                <Stack gap={4} align="center">
+                    <Divider w="70%" color="black" />
+                    <Text size="sm" fw={700}>APROBADO POR GERENCIA</Text>
+                </Stack>
+            </Group>
+
             {/* Espacio para auditoría interna */}
-            <Box mt={50}>
+            <Box mt={60}>
+                <Divider mb="xl" variant="dashed" />
                 <Text size="xs" c="dimmed" ta="center">Este reporte es un documento de control interno generado por el Sistema de Gestión de Caja © 2026</Text>
                 {caja.datos_cierre && caja.datos_cierre.fecha_accion && (
                     <Text size="xs" c="dimmed" ta="center" mt={4}>

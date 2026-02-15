@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu } from '@mantine/core';
+import { IconChevronDown, IconMapPin } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -32,6 +33,41 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
     const [filter, setFilter] = useState('todas');
+    const [filterSucursal, setFilterSucursal] = useState<string | null>(null);
+
+    // PERSISTENCIA: Cargar filtros desde la URL al montar
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlFilter = params.get('estado');
+        const urlSucursal = params.get('sucursal');
+
+        if (urlFilter && ['todas', 'activas', 'cerradas'].includes(urlFilter)) {
+            setFilter(urlFilter);
+        }
+        if (urlSucursal) {
+            setFilterSucursal(urlSucursal);
+        }
+    }, []);
+
+    // PERSISTENCIA: Sincronizar filtros con la URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (filter !== 'todas') {
+            params.set('estado', filter);
+        } else {
+            params.delete('estado');
+        }
+
+        if (filterSucursal) {
+            params.set('sucursal', filterSucursal);
+        } else {
+            params.delete('sucursal');
+        }
+
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+    }, [filter, filterSucursal]);
 
     const { data: cajas = [], isLoading: fetching } = useQuery({
         queryKey: ['cajas'],
@@ -60,19 +96,66 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         }
     });
 
-    const activasCount = cajas.filter((c: Caja) => c.estado === 'abierta').length;
-    const cerradasCount = cajas.filter((c: Caja) => c.estado === 'cerrada').length;
+    const cajasFiltradasPorSucursal = filterSucursal
+        ? cajas.filter((c: Caja) => c.sucursal === filterSucursal)
+        : cajas;
+
+    const activasCount = cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'abierta').length;
+    const cerradasCount = cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'cerrada').length;
+    const todasCount = cajasFiltradasPorSucursal.length;
 
     const filteredCajas = cajas.filter((c: Caja) => {
-        if (filter === 'activas') return c.estado === 'abierta';
-        if (filter === 'cerradas') return c.estado === 'cerrada';
-        return true;
+        const matchesEstado = filter === 'activas' ? c.estado === 'abierta' :
+            filter === 'cerradas' ? c.estado === 'cerrada' : true;
+        const matchesSucursal = !filterSucursal || c.sucursal === filterSucursal;
+        return matchesEstado && matchesSucursal;
     });
+
+    const sucursalesUnicas = Array.from(new Set(cajas.map((c: Caja) => c.sucursal))).sort();
 
     return (
         <Stack gap="lg">
             <Group justify="space-between" align="center" wrap="wrap">
-                <Title order={2} fw={700}>Cajas Chicas</Title>
+                <Menu shadow="md" width={200} trigger="click" withinPortal transitionProps={{ transition: 'pop-top-left' }}>
+                    <Menu.Target>
+                        <Group gap={8} style={{ cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
+                            <Title order={2} fw={700} c={(filterSucursal || filter !== 'todas') ? 'blue.7' : undefined}>
+                                {filterSucursal
+                                    ? (filter !== 'todas' ? `${filterSucursal} (${filter === 'activas' ? 'Activas' : 'Cerradas'})` : filterSucursal)
+                                    : (filter === 'activas' ? 'Cajas Activas' : filter === 'cerradas' ? 'Cajas Cerradas' : 'Cajas Chicas')
+                                }
+                            </Title>
+                            <IconChevronDown
+                                size={20}
+                                className={(filterSucursal || filter !== 'todas') ? 'text-blue-500' : 'text-gray-400'}
+                            />
+                        </Group>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                        <Menu.Label>Filtrar por Sucursal</Menu.Label>
+                        <Menu.Item
+                            leftSection={<IconMapPin size={16} />}
+                            onClick={() => setFilterSucursal(null)}
+                            fw={!filterSucursal ? 700 : 400}
+                            color={!filterSucursal ? 'blue' : undefined}
+                        >
+                            Todas
+                        </Menu.Item>
+                        <Menu.Divider />
+                        {sucursalesUnicas.map(suc => (
+                            <Menu.Item
+                                key={suc}
+                                leftSection={<IconMapPin size={16} />}
+                                onClick={() => setFilterSucursal(suc)}
+                                fw={filterSucursal === suc ? 700 : 400}
+                                color={filterSucursal === suc ? 'blue' : undefined}
+                            >
+                                {suc}
+                            </Menu.Item>
+                        ))}
+                    </Menu.Dropdown>
+                </Menu>
                 <SegmentedControl
                     value={filter}
                     onChange={setFilter}
@@ -80,7 +163,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     size="xs"
                     color="blue"
                     data={[
-                        { value: 'todas', label: `Todas ${cajas.length}` },
+                        { value: 'todas', label: `Todas ${todasCount}` },
                         { value: 'activas', label: `Activas ${activasCount}` },
                         { value: 'cerradas', label: `Cerradas ${cerradasCount}` },
                     ]}

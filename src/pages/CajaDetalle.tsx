@@ -10,7 +10,7 @@ import { RetentionForm } from '../components/RetentionForm';
 import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
-    IconPlus, IconReceipt2,
+    IconPlus, IconReceipt,
     IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter, IconArrowLeft
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -25,6 +25,8 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { MonthlyCloseAlert } from '../components/MonthlyCloseAlert';
 import { TransactionNovedadesDrawer } from '../components/caja/TransactionNovedadesDrawer';
 import { CierreCajaModal } from '../components/caja/CierreCajaModal';
+import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesRecaudacionDrawer';
+import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -49,6 +51,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const [legalizationOpened, { open: openLegalization, close: closeLegalization }] = useDisclosure(false);
     const [novedadesOpened, { open: openNovedades, close: closeNovedades }] = useDisclosure(false);
     const [closingOpened, { open: openClosing, close: closeClosing }] = useDisclosure(false);
+    const [retencionesControlOpened, { open: openRetencionesControl, close: closeRetencionesControl }] = useDisclosure(false);
+    const [arqueoControlOpened, { open: openArqueoControl, close: closeArqueoControl }] = useDisclosure(false);
     const [isClosingInReadOnlyMode, setIsClosingInReadOnlyMode] = useState(false);
     const [selectedTransactionForNovedades, setSelectedTransactionForNovedades] = useState<Transaction | null>(null);
     const { configs } = useAppConfig();
@@ -316,6 +320,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             <Title order={2} fw={700}>{caja?.sucursal || 'Caja'}</Title>
                             <Text size="sm" c="dimmed">
                                 {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
+                                {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
                             </Text>
                         </div>
                     </Group>
@@ -408,7 +413,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             {caja?.estado === 'abierta' && (
                                 <>
                                     <Tooltip label="Legalizar Gastos [L]" withArrow radius="md">
-                                        <Button variant="outline" color="orange" leftSection={<IconReceipt2 size={16} />} onClick={openLegalization}>
+                                        <Button variant="outline" color="orange" leftSection={<IconReceipt size={16} />} onClick={openLegalization}>
                                             Legalizar
                                         </Button>
                                     </Tooltip>
@@ -431,7 +436,12 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         </Group>
                     </Group>
 
-                    <CajaSummaryCards caja={caja} totals={totals} />
+                    <CajaSummaryCards
+                        caja={caja}
+                        totals={totals}
+                        onOpenRetencionesControl={openRetencionesControl}
+                        onOpenArqueoControl={openArqueoControl}
+                    />
 
                     <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100">
 
@@ -538,6 +548,21 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         )
                     });
                 }}
+            />
+
+            <RetencionesRecaudacionDrawer
+                opened={retencionesControlOpened}
+                onClose={closeRetencionesControl}
+                cajaId={cajaId}
+                sucursal={caja?.sucursal}
+            />
+
+            <ArqueoControlModal
+                opened={arqueoControlOpened}
+                onClose={closeArqueoControl}
+                cajaId={cajaId}
+                sucursal={caja?.sucursal}
+                efectivoEsperado={totals.efectivo}
             />
         </Stack>
     );
