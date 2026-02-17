@@ -3,7 +3,6 @@ import { IconLogout, IconDeviceFloppy } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
-import type { Empresa, EmpresaRole, Perfil } from '../context/EmpresaContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
