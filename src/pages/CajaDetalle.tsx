@@ -61,6 +61,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const [retentionReadOnlyMessage, setRetentionReadOnlyMessage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterTipo, setFilterTipo] = useState<string | null>(null);
+    const [sortBy, setSortBy] = useState<string>('fecha_factura');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     const componentRef = useRef<HTMLDivElement>(null);
     const handlePrint = useReactToPrint({
@@ -175,7 +177,23 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
 
         return matchesSearch && matchesTipo;
+    }).sort((a, b) => {
+        if (sortBy === 'fecha_factura') {
+            const dateA = dayjs(a.fecha_factura);
+            const dateB = dayjs(b.fecha_factura);
+            return sortOrder === 'asc' ? dateA.diff(dateB) : dateB.diff(dateA);
+        }
+        return 0;
     });
+
+    const handleSort = (key: string) => {
+        if (sortBy === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(key);
+            setSortOrder('asc');
+        }
+    };
 
 
     useEffect(() => {
@@ -443,17 +461,56 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         onOpenArqueoControl={openArqueoControl}
                     />
 
-                    <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100">
-
+                    <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
                         <TransactionTable
                             transactions={filteredTransactions}
                             loading={loading}
                             cajaEstado={caja?.estado || 'abierta'}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
-                            onRetention={(id) => { setRetentionTransactionId(id); openRetention(); }}
-                            onNovedades={(t) => { setSelectedTransactionForNovedades(t); openNovedades(); }}
+                            onRetention={(id: number) => { setRetentionTransactionId(id); openRetention(); }}
+                            onNovedades={(t: Transaction) => { setSelectedTransactionForNovedades(t); openNovedades(); }}
+                            sortBy={sortBy}
+                            sortOrder={sortOrder}
+                            onSort={handleSort}
                         />
+
+                        {(!searchQuery && !filterTipo) ? null : (
+                            <Paper withBorder mt="md" p="md" radius="md" bg="blue.0" style={{ borderColor: 'var(--mantine-color-blue-2)' }}>
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={0}>
+                                        <Text size="xs" fw={700} c="blue.9" tt="uppercase" lts={1}>Resumen de Filtro</Text>
+                                        <Text size="xs" c="dimmed">{filteredTransactions.length} transacciones encontradas</Text>
+                                    </Stack>
+                                    <Group gap="xl">
+                                        <Stack gap={0} align="flex-end">
+                                            <Text size="xs" c="dimmed" fw={500}>Total Facturado</Text>
+                                            <Text fw={800} size="sm" c="red.7">
+                                                -${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </Stack>
+                                        <Stack gap={0} align="flex-end">
+                                            <Text size="xs" c="dimmed" fw={500}>Ret. Fuente</Text>
+                                            <Text fw={700} size="sm" c="orange.8">
+                                                -${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </Stack>
+                                        <Stack gap={0} align="flex-end">
+                                            <Text size="xs" c="dimmed" fw={500}>Ret. IVA</Text>
+                                            <Text fw={700} size="sm" c="orange.8">
+                                                -${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </Stack>
+                                        <Stack gap={0} align="flex-end">
+                                            <Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text>
+                                            <Text fw={900} size="md" c="blue.9">
+                                                ${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </Stack>
+                                    </Group>
+                                </Group>
+                            </Paper>
+                        )}
                     </Paper>
                 </Stack>
             </div >
@@ -497,6 +554,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             closeRetention();
                             setRetentionTransactionId(null);
                             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
                         }}
                         onCancel={() => { closeRetention(); setRetentionTransactionId(null); }}
                         readOnly={caja?.estado !== 'abierta'}

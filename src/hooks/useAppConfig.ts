@@ -27,7 +27,10 @@ export function useAppConfig() {
         try {
             const { error } = await supabase
                 .from('configuracion')
-                .upsert({ clave, valor, updated_at: new Date().toISOString() });
+                .upsert(
+                    { clave, valor, updated_at: new Date().toISOString() },
+                    { onConflict: 'clave,empresa_id' }
+                );
 
             if (error) throw error;
 

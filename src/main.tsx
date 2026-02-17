@@ -13,6 +13,7 @@ import timezone from 'dayjs/plugin/timezone'
 import { theme } from './theme.ts'
 import './index.css'
 import App from './App.tsx'
+import { NotificationProvider } from './context/NotificationContext.tsx'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -22,6 +23,7 @@ dayjs.tz.setDefault('America/Bogota')
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queryClient.ts'
+import { EmpresaProvider } from './context/EmpresaContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -29,7 +31,11 @@ createRoot(document.getElementById('root')!).render(
       <MantineProvider theme={theme}>
         <Notifications position="top-right" zIndex={2000} />
         <ModalsProvider>
-          <App />
+          <NotificationProvider>
+            <EmpresaProvider>
+              <App />
+            </EmpresaProvider>
+          </NotificationProvider>
         </ModalsProvider>
       </MantineProvider>
       <ReactQueryDevtools initialIsOpen={false} />

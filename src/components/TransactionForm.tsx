@@ -392,13 +392,13 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             return;
         }
 
-        const reserveThreshold = initialAmount * 0.10;
+        const reserveThreshold = initialAmount * 0.15;
         const projectedBalance = disponibleReal - totalAValidar;
 
         if (projectedBalance < reserveThreshold) {
             notifications.show({
                 title: 'Reserva de Seguridad',
-                message: `No se puede registrar el gasto. La caja debe mantener un mínimo del 10% ($${reserveThreshold.toFixed(2)}) de su monto inicial ($${initialAmount.toFixed(2)}). El saldo restante sería $${projectedBalance.toFixed(2)}.`,
+                message: `No se puede registrar el gasto. La caja debe mantener un mínimo del 15% ($${reserveThreshold.toFixed(2)}) de su monto inicial ($${initialAmount.toFixed(2)}). El saldo restante sería $${projectedBalance.toFixed(2)}.`,
                 color: 'red',
                 icon: <IconX size={16} />,
             });

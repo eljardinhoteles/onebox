@@ -1,5 +1,5 @@
-import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip } from '@mantine/core';
-import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled } from '@tabler/icons-react';
+import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,9 @@ interface TransactionTableProps {
     onDelete: (t: Transaction) => void;
     onRetention: (id: number) => void;
     onNovedades: (t: Transaction) => void;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    onSort?: (key: string) => void;
 }
 
 const MotionTr = motion.create(Table.Tr);
@@ -24,7 +27,10 @@ export function TransactionTable({
     onEdit,
     onDelete,
     onRetention,
-    onNovedades
+    onNovedades,
+    sortBy,
+    sortOrder,
+    onSort
 }: TransactionTableProps) {
 
     const rows = transactions.map((t, index) => (
@@ -177,7 +183,16 @@ export function TransactionTable({
             <Table stickyHeader verticalSpacing="xs" highlightOnHover>
                 <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                     <Table.Tr>
-                        <Table.Th>Fecha</Table.Th>
+                        <Table.Th style={{ cursor: 'pointer' }} onClick={() => onSort?.('fecha_factura')}>
+                            <Group gap="xs" wrap="nowrap">
+                                <Text size="sm" fw={700}>Fecha</Text>
+                                {sortBy === 'fecha_factura' ? (
+                                    sortOrder === 'asc' ? <IconSortAscending size={16} /> : <IconSortDescending size={16} />
+                                ) : (
+                                    <IconSelector size={16} color="var(--mantine-color-gray-5)" />
+                                )}
+                            </Group>
+                        </Table.Th>
                         <Table.Th>Proveedor</Table.Th>
                         <Table.Th>Documento</Table.Th>
                         <Table.Th ta="right">Total</Table.Th>

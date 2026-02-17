@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { IconCheck, IconX, IconReceipt, IconTrash } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface RetentionFormProps {
     transactionId: number;
@@ -25,6 +25,7 @@ interface TransactionItem {
 }
 
 export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = false }: RetentionFormProps) {
+    const queryClient = useQueryClient();
 
     const form = useForm({
         initialValues: {
@@ -156,6 +157,8 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         },
         onSuccess: () => {
             notifications.show({ title: 'Éxito', message: 'Retención guardada', color: 'teal', icon: <IconCheck size={16} /> });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['retention_detail', transactionId] });
             onSuccess();
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red', icon: <IconX size={16} /> })
@@ -181,6 +184,8 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         },
         onSuccess: () => {
             notifications.show({ title: 'Eliminado', message: 'Retención eliminada', color: 'teal', icon: <IconCheck size={16} /> });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['retention_detail', transactionId] });
             onSuccess();
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })

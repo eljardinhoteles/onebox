@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu } from '@mantine/core';
 import { IconChevronDown, IconMapPin } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
@@ -32,7 +32,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     const queryClient = useQueryClient();
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
-    const [filter, setFilter] = useState('todas');
+    const [filter, setFilter] = useState('abiertas');
     const [filterSucursal, setFilterSucursal] = useState<string | null>(null);
 
     // PERSISTENCIA: Cargar filtros desde la URL al montar
@@ -41,7 +41,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         const urlFilter = params.get('estado');
         const urlSucursal = params.get('sucursal');
 
-        if (urlFilter && ['todas', 'activas', 'cerradas'].includes(urlFilter)) {
+        if (urlFilter && ['abiertas', 'cerradas'].includes(urlFilter)) {
             setFilter(urlFilter);
         }
         if (urlSucursal) {
@@ -53,7 +53,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
 
-        if (filter !== 'todas') {
+        if (filter !== 'abiertas') {
             params.set('estado', filter);
         } else {
             params.delete('estado');
@@ -96,22 +96,29 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         }
     });
 
-    const cajasFiltradasPorSucursal = filterSucursal
-        ? cajas.filter((c: Caja) => c.sucursal === filterSucursal)
-        : cajas;
+    const cajasFiltradasPorSucursal = useMemo(() =>
+        filterSucursal ? cajas.filter((c: Caja) => c.sucursal === filterSucursal) : cajas
+        , [cajas, filterSucursal]);
 
-    const activasCount = cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'abierta').length;
-    const cerradasCount = cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'cerrada').length;
-    const todasCount = cajasFiltradasPorSucursal.length;
+    const activasCount = useMemo(() =>
+        cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'abierta').length
+        , [cajasFiltradasPorSucursal]);
 
-    const filteredCajas = cajas.filter((c: Caja) => {
-        const matchesEstado = filter === 'activas' ? c.estado === 'abierta' :
-            filter === 'cerradas' ? c.estado === 'cerrada' : true;
-        const matchesSucursal = !filterSucursal || c.sucursal === filterSucursal;
-        return matchesEstado && matchesSucursal;
-    });
+    const cerradasCount = useMemo(() =>
+        cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'cerrada').length
+        , [cajasFiltradasPorSucursal]);
 
-    const sucursalesUnicas = Array.from(new Set(cajas.map((c: Caja) => c.sucursal))).sort();
+    const filteredCajas = useMemo(() =>
+        cajas.filter((c: Caja) => {
+            const matchesEstado = filter === 'abiertas' ? c.estado === 'abierta' : c.estado === 'cerrada';
+            const matchesSucursal = !filterSucursal || c.sucursal === filterSucursal;
+            return matchesEstado && matchesSucursal;
+        })
+        , [cajas, filter, filterSucursal]);
+
+    const sucursalesUnicas = useMemo(() =>
+        Array.from(new Set(cajas.map((c: Caja) => c.sucursal))).sort()
+        , [cajas]);
 
     return (
         <Stack gap="lg">
@@ -119,15 +126,21 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                 <Menu shadow="md" width={200} trigger="click" withinPortal transitionProps={{ transition: 'pop-top-left' }}>
                     <Menu.Target>
                         <Group gap={8} style={{ cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
-                            <Title order={2} fw={700} c={(filterSucursal || filter !== 'todas') ? 'blue.7' : undefined}>
+                            <Title order={2} size="h3" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} visibleFrom="sm">
                                 {filterSucursal
-                                    ? (filter !== 'todas' ? `${filterSucursal} (${filter === 'activas' ? 'Activas' : 'Cerradas'})` : filterSucursal)
-                                    : (filter === 'activas' ? 'Cajas Activas' : filter === 'cerradas' ? 'Cajas Cerradas' : 'Cajas Chicas')
+                                    ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
+                                    : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
+                                }
+                            </Title>
+                            <Title order={2} size="h5" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} hiddenFrom="sm">
+                                {filterSucursal
+                                    ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
+                                    : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
                                 }
                             </Title>
                             <IconChevronDown
                                 size={20}
-                                className={(filterSucursal || filter !== 'todas') ? 'text-blue-500' : 'text-gray-400'}
+                                className={(filterSucursal || filter !== 'abiertas') ? 'text-blue-500' : 'text-gray-400'}
                             />
                         </Group>
                     </Menu.Target>
@@ -160,11 +173,10 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     value={filter}
                     onChange={setFilter}
                     radius="xl"
-                    size="xs"
+                    size="sm"
                     color="blue"
                     data={[
-                        { value: 'todas', label: `Todas ${todasCount}` },
-                        { value: 'activas', label: `Activas ${activasCount}` },
+                        { value: 'abiertas', label: `Abiertas ${activasCount}` },
                         { value: 'cerradas', label: `Cerradas ${cerradasCount}` },
                     ]}
                 />
@@ -173,7 +185,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                 <Text ta="center" py="xl" c="dimmed">Cargando cajas...</Text>
             ) : filteredCajas.length === 0 ? (
                 <Paper p="xl" withBorder radius="md" ta="center">
-                    <Text c="dimmed">No hay cajas {filter !== 'todas' ? filter : 'registradas'}</Text>
+                    <Text c="dimmed">No hay cajas {filter === 'abiertas' ? 'abiertas' : 'cerradas'}</Text>
                 </Paper>
             ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">

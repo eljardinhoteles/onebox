@@ -1,4 +1,4 @@
-import { Card, Group, ThemeIcon, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper } from '@mantine/core';
+import { Card, Group, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper, Box } from '@mantine/core';
 import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
@@ -32,6 +32,8 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
     const percentageRemaining = (caja.saldo_actual / caja.monto_inicial) * 100;
     const isLowBalance = percentageRemaining <= alertThreshold && caja.estado === 'abierta';
 
+
+    const [showDelete, setShowDelete] = useState(false);
     const [strictDeleteOpen, setStrictDeleteOpen] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
     const [deleting, setDeleting] = useState(false);
@@ -110,46 +112,65 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                 radius="md"
                 withBorder
                 bg={caja.estado === 'abierta' ? 'white' : 'gray.1'}
-                className={`transition-all ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
+                className={`transition-all group ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
                 style={isLowBalance ? { border: '1px solid var(--mantine-color-orange-4)', boxShadow: '0 0 0 1px var(--mantine-color-orange-1)' } : {}}
             >
-                <Group justify="space-between" align="flex-start" mb="md">
-                    <Group align="flex-start">
-                        <ThemeIcon variant="light" color="blue" size="lg" radius="md">
-                            <IconBuildingStore size={20} stroke={1.5} />
-                        </ThemeIcon>
+                <Group justify="space-between" align="center" mb="md" wrap="nowrap">
+                    <Group align="center" gap="sm">
+                        <Tooltip
+                            label={showDelete ? "Click para eliminar permanentemente" : "Opciones de caja"}
+                            position="top"
+                            withArrow
+                            radius="md"
+                            openDelay={500}
+                        >
+                            <ActionIcon
+                                variant="light"
+                                size={42}
+                                radius="xl"
+                                className={`transition-all duration-200 ${showDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-blue-600 hover:bg-blue-50'}`}
+                                color={showDelete ? 'red' : (caja.estado === 'abierta' ? 'blue' : 'gray')}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!showDelete) {
+                                        setShowDelete(true);
+                                    } else {
+                                        initiateDelete();
+                                    }
+                                }}
+                                onMouseLeave={() => setShowDelete(false)}
+                            >
+                                <Box className={`transition-transform duration-200 ${showDelete ? 'scale-0 absolute' : 'scale-100'}`}>
+                                    <IconBuildingStore size={22} stroke={1.5} />
+                                </Box>
+                                <Box className={`transition-transform duration-200 ${showDelete ? 'scale-100' : 'scale-0 absolute'}`}>
+                                    <IconTrash size={22} stroke={1.5} />
+                                </Box>
+                            </ActionIcon>
+                        </Tooltip>
                         <div>
-                            <Text size="sm" fw={500} lineClamp={1}>{caja.sucursal}</Text>
-                            <Group gap={6} mt={2}>
-                                <IconCalendar size={12} className="text-gray-400" />
-                                <Text size="xs" c="dimmed">{dayjs(caja.fecha_apertura).format('DD MMM YYYY')}</Text>
-                            </Group>
+                            <Text size="lg" fw={800} c="dark.9" lineClamp={1} style={{ lineHeight: 1.1 }}>{caja.sucursal}</Text>
+                            <Text size="xs" c="dimmed" fw={600} mt={2}>CAJA #{caja.id}</Text>
                         </div>
                     </Group>
 
-                    <Stack gap={4} align="flex-end">
+                    <Stack gap={2} align="flex-end">
                         <Badge
-                            size="lg"
+                            size="md"
+                            radius="sm"
                             variant="light"
-                            color={caja.estado === 'abierta' ? 'blue' : 'gray'}
-                            leftSection={caja.estado === 'abierta' ? <IconLockOpen size={16} /> : <IconLock size={16} />}
+                            color={caja.estado === 'abierta' ? 'teal' : 'gray'}
+                            leftSection={caja.estado === 'abierta' ? <IconLockOpen size={12} /> : <IconLock size={12} />}
                         >
                             {caja.estado.toUpperCase()}
                         </Badge>
-                        <Group gap={4}>
-                            <Text size="xs" c="dimmed" fw={500}>#{caja.id}</Text>
-                            <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                size="xs"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    initiateDelete();
-                                }}
-                                title="Eliminar Caja"
-                            >
-                                <IconTrash size={12} />
-                            </ActionIcon>
+                        <Group gap={4} justify="flex-end" mt={2}>
+                            <IconCalendar size={12} className="text-gray-400" />
+                            <Text size="xs" c="dimmed" fw={500} style={{ lineHeight: 1 }}>
+                                {caja.estado === 'cerrada' && caja.fecha_cierre
+                                    ? dayjs(caja.fecha_cierre).format('DD MMM YYYY')
+                                    : dayjs(caja.fecha_apertura).format('DD MMM YYYY')}
+                            </Text>
                         </Group>
                     </Stack>
                 </Group>
@@ -215,7 +236,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                 >
                     {caja.estado === 'abierta' ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}
                 </Button>
-            </Card>
+            </Card >
 
             <Modal
                 opened={strictDeleteOpen}

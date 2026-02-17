@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Drawer, ActionIcon, Indicator, Paper, Text, ScrollArea, Group, Stack, Button, ThemeIcon, Badge, Title } from '@mantine/core';
 import { notifications as mantineNotifications } from '@mantine/notifications';
 import { IconBell, IconCheck, IconTrash, IconInfoCircle, IconAlertTriangle, IconExclamationCircle, IconBellOff } from '@tabler/icons-react';
+import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -11,7 +12,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('es');
 
 export function NotificationCenter() {
-    const [opened, setOpened] = useState(false);
+    const { opened, openNotifications, closeNotifications } = useNotifications();
     const [notifList, setNotifList] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -162,7 +163,7 @@ export function NotificationCenter() {
                         variant="default"
                         radius="xl"
                         size={48}
-                        onClick={() => setOpened(true)}
+                        onClick={openNotifications}
                         style={{
                             border: '1px solid rgba(0, 0, 0, 0.06)',
                             backgroundColor: 'rgba(255, 255, 255, 0.85)',
@@ -179,7 +180,7 @@ export function NotificationCenter() {
 
             <Drawer
                 opened={opened}
-                onClose={() => setOpened(false)}
+                onClose={closeNotifications}
                 position="right"
                 title={
                     <Group gap="sm">

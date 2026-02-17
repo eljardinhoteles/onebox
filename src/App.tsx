@@ -12,6 +12,8 @@ import { AjustesPage } from './pages/AjustesPage'
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } from '@tabler/icons-react';
+import { useEmpresa } from './context/EmpresaContext';
+import { OnboardingPage } from './pages/OnboardingPage';
 
 
 
@@ -111,6 +113,8 @@ export default function App() {
     }
   }, [])
 
+  const { empresa, loading: empresaLoading } = useEmpresa();
+
   if (loading) {
     return (
       <Center h="100vh">
@@ -121,6 +125,18 @@ export default function App() {
 
   if (!session) {
     return <AuthPage />;
+  }
+
+  if (empresaLoading) {
+    return (
+      <Center h="100vh">
+        <Loader size="xl" />
+      </Center>
+    );
+  }
+
+  if (!empresa) {
+    return <OnboardingPage />;
   }
 
   const renderContent = () => {

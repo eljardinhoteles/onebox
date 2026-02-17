@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Paper, Text, Stack, TextInput, Select, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Center, Title } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Title, Pagination, Card, Divider, Menu, PillsInput, Pill } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconPencil, IconTrash, IconSearch } from '@tabler/icons-react';
-import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { IconPencil, IconTrash, IconSearch, IconFilter } from '@tabler/icons-react';
+import { useDisclosure, useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProveedorFormModal } from '../components/proveedores/ProveedorFormModal';
 import type { Proveedor } from '../components/proveedores/ProveedorFormModal';
@@ -20,24 +20,21 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     const queryClient = useQueryClient();
     const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
     const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     // Filtros
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 400);
-    const [regimenFilter, setRegimenFilter] = useState<string | null>(null);
+    const [filterSucursal, setFilterSucursal] = useState<string | null>(null);
+    const [filterRegimen, setFilterRegimen] = useState<string | null>(null);
 
-    const [page, setPage] = useState(0);
-    const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
-
-    const loaderRef = useRef<HTMLTableRowElement>(null);
-
-    // --- QUERIES ---
+    const [page, setPage] = useState(1);
 
     // Consulta de Proveedores (Paginada)
     const { data: proveedoresData, isLoading: fetching } = useQuery({
-        queryKey: ['proveedores', debouncedSearch, regimenFilter, page],
+        queryKey: ['proveedores', debouncedSearch, filterSucursal, filterRegimen, page],
         queryFn: async () => {
-            const from = page * PAGE_SIZE;
+            const from = (page - 1) * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
             let query = supabase
@@ -50,8 +47,13 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 query = query.or(`nombre.ilike.%${debouncedSearch}%,ruc.ilike.%${debouncedSearch}%`);
             }
 
-            if (regimenFilter) {
-                query = query.eq('regimen', regimenFilter);
+            if (filterRegimen) {
+                query = query.eq('regimen', filterRegimen);
+            }
+
+            if (filterSucursal) {
+                // Filtramos por proveedores que tengan la sucursal en su array o que no tengan sucursales (Todas)
+                query = query.or(`sucursales.cs.{"${filterSucursal}"},sucursales.is.null`);
             }
 
             const { data, error, count } = await query;
@@ -60,46 +62,32 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         }
     });
 
-    const hasMore = (proveedoresData?.data.length || 0) === PAGE_SIZE;
+    const allProveedores = proveedoresData?.data || [];
+    const totalCount = proveedoresData?.count || 0;
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+    // Observer para scroll infinito
+    // Observer para scroll infinito
     useEffect(() => {
-        if (page === 0) {
-            setAllProveedores(proveedoresData?.data || []);
-        } else if (proveedoresData?.data) {
-            setAllProveedores(prev => [...prev, ...proveedoresData.data]);
-        }
-    }, [proveedoresData, page]);
+        setPage(1);
+    }, [debouncedSearch, filterSucursal, filterRegimen]);
 
-    useEffect(() => {
-        setPage(0);
-    }, [debouncedSearch, regimenFilter]);
-
-    // Regímenes (Caché a largo plazo) - Se queda aquí para el filtro
+    // --- DATA QUERIES (Para los Filtros) ---
     const { data: regimenes = [] } = useQuery({
-        queryKey: ['regimenes'],
+        queryKey: ['regimenes_filter'],
         queryFn: async () => {
             const { data } = await supabase.from('regimenes').select('nombre').order('nombre');
-            return (data || []).map(r => ({ value: r.nombre, label: r.nombre }));
+            return (data || []).map(r => r.nombre);
         }
     });
 
-    // Observer para scroll infinito
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && !fetching) {
-                    setPage(prev => prev + 1);
-                }
-            },
-            { threshold: 1.0 }
-        );
-
-        if (loaderRef.current) {
-            observer.observe(loaderRef.current);
+    const { data: sucursalesList = [] } = useQuery({
+        queryKey: ['sucursales_list_filter'],
+        queryFn: async () => {
+            const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
+            return (data || []).map(s => s.nombre);
         }
-
-        return () => observer.disconnect();
-    }, [hasMore, fetching]);
+    });
 
     // --- MUTATIONS ---
 
@@ -177,7 +165,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
             <Table.Td>
                 <Group gap={4}>
                     {proveedor.sucursales && proveedor.sucursales.length > 0 ? (
-                        proveedor.sucursales.map(s => (
+                        proveedor.sucursales.map((s: string) => (
                             <Badge key={s} size="xs" variant="outline" radius="sm">{s}</Badge>
                         ))
                     ) : (
@@ -205,9 +193,149 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
         </Table.Tr>
     ));
 
+    const MobileCard = ({ __proveedor }: { __proveedor: Proveedor }) => (
+        <Card shadow="sm" radius="md" withBorder mb="sm" key={__proveedor.id}>
+            <Group justify="space-between" mb="xs">
+                <Stack gap={0}>
+                    <Text fw={700} size="md">{__proveedor.nombre}</Text>
+                    <Text c="dimmed" size="xs" ff="monospace">{__proveedor.ruc}</Text>
+                </Stack>
+                <Group gap={4}>
+                    <ActionIcon variant="light" color="blue" onClick={() => openEditDrawer(__proveedor)} radius="md">
+                        <IconPencil size={18} stroke={1.5} />
+                    </ActionIcon>
+                    <ActionIcon variant="light" color="red" onClick={() => handleDelete(__proveedor.id)} radius="md">
+                        <IconTrash size={18} stroke={1.5} />
+                    </ActionIcon>
+                </Group>
+            </Group>
+
+            <Divider mb="xs" />
+
+            <Stack gap="xs">
+                <Group gap="xs">
+                    <Text size="sm" c="dimmed" fw={500} w={80}>Teléfono:</Text>
+                    <Text size="sm">{__proveedor.telefono || 'No registrado'}</Text>
+                </Group>
+                <Group gap="xs">
+                    <Text size="sm" c="dimmed" fw={500} w={80}>Régimen:</Text>
+                    <Badge variant="dot" color="blue" size="sm">{__proveedor.regimen || 'No especificado'}</Badge>
+                </Group>
+                <Stack gap={4}>
+                    <Text size="sm" c="dimmed" fw={500}>Sucursales:</Text>
+                    <Group gap={4}>
+                        {__proveedor.sucursales && __proveedor.sucursales.length > 0 ? (
+                            __proveedor.sucursales.map((s: string) => (
+                                <Badge key={s} size="xs" variant="outline" radius="sm">{s}</Badge>
+                            ))
+                        ) : (
+                            <Text size="xs" c="dimmed">Todas las sucursales</Text>
+                        )}
+                    </Group>
+                </Stack>
+            </Stack>
+        </Card>
+    );
+
     return (
         <Stack gap="lg">
-            <Title order={2} fw={700}>Proveedores</Title>
+            <Stack gap="md">
+                <Group justify="space-between" align="center" wrap="wrap">
+                    <Title order={2} fw={700}>
+                        {totalCount} Proveedores
+                    </Title>
+                    <Group gap="xs" style={{ flex: 1, minWidth: isMobile ? '100%' : '400px' }}>
+                        <PillsInput
+                            radius="md"
+                            style={{ flex: 1 }}
+                            leftSection={<IconSearch size={16} />}
+                            rightSection={
+                                <Menu position="bottom-end" shadow="sm" width={220} withArrow transitionProps={{ transition: 'pop-top-right' }}>
+                                    <Menu.Target>
+                                        <ActionIcon variant="subtle" color={(filterSucursal || filterRegimen) ? 'blue' : 'gray'} radius="md">
+                                            <IconFilter size={18} />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        <Menu.Label>Filtrar por Sucursal</Menu.Label>
+                                        {sucursalesList.map((s: string) => (
+                                            <Menu.Item
+                                                key={s}
+                                                onClick={() => setFilterSucursal(s)}
+                                                bg={filterSucursal === s ? 'blue.0' : undefined}
+                                                c={filterSucursal === s ? 'blue.7' : undefined}
+                                            >
+                                                {s}
+                                            </Menu.Item>
+                                        ))}
+                                        {filterSucursal && (
+                                            <Menu.Item color="red" onClick={() => setFilterSucursal(null)}>
+                                                Limpiar Sucursal
+                                            </Menu.Item>
+                                        )}
+
+                                        <Menu.Divider />
+                                        <Menu.Label>Filtrar por Régimen</Menu.Label>
+                                        {regimenes.map((r: string) => (
+                                            <Menu.Item
+                                                key={r}
+                                                onClick={() => setFilterRegimen(r)}
+                                                bg={filterRegimen === r ? 'blue.0' : undefined}
+                                                c={filterRegimen === r ? 'blue.7' : undefined}
+                                            >
+                                                {r}
+                                            </Menu.Item>
+                                        ))}
+                                        {filterRegimen && (
+                                            <Menu.Item color="red" onClick={() => setFilterRegimen(null)}>
+                                                Limpiar Régimen
+                                            </Menu.Item>
+                                        )}
+
+                                        {(filterSucursal || filterRegimen) && (
+                                            <>
+                                                <Menu.Divider />
+                                                <Menu.Item color="red" fw={600} onClick={() => { setFilterSucursal(null); setFilterRegimen(null); }}>
+                                                    Limpiar Todos los Filtros
+                                                </Menu.Item>
+                                            </>
+                                        )}
+                                    </Menu.Dropdown>
+                                </Menu>
+                            }
+                        >
+                            <Pill.Group>
+                                {filterSucursal && (
+                                    <Pill
+                                        withRemoveButton
+                                        onRemove={() => setFilterSucursal(null)}
+                                        size="sm"
+                                        color="blue"
+                                    >
+                                        Suc: {filterSucursal}
+                                    </Pill>
+                                )}
+                                {filterRegimen && (
+                                    <Pill
+                                        withRemoveButton
+                                        onRemove={() => setFilterRegimen(null)}
+                                        size="sm"
+                                        color="orange"
+                                    >
+                                        Reg: {filterRegimen}
+                                    </Pill>
+                                )}
+                                <PillsInput.Field
+                                    placeholder={(filterSucursal || filterRegimen) ? "" : "Buscar por nombre o RUC..."}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.currentTarget.value)}
+                                />
+                            </Pill.Group>
+                        </PillsInput>
+                    </Group>
+                </Group>
+            </Stack>
+
             <Paper
                 withBorder
                 shadow="sm"
@@ -215,89 +343,79 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 radius="md"
                 bg="white"
                 className="h-full flex flex-col"
-                style={{ minHeight: '500px' }}
+                style={{ minHeight: isMobile ? 'auto' : '500px', background: isMobile ? 'transparent' : 'white', boxShadow: isMobile ? 'none' : undefined, border: isMobile ? 'none' : undefined, padding: isMobile ? 0 : undefined }}
             >
                 <Stack gap="md" className="flex-1">
-                    <Group justify="space-between">
-                        <Group flex={1}>
-                            <TextInput
-                                placeholder="Buscar por nombre o RUC..."
-                                leftSection={<IconSearch size={16} />}
-                                style={{ flex: 1, maxWidth: '400px' }}
-                                value={search}
-                                onChange={(e) => setSearch(e.currentTarget.value)}
-                                radius="md"
-                            />
-                            <Select
-                                placeholder="Filtrar por Régimen"
-                                data={regimenes}
-                                clearable
-                                value={regimenFilter}
-                                onChange={setRegimenFilter}
-                                radius="md"
-                                style={{ width: '220px' }}
-                            />
-                        </Group>
-                        <Stack gap={0} align="flex-end">
-                            <Text size="xs" fw={700} c="blue">
-                                {allProveedores.length} / {proveedoresData?.count || 0}
-                            </Text>
-                            <Text size="xs" c="dimmed" fw={500}>
-                                proveedores cargados
-                            </Text>
+                    {isMobile ? (
+                        <Stack gap="sm">
+                            {fetching ? (
+                                <Stack align="center" py="xl">
+                                    <Loader size="sm" />
+                                    <Text c="dimmed" size="sm">Cargando...</Text>
+                                </Stack>
+                            ) : allProveedores.length > 0 ? (
+                                allProveedores.map(p => <MobileCard key={p.id} __proveedor={p} />)
+                            ) : (
+                                <Text c="dimmed" ta="center" py="xl">
+                                    {search ? 'Sin resultados.' : 'Sin proveedores.'}
+                                </Text>
+                            )}
                         </Stack>
-                    </Group>
-
-                    <ScrollArea className="flex-1">
-                        <Table verticalSpacing="sm" highlightOnHover>
-                            <Table.Thead bg="white" style={{ zIndex: 5, position: 'sticky', top: 0 }}>
-                                <Table.Tr>
-                                    <Table.Th style={{ width: '30%' }}>Proveedor</Table.Th>
-                                    <Table.Th style={{ width: '15%' }}>Contacto</Table.Th>
-                                    <Table.Th style={{ width: '25%' }}>Sucursales</Table.Th>
-                                    <Table.Th style={{ width: '20%' }}>Régimen</Table.Th>
-                                    <Table.Th style={{ width: '10%' }} />
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {fetching && page === 0 ? (
+                    ) : (
+                        <ScrollArea className="flex-1">
+                            <Table verticalSpacing="sm" highlightOnHover>
+                                <Table.Thead bg="white" style={{ zIndex: 5, position: 'sticky', top: 0 }}>
                                     <Table.Tr>
-                                        <Table.Td colSpan={5}>
-                                            <Stack align="center" py="xl" gap="xs">
-                                                <Loader size="sm" />
-                                                <Text c="dimmed" size="sm">Cargando proveedores...</Text>
-                                            </Stack>
-                                        </Table.Td>
+                                        <Table.Th style={{ width: '30%' }}>Proveedor</Table.Th>
+                                        <Table.Th style={{ width: '15%' }}>Contacto</Table.Th>
+                                        <Table.Th style={{ width: '25%' }}>Sucursales</Table.Th>
+                                        <Table.Th style={{ width: '20%' }}>Régimen</Table.Th>
+                                        <Table.Th style={{ width: '10%' }} />
                                     </Table.Tr>
-                                ) : rows.length > 0 ? (
-                                    <>
-                                        {rows}
-                                        {hasMore && (
-                                            <Table.Tr ref={loaderRef}>
-                                                <Table.Td colSpan={5}>
-                                                    <Center py="md">
-                                                        <Loader size="xs" />
-                                                        <Text size="xs" c="dimmed" ml="sm">Cargando más...</Text>
-                                                    </Center>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        )}
-                                    </>
-                                ) : (
-                                    <Table.Tr>
-                                        <Table.Td colSpan={4}>
-                                            <Stack align="center" py="xl" gap="xs">
-                                                <Text c="dimmed" ta="center">
-                                                    {search || regimenFilter ? 'No se encontraron resultados para los filtros aplicados.' : 'No hay proveedores registrados aún.'}
-                                                </Text>
-                                            </Stack>
-                                        </Table.Td>
-                                    </Table.Tr>
-                                )}
-                            </Table.Tbody>
-                        </Table>
-                    </ScrollArea>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {fetching ? (
+                                        <Table.Tr>
+                                            <Table.Td colSpan={5}>
+                                                <Stack align="center" py="xl" gap="xs">
+                                                    <Loader size="sm" />
+                                                    <Text c="dimmed" size="sm">Cargando proveedores...</Text>
+                                                </Stack>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ) : rows.length > 0 ? (
+                                        <>
+                                            {rows}
+                                        </>
+                                    ) : (
+                                        <Table.Tr>
+                                            <Table.Td colSpan={5}>
+                                                <Stack align="center" py="xl" gap="xs">
+                                                    <Text c="dimmed" ta="center">
+                                                        {search ? 'No se encontraron resultados para los filtros aplicados.' : 'No hay proveedores registrados aún.'}
+                                                    </Text>
+                                                </Stack>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    )}
+                                </Table.Tbody>
+                            </Table>
+                        </ScrollArea>
+                    )}
                 </Stack>
+
+                {/* Paginación */}
+                {totalPages > 1 && (
+                    <Group justify="center" mt="md" pb="xl">
+                        <Pagination
+                            total={totalPages}
+                            value={page}
+                            onChange={setPage}
+                            radius="md"
+                            withEdges
+                        />
+                    </Group>
+                )}
             </Paper>
 
             {/* Modal Unificado para Crear y Editar */}
