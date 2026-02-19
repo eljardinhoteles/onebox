@@ -29,6 +29,7 @@ export function SettingsTable({ title, items, activeTab, onEdit, onDelete, onAdd
                         <Table.Tr>
                             <Table.Th>Nombre</Table.Th>
                             {activeTab === 'sucursales' && <Table.Th>Dirección</Table.Th>}
+                            {activeTab === 'sucursales' && <Table.Th>Intervalo Actual</Table.Th>}
                             <Table.Th w={100}>Acciones</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -37,6 +38,11 @@ export function SettingsTable({ title, items, activeTab, onEdit, onDelete, onAdd
                             <Table.Tr key={item.id}>
                                 <Table.Td>{item.nombre}</Table.Td>
                                 {activeTab === 'sucursales' && <Table.Td>{item.direccion || '-'}</Table.Td>}
+                                {activeTab === 'sucursales' && (
+                                    <Table.Td>
+                                        <Text fw={700} size="sm">#{item.ultimo_numero || 0}</Text>
+                                    </Table.Td>
+                                )}
                                 <Table.Td>
                                     <Group gap="xs">
                                         <Tooltip label="Editar">
@@ -55,7 +61,7 @@ export function SettingsTable({ title, items, activeTab, onEdit, onDelete, onAdd
                         ))}
                         {!fetching && items.length === 0 && (
                             <Table.Tr>
-                                <Table.Td colSpan={activeTab === 'sucursales' ? 3 : 2} ta="center" py="xl" c="dimmed">
+                                <Table.Td colSpan={activeTab === 'sucursales' ? 4 : 2} ta="center" py="xl" c="dimmed">
                                     No hay registros disponibles
                                 </Table.Td>
                             </Table.Tr>

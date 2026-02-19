@@ -26,6 +26,9 @@ interface Caja {
     sucursal: string;
     estado: 'abierta' | 'cerrada';
     saldo_actual: number;
+    total_gastos: number;
+    total_depositos: number;
+    numero?: number;
 }
 
 export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
@@ -79,14 +82,43 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     .order('id', { ascending: false });
 
                 if (error) {
-                    console.warn('Fallback a tabla base:', error);
+                    console.warn('Fallback a tabla base + cálculo manual:', error);
                     const { data: baseData, error: baseError } = await supabase
                         .from('cajas')
                         .select('*')
                         .order('id', { ascending: false });
 
                     if (baseError) throw baseError;
-                    return (baseData || []).map(c => ({ ...c, saldo_actual: c.monto_inicial }));
+
+                    // Fetch transactions for manual calculation
+                    const { data: transData } = await supabase
+                        .from('transacciones')
+                        .select('caja_id, tipo_documento, total_factura')
+                        .in('caja_id', (baseData || []).map(c => c.id));
+
+
+                    // Map retentions if needed, but for now we just need totals
+
+                    return (baseData || []).map(c => {
+                        const cTrans = transData?.filter(t => t.caja_id === c.id) || [];
+
+                        const total_depositos = cTrans
+                            .filter(t => t.tipo_documento === 'deposito')
+                            .reduce((sum, t) => sum + t.total_factura, 0);
+
+                        const gastosTrans = cTrans.filter(t => t.tipo_documento !== 'deposito');
+                        const total_gastos = gastosTrans.reduce((sum, t) => sum + t.total_factura, 0);
+
+                        // Simplified calculations for fallback
+                        const saldo_actual = c.monto_inicial - total_gastos - total_depositos;
+
+                        return {
+                            ...c,
+                            total_gastos,
+                            total_depositos,
+                            saldo_actual
+                        };
+                    });
                 }
                 return data || [];
             } catch (error) {

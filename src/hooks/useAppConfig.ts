@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useEmpresa } from '../context/EmpresaContext';
 
 export function useAppConfig() {
     const [configs, setConfigs] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
+    const { empresa } = useEmpresa();
 
     const fetchConfigs = useCallback(async () => {
+        if (!empresa) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('configuracion').select('clave, valor');
+            const { data, error } = await supabase
+                .from('configuracion')
+                .select('clave, valor')
+                .eq('empresa_id', empresa.id);
+
             if (error) throw error;
 
             const configMap: Record<string, string> = {};
@@ -21,14 +28,15 @@ export function useAppConfig() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [empresa]);
 
     const updateConfig = async (clave: string, valor: string) => {
+        if (!empresa) return { success: false, error: 'No empresa selected' };
         try {
             const { error } = await supabase
                 .from('configuracion')
                 .upsert(
-                    { clave, valor, updated_at: new Date().toISOString() },
+                    { clave, valor, empresa_id: empresa.id, updated_at: new Date().toISOString() },
                     { onConflict: 'clave,empresa_id' }
                 );
 

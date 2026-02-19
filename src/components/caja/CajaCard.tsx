@@ -18,7 +18,9 @@ interface Caja {
     sucursal: string;
     estado: 'abierta' | 'cerrada';
     saldo_actual: number;
-    // Add other fields if necessary
+    total_gastos?: number;
+    total_depositos?: number;
+    numero?: number;
 }
 
 interface CajaCardProps {
@@ -29,7 +31,14 @@ interface CajaCardProps {
 }
 
 export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaCardProps) {
-    const percentageRemaining = (caja.saldo_actual / caja.monto_inicial) * 100;
+    const totalDepositos = caja.total_depositos || 0;
+    const montoInicialNeto = caja.monto_inicial - totalDepositos;
+
+    // Avoid division by zero
+    const percentageRemaining = montoInicialNeto > 0
+        ? (caja.saldo_actual / montoInicialNeto) * 100
+        : 0;
+
     const isLowBalance = percentageRemaining <= alertThreshold && caja.estado === 'abierta';
 
 
@@ -150,7 +159,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                         </Tooltip>
                         <div>
                             <Text size="lg" fw={800} c="dark.9" lineClamp={1} style={{ lineHeight: 1.1 }}>{caja.sucursal}</Text>
-                            <Text size="xs" c="dimmed" fw={600} mt={2}>CAJA #{caja.id}</Text>
+                            <Text size="xs" c="dimmed" fw={600} mt={2}>CAJA #{caja.numero ?? caja.id}</Text>
                         </div>
                     </Group>
 
@@ -184,14 +193,30 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                             </Text>
                         </Stack>
                         <Stack gap={0} align="flex-end">
-                            <Text size="xs" c="dimmed" fw={600}>${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })} inicial</Text>
+                            <Text size="xs" c="dimmed" fw={600}>${montoInicialNeto.toLocaleString(undefined, { minimumFractionDigits: 2 })} neto</Text>
                             {isLowBalance && (
                                 <Badge color="orange" variant="dot" size="xs">Saldo Bajo</Badge>
+                            )}
+                            {totalDepositos > 0 && (
+                                <Text size="xs" c="red.7" fw={600} style={{ fontSize: 11 }}>
+                                    (-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })} depósitos)
+                                </Text>
                             )}
                         </Stack>
                     </Group>
 
-                    <Tooltip label={`${percentageRemaining.toFixed(1)}% de fondos disponibles`} withArrow radius="md">
+                    <Tooltip
+                        label={
+                            <Stack gap={0}>
+                                <Text size="xs">{percentageRemaining.toFixed(1)}% del efectivo neto disponible</Text>
+                                <Text size="xs" c="dimmed">Inicial: ${caja.monto_inicial.toFixed(2)}</Text>
+                                <Text size="xs" c="dimmed">Depósitos: -${totalDepositos.toFixed(2)}</Text>
+                            </Stack>
+                        }
+                        withArrow
+                        radius="md"
+                        multiline
+                    >
                         <Paper w="100%" h={6} radius="xl" bg="gray.1" style={{ overflow: 'hidden' }}>
                             <div
                                 style={{

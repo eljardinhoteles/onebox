@@ -11,7 +11,7 @@ import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
     IconPlus, IconReceipt,
-    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter, IconArrowLeft
+    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter, IconArrowLeft, IconBuildingBank
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
@@ -177,7 +177,16 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     const totals = useCajaCalculations(caja, transactions);
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
-    const percentageRemaining = caja ? (totals.efectivo / caja.monto_inicial) * 100 : 100;
+
+    // Calcular Monto Inicial Neto (Monto Inicial - Depósitos)
+    const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
+    const montoInicialNeto = (caja?.monto_inicial || 0) - totalDepositos;
+
+    // Calcular porcentaje sobre el NETO
+    const percentageRemaining = montoInicialNeto > 0
+        ? (totals.efectivo / montoInicialNeto) * 100
+        : 0;
+
     const isLowBalance = percentageRemaining <= alertThreshold && caja?.estado === 'abierta';
 
     // --- MUTATIONS ---
@@ -372,7 +381,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             </ActionIcon>
                         )}
                         <div>
-                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'}</Title>
+                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
                             <Text size="sm" c="dimmed">
                                 {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
                                 {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
@@ -390,8 +399,11 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             mb="md"
                         >
                             <Text size="sm">
-                                Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible de los ${caja?.monto_inicial.toLocaleString()}.
-                                Se recomienda proceder al cierre de la caja para evitar falta de fondos.
+                                Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo operativo (${montoInicialNeto.toLocaleString()}).
+                                <br />
+                                <Text span size="xs" c="dimmed">
+                                    (Inicial: ${caja?.monto_inicial?.toLocaleString()} - Depósitos: ${totalDepositos.toLocaleString()})
+                                </Text>
                             </Text>
                         </Alert>
                     )}
@@ -475,6 +487,17 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                                     <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>
                                         Cerrar Caja
                                     </Button>
+                                    <Tooltip label="Registrar Depósito [D]" withArrow radius="md">
+                                        <ActionIcon
+                                            variant="light"
+                                            color="green"
+                                            onClick={openDeposito}
+                                            size="lg"
+                                            radius="md"
+                                        >
+                                            <IconBuildingBank size={20} />
+                                        </ActionIcon>
+                                    </Tooltip>
                                 </>
                             )}
                             <Tooltip label="Imprimir Reporte [P]" withArrow radius="md" position="bottom">
@@ -496,7 +519,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         totals={totals}
                         onOpenRetencionesControl={openRetencionesControl}
                         onOpenArqueoControl={openArqueoControl}
-                        onOpenDepositoControl={caja?.estado === 'abierta' ? openDeposito : undefined}
                     />
 
                     <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>

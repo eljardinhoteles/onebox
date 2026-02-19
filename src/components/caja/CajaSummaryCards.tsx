@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Paper, Group, Text, Grid, ThemeIcon, Stack, Collapse, Divider, Tooltip } from '@mantine/core';
-import { IconCalculator, IconReceipt2, IconFileInvoice, IconChevronDown, IconChevronUp, IconBuildingBank } from '@tabler/icons-react';
+import { IconCalculator, IconReceipt2, IconFileInvoice, IconChevronDown, IconChevronUp, IconWallet } from '@tabler/icons-react';
 
 interface CajaSummaryCardsProps {
     caja: any;
@@ -15,10 +15,9 @@ interface CajaSummaryCardsProps {
     };
     onOpenRetencionesControl?: () => void;
     onOpenArqueoControl?: () => void;
-    onOpenDepositoControl?: () => void;
 }
 
-export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpenArqueoControl, onOpenDepositoControl }: CajaSummaryCardsProps) {
+export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpenArqueoControl }: CajaSummaryCardsProps) {
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showNeto, setShowNeto] = useState(false);
 
@@ -46,25 +45,9 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     ${((caja?.monto_inicial || 0) - (totals.totalDepositos || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </Text>
                             </Stack>
-                            <Group gap={4}>
-                                {onOpenDepositoControl && (
-                                    <Tooltip label="Registrar Depósito a Banco" withArrow>
-                                        <ThemeIcon
-                                            variant="light"
-                                            size="lg"
-                                            radius="md"
-                                            color="green"
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onOpenDepositoControl();
-                                            }}
-                                        >
-                                            <IconBuildingBank size={18} stroke={1.5} />
-                                        </ThemeIcon>
-                                    </Tooltip>
-                                )}
-                            </Group>
+                            <ThemeIcon variant="light" size="lg" radius="md" color="blue">
+                                <IconWallet size={20} stroke={1.5} />
+                            </ThemeIcon>
                         </Group>
 
                         <Collapse in={showBreakdown}>

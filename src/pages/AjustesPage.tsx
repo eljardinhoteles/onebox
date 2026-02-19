@@ -1,4 +1,4 @@
-import { Stack, Title, Group, Text, Button, Card, TextInput, Tooltip, Loader, NumberInput, Table, Badge, Code, ScrollArea, rem } from '@mantine/core';
+import { Stack, Title, Group, Text, Button, Card, TextInput, Tooltip, Loader, NumberInput, Table, Badge, Code, ScrollArea, rem, Switch } from '@mantine/core';
 import { IconLogout, IconDeviceFloppy } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -50,12 +50,15 @@ export function AjustesPage() {
 
     // Restored states
     const [alertPercentage, setAlertPercentage] = useState<number>(15);
+    const [reservePercentage, setReservePercentage] = useState<number>(15);
+    const [autoFormatFactura, setAutoFormatFactura] = useState<boolean>(false);
     const [logs, setLogs] = useState<any[]>([]);
 
     const form = useForm({
         initialValues: {
             nombre: '',
             direccion: '',
+            secuencia_inicial: 0,
         },
     });
 
@@ -78,7 +81,13 @@ export function AjustesPage() {
         if (configs.porcentaje_alerta_caja) {
             setAlertPercentage(parseInt(configs.porcentaje_alerta_caja));
         }
-    }, [configs.porcentaje_alerta_caja]);
+        if (configs.porcentaje_reserva_caja) {
+            setReservePercentage(parseInt(configs.porcentaje_reserva_caja));
+        }
+        if (configs.formato_factura_automatico) {
+            setAutoFormatFactura(configs.formato_factura_automatico === 'true');
+        }
+    }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico]);
 
     useEffect(() => {
         if (empresa) {
@@ -124,7 +133,28 @@ export function AjustesPage() {
                 .order('created_at', { ascending: false })
                 .limit(50);
             setLogs(data || []);
-        } else if (['sucursales', 'bancos', 'regimenes'].includes(activeTab)) {
+        } else if (activeTab === 'sucursales') {
+            const { data: sucursales } = await supabase.from('sucursales').select('*').eq('empresa_id', empresa.id);
+
+            if (sucursales && sucursales.length > 0) {
+                // Fetch all cajas to calculate max number per branch
+                // Note: Ideally use a view or RPC for large datasets, but this is fine for typical volume
+                const { data: cajas } = await supabase
+                    .from('cajas')
+                    .select('sucursal, numero');
+
+                const sucursalesWithInfo = sucursales.map(s => {
+                    const branchCajas = cajas?.filter((c: any) => c.sucursal === s.nombre) || [];
+                    const maxCreated = branchCajas.reduce((max: number, c: any) => Math.max(max, c.numero || 0), 0);
+                    const maxNumero = Math.max(maxCreated, s.secuencia_inicial || 0);
+                    return { ...s, ultimo_numero: maxNumero };
+                });
+
+                setItems(sucursalesWithInfo);
+            } else {
+                setItems([]);
+            }
+        } else if (['bancos', 'regimenes'].includes(activeTab)) {
             const { data } = await supabase.from(activeTab).select('*').eq('empresa_id', empresa.id);
             setItems(data || []);
         }
@@ -141,6 +171,11 @@ export function AjustesPage() {
         setFetching(true);
 
         const payload = { ...values, empresa_id: empresa.id };
+
+        // Remove computed properties that are not columns in the database
+        if ('ultimo_numero' in payload) {
+            delete payload.ultimo_numero;
+        }
 
         if (editingId) {
             const { error } = await supabase.from(activeTab!).update(payload).eq('id', editingId);
@@ -377,19 +412,62 @@ export function AjustesPage() {
                                     </Stack>
                                     <Card withBorder radius="md" p="md" bg="blue.0" maw={500} shadow="xs">
                                         <Stack gap="md">
-                                            <Text fw={700} size="sm">Alertas de Saldo:</Text>
-                                            <NumberInput
-                                                label="Ingresa el porcentaje de reserva de saldo"
-                                                value={alertPercentage}
-                                                onChange={(val) => setAlertPercentage(Number(val))}
-                                                min={0}
-                                                max={100}
-                                                suffix="%"
-                                                radius="md"
-                                            />
+                                            <Group justify="space-between" align="center">
+                                                <Stack gap={0}>
+                                                    <Text fw={700} size="sm">Alertas de Saldo</Text>
+                                                    <Text size="xs" c="dimmed">Porcentaje de reserva mínimo</Text>
+                                                </Stack>
+                                                <NumberInput
+                                                    value={alertPercentage}
+                                                    onChange={(val) => setAlertPercentage(Number(val))}
+                                                    min={0}
+                                                    max={100}
+                                                    suffix="%"
+                                                    w={100}
+                                                    radius="md"
+                                                />
+                                            </Group>
+
+                                            <Group justify="space-between" align="center">
+                                                <Stack gap={0}>
+                                                    <Text fw={700} size="sm">Reserva de Gasto</Text>
+                                                    <Text size="xs" c="dimmed">Mínimo para bloquear gastos</Text>
+                                                </Stack>
+                                                <NumberInput
+                                                    value={reservePercentage}
+                                                    onChange={(val) => setReservePercentage(Number(val))}
+                                                    min={0}
+                                                    max={100}
+                                                    suffix="%"
+                                                    w={100}
+                                                    radius="md"
+                                                />
+                                            </Group>
+
+                                            <Group justify="space-between" align="center">
+                                                <Stack gap={0}>
+                                                    <Text fw={700} size="sm">Formato de Factura</Text>
+                                                    <Text size="xs" c="dimmed">Autocompletar ceros y guiones</Text>
+                                                </Stack>
+                                                <Switch
+                                                    checked={autoFormatFactura}
+                                                    onChange={(event) => setAutoFormatFactura(event.currentTarget.checked)}
+                                                    size="md"
+                                                    onLabel="ON"
+                                                    offLabel="OFF"
+                                                />
+                                            </Group>
+
                                             <Button onClick={async () => {
-                                                const { success } = await updateConfig('porcentaje_alerta_caja', alertPercentage.toString());
-                                                if (success) notifications.show({ title: 'Guardado', message: 'Ajustes actualizados.', color: 'teal' });
+                                                const p1 = updateConfig('porcentaje_alerta_caja', alertPercentage.toString());
+                                                const p2 = updateConfig('formato_factura_automatico', autoFormatFactura.toString());
+                                                const p3 = updateConfig('porcentaje_reserva_caja', reservePercentage.toString());
+
+                                                const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+                                                if (r1.success && r2.success && r3.success) {
+                                                    notifications.show({ title: 'Guardado', message: 'Ajustes actualizados.', color: 'teal' });
+                                                }
                                             }} loading={configLoading} leftSection={<IconDeviceFloppy size={14} />}>Guardar Cambios</Button>
                                         </Stack>
                                     </Card>
@@ -462,6 +540,16 @@ export function AjustesPage() {
                     <Stack gap="md">
                         <TextInput label="Nombre" placeholder="Nombre" required radius="md" {...form.getInputProps('nombre')} />
                         {activeTab === 'sucursales' && <TextInput label="Dirección" placeholder="Dirección" radius="md" {...form.getInputProps('direccion')} />}
+                        {activeTab === 'sucursales' && (
+                            <NumberInput
+                                label="Secuencia Inicial"
+                                description="Establece el número desde donde iniciará el conteo si es mayor al historial."
+                                placeholder="0"
+                                min={0}
+                                radius="md"
+                                {...form.getInputProps('secuencia_inicial')}
+                            />
+                        )}
                         <AppActionButtons onCancel={close} loading={fetching} submitLabel={editingId ? 'Actualizar' : 'Crear'} />
                     </Stack>
                 </form>

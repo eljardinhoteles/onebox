@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Stack, TextInput, Select, Button, Group, ActionIcon, NumberInput, Checkbox, Paper, Divider, Text, Alert, Autocomplete } from '@mantine/core';
 import { AppActionButtons } from './ui/AppActionButtons';
@@ -10,6 +11,7 @@ import dayjs from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDisclosure } from '@mantine/hooks';
 import { ProveedorFormModal } from './proveedores/ProveedorFormModal';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 interface TransactionFormProps {
     cajaId: number;
@@ -24,6 +26,10 @@ interface TransactionFormProps {
 export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage, currentBalance }: TransactionFormProps) {
     const queryClient = useQueryClient();
     const [createProveedorOpened, { open: openCreateProveedor, close: closeCreateProveedor }] = useDisclosure(false);
+
+    const { configs } = useAppConfig();
+    const autoFormatFactura = configs.formato_factura_automatico === 'true';
+    const reservePercentage = configs.porcentaje_reserva_caja ? parseInt(configs.porcentaje_reserva_caja) : 15;
 
     const form = useForm({
         initialValues: {
@@ -47,6 +53,51 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             }
         }
     });
+
+    // --- MANEJO DE FACTURA 000-000-000000000 ---
+    const handleFacturaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let val = e.currentTarget.value.replace(/[^0-9]/g, ''); // Solo números
+
+        if (!autoFormatFactura) {
+            form.setFieldValue('numero_factura', e.currentTarget.value);
+            return;
+        }
+
+        // Auto-guiones
+        if (val.length > 3) val = val.slice(0, 3) + '-' + val.slice(3);
+        if (val.length > 7) val = val.slice(0, 7) + '-' + val.slice(7);
+
+        // Limite
+        if (val.length > 17) val = val.slice(0, 17);
+
+        form.setFieldValue('numero_factura', val);
+    };
+
+    const handleFacturaBlur = () => {
+        if (!autoFormatFactura) return;
+
+        const val = form.values.numero_factura;
+        if (!val) return;
+
+        const parts = val.split('-');
+        let formatted = val;
+
+        if (parts.length === 3) {
+            // 000-000-000000000
+            const p1 = parts[0].padStart(3, '0');
+            const p2 = parts[1].padStart(3, '0');
+            const p3 = parts[2].padStart(9, '0');
+            formatted = `${p1} -${p2} -${p3} `;
+        } else if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+            // Si el usuario escribe todo junto "001001123" -> tratar de splitear
+            if (val.length <= 15) {
+                // Asumimos que intentó escribir secuencialmente
+                // No hacemos magia compleja, solo si tiene guiones actuamos
+            }
+        }
+
+        form.setFieldValue('numero_factura', formatted);
+    };
 
     // --- QUERIES ---
 
@@ -89,7 +140,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre');
             return (data || []).map(p => ({
                 value: p.id.toString(),
-                label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''}`
+                label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''} `
             }));
         }
     });
@@ -318,7 +369,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 <td style="padding: 5px; border-bottom: 1px solid #eee;">${item.nombre}</td>
                 <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right;">$${item.monto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
             </tr>
-        `).join('');
+    `).join('');
 
         printWindow.document.write(`
             <html>
@@ -343,7 +394,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     <div class="ticket">
                         <h2>COMPROBANTE DE EGRESO</h2>
                         <div style="text-align: center; font-size: 10px;">(DOCUMENTO INTERNO - SIN FACTURA)</div>
-                        
+
                         <div class="info">
                             <div><b>FECHA:</b> ${fecha}</div>
                             <div><b>CAJA NO:</b> ${cajaId}</div>
@@ -378,7 +429,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     </script>
                 </body>
             </html>
-        `);
+    `);
         printWindow.document.close();
     };
 
@@ -389,20 +440,20 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         if (totalAValidar > disponibleReal) {
             notifications.show({
                 title: 'Saldo Insuficiente',
-                message: `El gasto ($${totalAValidar.toFixed(2)}) supera el efectivo disponible en caja ($${disponibleReal.toFixed(2)}).`,
+                message: `El gasto($${totalAValidar.toFixed(2)}) supera el efectivo disponible en caja($${disponibleReal.toFixed(2)}).`,
                 color: 'red',
                 icon: <IconX size={16} />,
             });
             return;
         }
 
-        const reserveThreshold = initialAmount * 0.15;
+        const reserveThreshold = initialAmount * (reservePercentage / 100);
         const projectedBalance = disponibleReal - totalAValidar;
 
         if (projectedBalance < reserveThreshold) {
             notifications.show({
                 title: 'Reserva de Seguridad',
-                message: `No se puede registrar el gasto. La caja debe mantener un mínimo del 15% ($${reserveThreshold.toFixed(2)}) de su monto inicial ($${initialAmount.toFixed(2)}). El saldo restante sería $${projectedBalance.toFixed(2)}.`,
+                message: `No se puede registrar el gasto. La caja debe mantener un mínimo del ${reservePercentage}% ($${reserveThreshold.toFixed(2)}) de su monto inicial ($${initialAmount.toFixed(2)}). El saldo restante sería $${projectedBalance.toFixed(2)}.`,
                 color: 'red',
                 icon: <IconX size={16} />,
             });
@@ -503,13 +554,21 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                             {...form.getInputProps('fecha_factura')}
                         />
                         <TextInput
-                            label={form.values.tipo_documento === 'sin_factura' ? "Referencia" : "Número de Factura"}
-                            placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional" : "Ej: 001-001-123"}
+                            label="Número de Documento"
+                            placeholder={autoFormatFactura ? "000-000-000000000" : "Ej: 001-001-000000123"}
+                            required
                             readOnly={readOnly}
-                            disabled={!readOnly && form.values.tipo_documento === 'sin_factura'}
+                            maxLength={autoFormatFactura ? 17 : 20}
                             variant={readOnly ? "filled" : "default"}
                             styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
                             {...form.getInputProps('numero_factura')}
+                            onChange={(e) => {
+                                handleFacturaChange(e);
+                            }}
+                            onBlur={() => {
+                                handleFacturaBlur();
+                                form.validateField('numero_factura');
+                            }}
                         />
                     </Group>
 

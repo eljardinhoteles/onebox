@@ -50,7 +50,7 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 <Group justify="space-between" align="flex-start">
                     <Stack gap={0}>
                         <Title order={2} style={{ color: 'black' }}>{caja.estado === 'cerrada' ? 'REPORTE DE CIERRE DE CAJA' : 'REPORTE DE CAJA (EN CURSO)'}</Title>
-                        <Text fw={700} size="sm" c="dimmed">ID CAJA: #{caja.id}</Text>
+                        <Text fw={700} size="sm" c="dimmed">ID CAJA: #{caja.numero ?? caja.id}</Text>
                     </Stack>
                     <Stack gap={0} align="flex-end">
                         <Text fw={700} size="sm">FECHA DE IMPRESIÓN</Text>
