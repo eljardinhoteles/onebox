@@ -22,6 +22,7 @@ interface CierreCajaModalProps {
         iva: number;
         neto: number;
         efectivo: number;
+        totalDepositos?: number;
     };
     onSuccess: () => void;
     readOnly?: boolean;
@@ -182,6 +183,10 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                     <Group justify="space-between">
                                         <Text size="sm" c="red.6">Total Gastos Netos:</Text>
                                         <Text size="sm" fw={600} c="red.6">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Group>
+                                    <Group justify="space-between">
+                                        <Text size="sm" c="red.6">Depósitos a Banco:</Text>
+                                        <Text size="sm" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                     </Group>
                                     <Divider />
                                     <Group justify="space-between">

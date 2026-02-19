@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { Stack, NumberInput, Select, Button, Text, Group } from '@mantine/core';
+import { Stack, NumberInput, Select, Button, Text, Group, ScrollArea, Table, ActionIcon, Grid, Title } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
 import { AppModal } from '../ui/AppModal';
-import { IconBuildingBank, IconCalendar, IconCurrencyDollar } from '@tabler/icons-react';
+import { IconBuildingBank, IconCalendar, IconCurrencyDollar, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 
@@ -16,9 +16,11 @@ interface DepositoBancoModalProps {
     cajaId: number;
     maxMonto: number; // El saldo actual en efectivo para no depositar más de lo que hay
     onSuccess?: () => void;
+    existingDeposits?: any[];
+    onDeleteDeposit?: (id: number) => void;
 }
 
-export function DepositoBancoModal({ opened, onClose, cajaId, maxMonto, onSuccess }: DepositoBancoModalProps) {
+export function DepositoBancoModal({ opened, onClose, cajaId, maxMonto, onSuccess, existingDeposits = [], onDeleteDeposit }: DepositoBancoModalProps) {
     const queryClient = useQueryClient();
 
     const form = useForm({
@@ -120,63 +122,111 @@ export function DepositoBancoModal({ opened, onClose, cajaId, maxMonto, onSucces
         <AppModal
             opened={opened}
             onClose={onClose}
-            title="Registrar Depósito a Banco"
-            size="sm"
+            title="Gestión de Depósitos Bancarios"
+            size="xl"
         >
             <form onSubmit={form.onSubmit((v) => mutation.mutate(v))}>
-                <Stack gap="md">
-                    <Text size="sm" c="dimmed">
-                        Registre la salida de efectivo de esta caja hacia una cuenta bancaria de la empresa.
-                    </Text>
+                <Grid gutter="xl">
+                    <Grid.Col span={{ base: 12, md: 7 }}>
+                        <Title order={4} mb="md">Historial de Depósitos</Title>
+                        <ScrollArea h={350} type="auto" offsetScrollbars>
+                            <Table striped highlightOnHover withTableBorder>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Fecha</Table.Th>
+                                        <Table.Th>Banco</Table.Th>
+                                        <Table.Th style={{ textAlign: 'right' }}>Monto</Table.Th>
+                                        <Table.Th></Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {existingDeposits?.length === 0 ? (
+                                        <Table.Tr>
+                                            <Table.Td colSpan={4} align="center">
+                                                <Text size="sm" c="dimmed" py="xl">No hay depósitos registrados en esta apertura.</Text>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ) : (
+                                        existingDeposits?.map((deposit) => (
+                                            <Table.Tr key={deposit.id}>
+                                                <Table.Td>{dayjs(deposit.fecha_factura).format('DD/MM/YYYY')}</Table.Td>
+                                                <Table.Td>{deposit.banco?.nombre || 'Banco'}</Table.Td>
+                                                <Table.Td align="right">${deposit.total_factura.toFixed(2)}</Table.Td>
+                                                <Table.Td align="right">
+                                                    <ActionIcon
+                                                        color="red"
+                                                        variant="subtle"
+                                                        onClick={() => onDeleteDeposit?.(deposit.id)}
+                                                        title="Eliminar depósito"
+                                                    >
+                                                        <IconTrash size={16} />
+                                                    </ActionIcon>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ))
+                                    )}
+                                </Table.Tbody>
+                            </Table>
+                        </ScrollArea>
+                    </Grid.Col>
 
-                    <DateInput
-                        label="Fecha del Depósito"
-                        placeholder="Seleccione fecha"
-                        leftSection={<IconCalendar size={16} />}
-                        maxDate={new Date()}
-                        locale="es"
-                        required
-                        {...form.getInputProps('fecha')}
-                    />
+                    <Grid.Col span={{ base: 12, md: 5 }} style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                        <Stack gap="md" p="xs">
+                            <Title order={4}>Nuevo Depósito</Title>
+                            <Text size="sm" c="dimmed">
+                                Registre la salida de efectivo hacia el banco.
+                            </Text>
 
-                    <Select
-                        label="Banco de Destino"
-                        placeholder="Seleccione cuenta bancaria"
-                        leftSection={<IconBuildingBank size={16} />}
-                        data={bancosList}
-                        searchable
-                        nothingFoundMessage="No hay bancos registrados"
-                        required
-                        {...form.getInputProps('banco_id')}
-                    />
+                            <DateInput
+                                label="Fecha"
+                                placeholder="Seleccione fecha"
+                                leftSection={<IconCalendar size={16} />}
+                                maxDate={new Date()}
+                                locale="es"
+                                required
+                                {...form.getInputProps('fecha')}
+                            />
 
-                    <NumberInput
-                        label="Monto a Depositar"
-                        placeholder="0.00"
-                        leftSection={<IconCurrencyDollar size={16} />}
-                        min={0.01}
-                        max={maxMonto}
-                        decimalScale={2}
-                        fixedDecimalScale
-                        required
-                        description={`Disponible en caja: $${maxMonto.toFixed(2)}`}
-                        {...form.getInputProps('monto')}
-                    />
+                            <Select
+                                label="Banco Destino"
+                                placeholder="Seleccione cuenta"
+                                leftSection={<IconBuildingBank size={16} />}
+                                data={bancosList}
+                                searchable
+                                nothingFoundMessage="No hay bancos"
+                                required
+                                {...form.getInputProps('banco_id')}
+                            />
 
-                    <Group justify="flex-end" mt="md">
-                        <Button variant="default" onClick={onClose}>
-                            Cancelar
-                        </Button>
-                        <Button
-                            type="submit"
-                            color="blue"
-                            loading={mutation.isPending}
-                            disabled={!form.isValid()}
-                        >
-                            Registrar Depósito
-                        </Button>
-                    </Group>
-                </Stack>
+                            <NumberInput
+                                label="Monto"
+                                placeholder="0.00"
+                                leftSection={<IconCurrencyDollar size={16} />}
+                                min={0.01}
+                                max={maxMonto}
+                                decimalScale={2}
+                                fixedDecimalScale
+                                required
+                                description={`Disponible: $${maxMonto.toFixed(2)}`}
+                                {...form.getInputProps('monto')}
+                            />
+
+                            <Group justify="flex-end" mt="xl">
+                                <Button variant="default" onClick={onClose}>
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    color="blue"
+                                    loading={mutation.isPending}
+                                    disabled={!form.isValid()}
+                                >
+                                    Registrar
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Grid.Col>
+                </Grid>
             </form>
         </AppModal>
     );

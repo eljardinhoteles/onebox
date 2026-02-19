@@ -5,9 +5,11 @@ import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import { IconPlus, IconTrash, IconCheck, IconX, IconReceipt, IconInfoCircle, IconPrinter } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconCheck, IconX, IconReceipt, IconInfoCircle, IconPrinter, IconRefresh } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDisclosure } from '@mantine/hooks';
+import { ProveedorFormModal } from './proveedores/ProveedorFormModal';
 
 interface TransactionFormProps {
     cajaId: number;
@@ -20,6 +22,8 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage, currentBalance }: TransactionFormProps) {
+    const queryClient = useQueryClient();
+    const [createProveedorOpened, { open: openCreateProveedor, close: closeCreateProveedor }] = useDisclosure(false);
 
     const form = useForm({
         initialValues: {
@@ -460,140 +464,181 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     ));
 
     return (
-        <form onSubmit={form.onSubmit(handleSubmit)}>
-            <Stack gap="md">
-                {warningMessage && (
-                    <Alert variant="light" color="orange" title="Modo Solo Lectura" icon={<IconInfoCircle />}>
-                        {warningMessage}
-                    </Alert>
-                )}
+        <>
+            <form onSubmit={form.onSubmit(handleSubmit)}>
+                <Stack gap="md">
+                    {warningMessage && (
+                        <Alert variant="light" color="orange" title="Modo Solo Lectura" icon={<IconInfoCircle />}>
+                            {warningMessage}
+                        </Alert>
+                    )}
 
-                <Select
-                    label="Tipo de Documento"
-                    placeholder="Seleccione el tipo"
-                    data={[
-                        { value: 'factura', label: 'Factura' },
-                        { value: 'nota_venta', label: 'Nota de Venta' },
-                        { value: 'liquidacion_compra', label: 'Liquidación de Compra' },
-                        { value: 'sin_factura', label: 'Sin Factura' },
-                    ]}
-                    required
-                    readOnly={readOnly}
-                    variant={readOnly ? "filled" : "default"}
-                    styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-                    {...form.getInputProps('tipo_documento')}
-                />
-
-                <Group grow>
-                    <DatePickerInput
-                        label="Fecha de Emisión"
-                        placeholder="Seleccione fecha"
-                        locale="es"
+                    <Select
+                        label="Tipo de Documento"
+                        placeholder="Seleccione el tipo"
+                        data={[
+                            { value: 'factura', label: 'Factura' },
+                            { value: 'nota_venta', label: 'Nota de Venta' },
+                            { value: 'liquidacion_compra', label: 'Liquidación de Compra' },
+                            { value: 'sin_factura', label: 'Sin Factura' },
+                        ]}
                         required
-                        maxDate={new Date()}
-                        allowDeselect={false}
                         readOnly={readOnly}
                         variant={readOnly ? "filled" : "default"}
                         styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-                        {...form.getInputProps('fecha_factura')}
+                        {...form.getInputProps('tipo_documento')}
                     />
-                    <TextInput
-                        label={form.values.tipo_documento === 'sin_factura' ? "Referencia" : "Número de Factura"}
-                        placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional" : "Ej: 001-001-123"}
-                        readOnly={readOnly}
-                        disabled={!readOnly && form.values.tipo_documento === 'sin_factura'}
-                        variant={readOnly ? "filled" : "default"}
-                        styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-                        {...form.getInputProps('numero_factura')}
-                    />
-                </Group>
 
-                <Select
-                    label="Proveedor"
-                    placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional (Sin proveedor)" : "Seleccione un proveedor..."}
-                    data={proveedores}
-                    searchable
-                    clearable={!readOnly && form.values.tipo_documento === 'sin_factura'}
-                    readOnly={readOnly}
-                    variant={readOnly ? "filled" : "default"}
-                    styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-                    leftSection={<IconInfoCircle size={16} stroke={1.5} />}
-                    comboboxProps={{
-                        shadow: 'md',
-                        withinPortal: true
-                    }}
-                    {...form.getInputProps('proveedor_id')}
-                />
+                    <Group grow>
+                        <DatePickerInput
+                            label="Fecha de Emisión"
+                            placeholder="Seleccione fecha"
+                            locale="es"
+                            required
+                            maxDate={new Date()}
+                            allowDeselect={false}
+                            readOnly={readOnly}
+                            variant={readOnly ? "filled" : "default"}
+                            styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                            {...form.getInputProps('fecha_factura')}
+                        />
+                        <TextInput
+                            label={form.values.tipo_documento === 'sin_factura' ? "Referencia" : "Número de Factura"}
+                            placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional" : "Ej: 001-001-123"}
+                            readOnly={readOnly}
+                            disabled={!readOnly && form.values.tipo_documento === 'sin_factura'}
+                            variant={readOnly ? "filled" : "default"}
+                            styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                            {...form.getInputProps('numero_factura')}
+                        />
+                    </Group>
 
-                <Divider label={<Group gap="xs"><IconReceipt size={14} />Detalle de Productos</Group>} labelPosition="center" />
-
-                {fields}
-
-                {!readOnly && (
-                    <Button
-                        variant="light"
-                        leftSection={<IconPlus size={16} />}
-                        onClick={() => form.insertListItem('items', { nombre: '', monto: 0, con_iva: false })}
-                        size="xs"
-                    >
-                        Añadir Producto
-                    </Button>
-                )}
-
-                <Paper withBorder p="md" radius="md" bg="gray.0">
-                    <Stack gap="xs">
-                        {!transactionId && (
+                    <Group align="flex-end" gap="xs">
+                        <Select
+                            label="Proveedor"
+                            placeholder={form.values.tipo_documento === 'sin_factura' ? "Opcional (Sin proveedor)" : "Seleccione un proveedor..."}
+                            data={proveedores}
+                            searchable
+                            clearable={!readOnly && form.values.tipo_documento === 'sin_factura'}
+                            readOnly={readOnly}
+                            variant={readOnly ? "filled" : "default"}
+                            styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                            leftSection={<IconInfoCircle size={16} stroke={1.5} />}
+                            comboboxProps={{
+                                shadow: 'md',
+                                withinPortal: true
+                            }}
+                            style={{ flex: 1 }}
+                            {...form.getInputProps('proveedor_id')}
+                        />
+                        {!readOnly && (
                             <>
-                                <Group justify="space-between">
-                                    <Text size="sm" c="dimmed">Efectivo Disponible en Caja:</Text>
-                                    <Text size="sm" fw={600}>${(availableBalance + originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                </Group>
-                                <Divider variant="dotted" />
+                                <ActionIcon
+                                    variant="light"
+                                    color="green"
+                                    size="lg"
+                                    mb={1}
+                                    onClick={openCreateProveedor}
+                                    title="Registrar nuevo proveedor"
+                                >
+                                    <IconPlus size={18} />
+                                </ActionIcon>
+                                <ActionIcon
+                                    variant="light"
+                                    color="blue"
+                                    size="lg"
+                                    mb={1}
+                                    onClick={() => {
+                                        queryClient.invalidateQueries({ queryKey: ['proveedores_simple'] });
+                                        notifications.show({ title: 'Actualizado', message: 'Lista de proveedores refrescada', color: 'blue', icon: <IconCheck size={16} /> });
+                                    }}
+                                    title="Actualizar lista de proveedores"
+                                >
+                                    <IconRefresh size={18} />
+                                </ActionIcon>
                             </>
                         )}
-                        <Group justify="space-between">
-                            <Text size="sm">Subtotal:</Text>
-                            <Text size="sm" fw={500}>${totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                            <Text size="sm">IVA (15%):</Text>
-                            <Text size="sm" fw={500}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                        </Group>
-                        <Divider />
-                        <Group justify="space-between">
-                            <Text size="md" fw={700}>Total Gasto:</Text>
-                            <Text size="lg" fw={700} color="blue">
-                                ${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
-                        </Group>
+                    </Group>
 
-                    </Stack>
-                </Paper>
+                    <Divider label={<Group gap="xs"><IconReceipt size={14} />Detalle de Productos</Group>} labelPosition="center" />
 
-                {form.values.tipo_documento === 'sin_factura' && (
-                    <Button
-                        variant="light"
-                        color="orange"
-                        leftSection={<IconPrinter size={16} />}
-                        onClick={handlePrintReceipt}
-                        fullWidth
-                    >
-                        Imprimir Recibo de Egreso
-                    </Button>
-                )}
+                    {fields}
 
-                {!readOnly ? (
-                    <AppActionButtons
-                        onCancel={onCancel}
-                        loading={saveMutation.isPending}
-                        submitLabel={transactionId ? "Actualizar Transacción" : "Guardar Transacción"}
-                    />
-                ) : (
-                    <Button color="gray" variant="light" onClick={onCancel} fullWidth>
-                        Cerrar Detalle
-                    </Button>
-                )}
-            </Stack>
-        </form>
+                    {!readOnly && (
+                        <Button
+                            variant="light"
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => form.insertListItem('items', { nombre: '', monto: 0, con_iva: false })}
+                            size="xs"
+                        >
+                            Añadir Producto
+                        </Button>
+                    )}
+
+                    <Paper withBorder p="md" radius="md" bg="gray.0">
+                        <Stack gap="xs">
+                            {!transactionId && (
+                                <>
+                                    <Group justify="space-between">
+                                        <Text size="sm" c="dimmed">Efectivo Disponible en Caja:</Text>
+                                        <Text size="sm" fw={600}>${(availableBalance + originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Group>
+                                    <Divider variant="dotted" />
+                                </>
+                            )}
+                            <Group justify="space-between">
+                                <Text size="sm">Subtotal:</Text>
+                                <Text size="sm" fw={500}>${totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                            </Group>
+                            <Group justify="space-between">
+                                <Text size="sm">IVA (15%):</Text>
+                                <Text size="sm" fw={500}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                            </Group>
+                            <Divider />
+                            <Group justify="space-between">
+                                <Text size="md" fw={700}>Total Gasto:</Text>
+                                <Text size="lg" fw={700} color="blue">
+                                    ${totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                            </Group>
+
+                        </Stack>
+                    </Paper>
+
+                    {form.values.tipo_documento === 'sin_factura' && (
+                        <Button
+                            variant="light"
+                            color="orange"
+                            leftSection={<IconPrinter size={16} />}
+                            onClick={handlePrintReceipt}
+                            fullWidth
+                        >
+                            Imprimir Recibo de Egreso
+                        </Button>
+                    )}
+
+                    {!readOnly ? (
+                        <AppActionButtons
+                            onCancel={onCancel}
+                            loading={saveMutation.isPending}
+                            submitLabel={transactionId ? "Actualizar Transacción" : "Guardar Transacción"}
+                        />
+                    ) : (
+                        <Button color="gray" variant="light" onClick={onCancel} fullWidth>
+                            Cerrar Detalle
+                        </Button>
+                    )}
+                </Stack>
+            </form>
+
+            <ProveedorFormModal
+                opened={createProveedorOpened}
+                onClose={closeCreateProveedor}
+                onSuccess={() => {
+                    // La invalidación ya se hace dentro del modal, pero aseguramos
+                    queryClient.invalidateQueries({ queryKey: ['proveedores_simple'] });
+                }}
+            />
+        </>
     );
 }

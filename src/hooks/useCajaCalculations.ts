@@ -36,12 +36,19 @@ export function useCajaCalculations(caja: any, transactions: Transaction[]) {
         // Solo sumamos transacciones "principales" (parent_id is null) para evitar doble contabilidad
         const mainTransactions = transactions.filter(t => t.parent_id === null);
 
-        const facturado = mainTransactions.reduce((acc, t) => acc + t.total_factura, 0);
-        const totalRet = mainTransactions.reduce((acc, t) => acc + (t.retencion?.total_retenido || 0), 0);
-        const fuente = mainTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0);
-        const iva = mainTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0);
+        const deposits = mainTransactions.filter(t => t.tipo_documento === 'deposito');
+        const expenses = mainTransactions.filter(t => t.tipo_documento !== 'deposito');
+
+        const totalDepositos = deposits.reduce((acc, t) => acc + t.total_factura, 0);
+
+        const facturado = expenses.reduce((acc, t) => acc + t.total_factura, 0);
+        const totalRet = expenses.reduce((acc, t) => acc + (t.retencion?.total_retenido || 0), 0);
+        const fuente = expenses.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0);
+        const iva = expenses.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0);
         const neto = facturado - totalRet;
-        const efectivo = (caja?.monto_inicial || 0) - neto;
+
+        // Efectivo = Monto Inicial - Gastos Netos - Depósitos
+        const efectivo = (caja?.monto_inicial || 0) - neto - totalDepositos;
 
         return {
             facturado,
@@ -49,7 +56,8 @@ export function useCajaCalculations(caja: any, transactions: Transaction[]) {
             fuente,
             iva,
             neto,
-            efectivo
+            efectivo,
+            totalDepositos
         };
     }, [transactions, caja?.monto_inicial]);
 

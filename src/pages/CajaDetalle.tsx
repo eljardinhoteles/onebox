@@ -145,6 +145,30 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         },
     });
 
+    const { data: arqueoData } = useQuery({
+        queryKey: ['arqueo', cajaId],
+        queryFn: async () => {
+            if (caja?.estado !== 'cerrada') return null;
+
+            const { data, error } = await supabase
+                .from('bitacora')
+                .select('detalle')
+                .eq('accion', 'CIERRE_CAJA')
+                .filter('detalle->>caja_id', 'eq', cajaId.toString())
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error) {
+                console.error('Error fetching arqueo:', error);
+                return null;
+            }
+
+            return data?.detalle?.arqueo_cierre || null;
+        },
+        enabled: !!caja && caja.estado === 'cerrada'
+    });
+
     // Removed banks query as it's now internal to CierreCajaModal
 
     const loading = loadingCaja || loadingTrans;
@@ -152,6 +176,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     // --- CÁLCULOS DERIVADOS ---
 
     const totals = useCajaCalculations(caja, transactions);
+    const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
     const percentageRemaining = caja ? (totals.efectivo / caja.monto_inicial) * 100 : 100;
     const isLowBalance = percentageRemaining <= alertThreshold && caja?.estado === 'abierta';
 
@@ -176,8 +201,10 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             t.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.proveedor?.ruc?.includes(searchQuery) ||
             t.numero_factura?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (t.tipo_documento === 'deposito' && 'Deposito'.toLowerCase().includes(searchQuery.toLowerCase()));
+            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        // Exclude deposits from the main table
+        if (t.tipo_documento === 'deposito') return false;
 
         const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
 
@@ -593,7 +620,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 }
             />
 
-            <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} />
+            <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} arqueoData={arqueoData} />
 
             <CierreCajaModal
                 opened={closingOpened}
@@ -644,6 +671,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                     queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
                 }}
+                existingDeposits={deposits}
+                onDeleteDeposit={(id) => deleteTransactionMutation.mutate(id)}
             />
         </Stack>
     );

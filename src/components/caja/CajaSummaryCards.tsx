@@ -11,6 +11,7 @@ interface CajaSummaryCardsProps {
         iva: number;
         neto: number;
         efectivo: number;
+        totalDepositos?: number;
     };
     onOpenRetencionesControl?: () => void;
     onOpenArqueoControl?: () => void;
@@ -42,7 +43,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     {showBreakdown ? <IconChevronUp size={12} stroke={3} className="text-blue-500" /> : <IconChevronDown size={12} stroke={3} className="text-gray-400" />}
                                 </Group>
                                 <Text size="xl" fw={700}>
-                                    ${caja?.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    ${((caja?.monto_inicial || 0) - (totals.totalDepositos || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </Text>
                             </Stack>
                             <Group gap={4}>
@@ -76,6 +77,10 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                 <Group justify="space-between">
                                     <Text size="xs" c="dimmed">Reposición:</Text>
                                     <Text size="xs" fw={600}>${caja?.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                </Group>
+                                <Group justify="space-between">
+                                    <Text size="xs" c="dimmed">Depósitos:</Text>
+                                    <Text size="xs" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Group>
                             </Stack>
                         </Collapse>
@@ -182,6 +187,6 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                     </Paper>
                 </Tooltip>
             </Grid.Col>
-        </Grid>
+        </Grid >
     );
 }

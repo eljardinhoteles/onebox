@@ -30,9 +30,17 @@ interface CajaReportProps {
     caja: any;
     transactions: Transaction[];
     totals: any;
+    arqueoData?: {
+        items: {
+            denominacion: number;
+            cantidad: number;
+            subtotal: number;
+        }[];
+        total_contado: number;
+    } | null;
 }
 
-export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, transactions, totals }, ref) => {
+export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, transactions, totals, arqueoData }, ref) => {
     if (!caja) return null;
 
     return (
@@ -89,6 +97,35 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                         <Text size="sm" fw={600}>Banco: {caja.banco_reposicion || '---'}</Text>
                     </Stack>
                 </Paper>
+            )}
+
+            {/* Arqueo de Caja */}
+            {arqueoData && (
+                <>
+                    <Title order={4} mb="sm" tt="uppercase">Detalle de Arqueo de Caja</Title>
+                    <Table withTableBorder withColumnBorders style={{ color: 'black' }} mb="xl">
+                        <Table.Thead>
+                            <Table.Tr bg="gray.1">
+                                <Table.Th>Denominación</Table.Th>
+                                <Table.Th ta="center">Cantidad</Table.Th>
+                                <Table.Th ta="right">Total</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {arqueoData.items.map((item, index) => (
+                                <Table.Tr key={index}>
+                                    <Table.Td>{item.denominacion >= 1 ? `$${item.denominacion}` : `${(item.denominacion * 100).toFixed(0)} ctvs`}</Table.Td>
+                                    <Table.Td ta="center">{item.cantidad}</Table.Td>
+                                    <Table.Td ta="right">${item.subtotal.toFixed(2)}</Table.Td>
+                                </Table.Tr>
+                            ))}
+                            <Table.Tr fw={700} bg="gray.1">
+                                <Table.Td colSpan={2} ta="right">TOTAL CONTADO:</Table.Td>
+                                <Table.Td ta="right">${arqueoData.total_contado.toFixed(2)}</Table.Td>
+                            </Table.Tr>
+                        </Table.Tbody>
+                    </Table>
+                </>
             )}
 
             {/* Listado de Gastos */}
@@ -173,6 +210,6 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                     </Text>
                 )}
             </Box>
-        </div>
+        </div >
     );
 });
