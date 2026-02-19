@@ -45,8 +45,8 @@ export function Navbar({ activeSection, onSectionChange, onAdd }: NavbarProps) {
                 py={6}
                 style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
                     border: '1px solid rgba(0, 0, 0, 0.06)',
                 }}
             >
@@ -68,7 +68,7 @@ export function Navbar({ activeSection, onSectionChange, onAdd }: NavbarProps) {
                                     borderRadius: 22,
                                     backgroundColor: isActive ? item.color : 'transparent',
                                     color: isActive ? '#fff' : '#868e96',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), gap 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                     overflow: 'hidden',
                                     whiteSpace: 'nowrap',
                                 }}

@@ -167,8 +167,8 @@ export function NotificationCenter() {
                         style={{
                             border: '1px solid rgba(0, 0, 0, 0.06)',
                             backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                            backdropFilter: 'blur(20px)',
-                            WebkitBackdropFilter: 'blur(20px)',
+                            backdropFilter: 'blur(8px)',
+                            WebkitBackdropFilter: 'blur(8px)',
                             color: '#868e96',
                             animation: 'bellAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         }}
@@ -239,7 +239,7 @@ export function NotificationCenter() {
                                     p="sm"
                                     radius="md"
                                     withBorder
-                                    className={`transition-all cursor-pointer ${!n.leido ? 'border-l-4 border-l-blue-500 shadow-sm bg-blue-50/20' : 'bg-white'}`}
+                                    className={`transition-colors duration-200 cursor-pointer ${!n.leido ? 'border-l-4 border-l-blue-500 shadow-sm bg-blue-50/20' : 'bg-white'}`}
                                     onClick={() => !n.leido && markAsRead(n.id)}
                                     style={{ position: 'relative' }}
                                 >

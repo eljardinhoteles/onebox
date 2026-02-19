@@ -32,7 +32,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                         radius="md"
                         shadow="xs"
                         onClick={() => setShowBreakdown(!showBreakdown)}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                        style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
                         className={showBreakdown ? 'bg-blue-50/30' : ''}
                     >
                         <Group justify="space-between" align="start">
@@ -86,7 +86,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                         onClick={() => setShowNeto(!showNeto)}
                         style={{
                             cursor: 'pointer',
-                            transition: 'all 0.2s ease',
+                            transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
                             borderColor: showNeto ? 'var(--mantine-color-blue-3)' : undefined
                         }}
                         bg={showNeto ? 'blue.0' : undefined}
@@ -120,7 +120,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                         radius="md"
                         shadow="xs"
                         onClick={() => onOpenRetencionesControl?.()}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                        style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
                         className="hover:bg-orange-50/30"
                     >
                         <Group justify="space-between" align="start">
@@ -152,7 +152,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                         shadow="xs"
                         bg="teal.0"
                         onClick={() => onOpenArqueoControl?.()}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                        style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
                         className="hover:shadow-md"
                     >
                         <Group justify="space-between" align="start">

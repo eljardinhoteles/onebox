@@ -5,6 +5,7 @@ import { AppActionButtons } from '../../../components/ui/AppActionButtons';
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
+import { useForm } from '@mantine/form';
 
 interface InviteModalProps {
     opened: boolean;
@@ -15,20 +16,25 @@ interface InviteModalProps {
 }
 
 export function InviteModal({ opened, onClose, empresaId, userId, onSuccess }: InviteModalProps) {
-    const [email, setEmail] = useState('');
-    const [role, setRole] = useState('operador');
+    const form = useForm({
+        initialValues: {
+            email: '',
+            role: 'operador',
+        },
+        validate: {
+            email: (val) => (/^\S+@\S+$/.test(val) ? null : 'Email inválido'),
+        }
+    });
+
     const [inviting, setInviting] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!email) return;
-
+    const handleSubmit = async (values: typeof form.values) => {
         setInviting(true);
         try {
             const { error } = await supabase.from('invitaciones').insert({
                 empresa_id: empresaId,
-                email: email.toLowerCase().trim(),
-                role: role,
+                email: values.email.toLowerCase().trim(),
+                role: values.role,
                 invited_by: userId,
             });
 
@@ -36,12 +42,11 @@ export function InviteModal({ opened, onClose, empresaId, userId, onSuccess }: I
 
             notifications.show({
                 title: 'Invitación enviada',
-                message: `Se envió invitación a ${email}`,
+                message: `Se envió invitación a ${values.email}`,
                 color: 'teal'
             });
 
-            setEmail('');
-            setRole('operador');
+            form.reset();
             onSuccess();
             onClose();
         } catch (error: any) {
@@ -56,13 +61,12 @@ export function InviteModal({ opened, onClose, empresaId, userId, onSuccess }: I
             opened={opened}
             onClose={() => {
                 onClose();
-                setEmail('');
-                setRole('operador');
+                form.reset();
             }}
             title="Invitar Usuario"
             loading={inviting}
         >
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">
                     <TextInput
                         label="Email del usuario"
@@ -70,8 +74,7 @@ export function InviteModal({ opened, onClose, empresaId, userId, onSuccess }: I
                         required
                         radius="md"
                         leftSection={<IconMail size={16} />}
-                        value={email}
-                        onChange={(e) => setEmail(e.currentTarget.value)}
+                        {...form.getInputProps('email')}
                     />
                     <Select
                         label="Rol"
@@ -79,15 +82,13 @@ export function InviteModal({ opened, onClose, empresaId, userId, onSuccess }: I
                             { value: 'operador', label: 'Operador — Solo registra transacciones' },
                             { value: 'admin', label: 'Admin — Gestión completa' },
                         ]}
-                        value={role}
-                        onChange={(val) => setRole(val || 'operador')}
                         radius="md"
+                        {...form.getInputProps('role')}
                     />
                     <AppActionButtons
                         onCancel={() => {
                             onClose();
-                            setEmail('');
-                            setRole('operador');
+                            form.reset();
                         }}
                         loading={inviting}
                         submitLabel="Enviar Invitación"

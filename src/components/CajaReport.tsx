@@ -112,8 +112,8 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                            {arqueoData.items.map((item, index) => (
-                                <Table.Tr key={index}>
+                            {arqueoData.items.map((item) => (
+                                <Table.Tr key={item.denominacion}>
                                     <Table.Td>{item.denominacion >= 1 ? `$${item.denominacion}` : `${(item.denominacion * 100).toFixed(0)} ctvs`}</Table.Td>
                                     <Table.Td ta="center">{item.cantidad}</Table.Td>
                                     <Table.Td ta="right">${item.subtotal.toFixed(2)}</Table.Td>

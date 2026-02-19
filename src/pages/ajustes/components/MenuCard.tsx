@@ -22,7 +22,7 @@ export function MenuCard({ icon, title, description, onClick }: MenuCardProps) {
             onClick={onClick}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease' }}
         >
             <Stack gap="sm">
                 <Group justify="space-between" align="flex-start">

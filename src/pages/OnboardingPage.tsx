@@ -1,22 +1,27 @@
+
 import { useState, useEffect } from 'react';
-import {
-    Container, Paper, Title, Text, Stack, Button, TextInput, Card,
-    Group, LoadingOverlay, Avatar, Box, Stepper, NumberInput, Divider, ThemeIcon, Badge
-} from '@mantine/core';
-import { IconBuilding, IconLogout, IconPlus, IconMapPin, IconWallet, IconCheck, IconArrowRight, IconArrowLeft, IconCalendar } from '@tabler/icons-react';
+import { Container, Paper, Title, Text, Stack, Box, Divider, Button, LoadingOverlay, Group } from '@mantine/core';
+import { IconPlus, IconLogout, IconArrowLeft, IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
 import { notifications } from '@mantine/notifications';
 import { useForm } from '@mantine/form';
-import dayjs from 'dayjs';
+
+// Extracted Components
+import { InvitationSection } from './onboarding/InvitationSection';
+import { OnboardingWizard } from './onboarding/OnboardingWizard';
 
 export function OnboardingPage() {
     const { refresh: refreshEmpresa, perfil } = useEmpresa();
-    const [invitations, setInvitations] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
-    const [showCreateWizard, setShowCreateWizard] = useState(false);
-    const [activeStep, setActiveStep] = useState(0);
+    const [state, setState] = useState({
+        invitations: [] as any[],
+        loading: true,
+        processing: false,
+        showCreateWizard: false,
+        activeStep: 0
+    });
+
+    const { invitations, loading, processing, showCreateWizard, activeStep } = state;
 
     // Formulario para todo el wizard
     const form = useForm({
@@ -29,7 +34,7 @@ export function OnboardingPage() {
             caja_monto_inicial: 0,
             caja_responsable: '',
         },
-        validate: (values) => {
+        validate: (values: any) => {
             if (activeStep === 0) {
                 return {
                     empresa_nombre: values.empresa_nombre.length < 3 ? 'El nombre debe tener al menos 3 caracteres' : null,
@@ -51,7 +56,7 @@ export function OnboardingPage() {
     }, [perfil]);
 
     const fetchInvitations = async () => {
-        setLoading(true);
+        setState(prev => ({ ...prev, loading: true }));
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
@@ -60,12 +65,13 @@ export function OnboardingPage() {
                     .select('*, empresas(nombre)')
                     .eq('email', user.email)
                     .eq('status', 'pendiente');
-                setInvitations(data || []);
+                setState(prev => ({ ...prev, invitations: data || [], loading: false }));
+            } else {
+                setState(prev => ({ ...prev, loading: false }));
             }
         } catch (error) {
             console.error('Error fetching invitations:', error);
-        } finally {
-            setLoading(false);
+            setState(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -74,7 +80,7 @@ export function OnboardingPage() {
     }, []);
 
     const handleAcceptInvitation = async (inv: any) => {
-        setProcessing(true);
+        setState(prev => ({ ...prev, processing: true }));
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -98,12 +104,12 @@ export function OnboardingPage() {
         } catch (error: any) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         } finally {
-            setProcessing(false);
+            setState(prev => ({ ...prev, processing: false }));
         }
     };
 
     const handleCompleteOnboarding = async () => {
-        setProcessing(true);
+        setState(prev => ({ ...prev, processing: true }));
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -120,8 +126,7 @@ export function OnboardingPage() {
                 .single();
             if (empError) throw empError;
 
-            // 2. Asociar como owner (usando la función de default en DB o manual)
-            // Nota: El trigger o políticas deberían manejar esto, pero nos aseguramos
+            // 2. Asociar como owner
             const { error: memberError } = await supabase
                 .from('empresa_usuarios')
                 .insert({
@@ -169,16 +174,16 @@ export function OnboardingPage() {
         } catch (error: any) {
             notifications.show({ title: 'Error en configuración', message: error.message, color: 'red' });
         } finally {
-            setProcessing(false);
+            setState(prev => ({ ...prev, processing: false }));
         }
     };
 
     const nextStep = () => {
         if (form.validate().hasErrors) return;
-        setActiveStep((current) => (current < 3 ? current + 1 : current));
+        setState(prev => ({ ...prev, activeStep: (prev.activeStep < 3 ? prev.activeStep + 1 : prev.activeStep) }));
     };
 
-    const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
+    const prevStep = () => setState(prev => ({ ...prev, activeStep: (prev.activeStep > 0 ? prev.activeStep - 1 : prev.activeStep) }));
 
     if (!showCreateWizard) {
         return (
@@ -192,7 +197,7 @@ export function OnboardingPage() {
                             <Text c="dimmed" size="sm">Comencemos configurando tu espacio de trabajo.</Text>
                         </Box>
 
-                        {invitationSection(invitations, handleAcceptInvitation)}
+                        <InvitationSection invitations={invitations} handleAccept={handleAcceptInvitation} />
 
                         <Divider label="O también puedes" labelPosition="center" />
 
@@ -200,7 +205,7 @@ export function OnboardingPage() {
                             variant="light"
                             size="lg"
                             leftSection={<IconPlus size={20} />}
-                            onClick={() => setShowCreateWizard(true)}
+                            onClick={() => setState(prev => ({ ...prev, showCreateWizard: true }))}
                             radius="md"
                         >
                             Crear mi propia Empresa
@@ -221,114 +226,23 @@ export function OnboardingPage() {
             <Paper withBorder shadow="md" p={40} radius="lg" style={{ position: 'relative' }}>
                 <LoadingOverlay visible={processing} overlayProps={{ blur: 1 }} />
 
-                <Stepper active={activeStep} onStepClick={setActiveStep} allowNextStepsSelect={false}>
-                    <Stepper.Step
-                        label="Empresa"
-                        description="Identidad del comercio"
-                        icon={<IconBuilding size={18} />}
-                    >
-                        <Stack gap="md" mt="xl">
-                            <Text size="sm" c="dimmed">Ingresa los datos fiscales o comerciales de tu empresa.</Text>
-                            <TextInput
-                                label="Nombre de la Empresa"
-                                placeholder="Ej: Mi Comercio S.A."
-                                required
-                                {...form.getInputProps('empresa_nombre')}
-                            />
-                            <TextInput
-                                label="RUC / Identificación Fiscal"
-                                placeholder="Ej: 1790000000001"
-                                {...form.getInputProps('empresa_ruc')}
-                            />
-                        </Stack>
-                    </Stepper.Step>
-
-                    <Stepper.Step
-                        label="Sucursal"
-                        description="Ubicación física"
-                        icon={<IconMapPin size={18} />}
-                    >
-                        <Stack gap="md" mt="xl">
-                            <Text size="sm" c="dimmed">Crea tu primera sucursal o punto de venta.</Text>
-                            <TextInput
-                                label="Nombre de la Sucursal"
-                                placeholder="Ej: Matriz, Sucursal Norte, etc."
-                                required
-                                {...form.getInputProps('sucursal_nombre')}
-                            />
-                            <TextInput
-                                label="Dirección (Opcional)"
-                                placeholder="Calle principal y número"
-                                {...form.getInputProps('sucursal_direccion')}
-                            />
-                        </Stack>
-                    </Stepper.Step>
-
-                    <Stepper.Step
-                        label="Caja Inicial"
-                        description="Fondo de efectivo"
-                        icon={<IconWallet size={18} />}
-                    >
-                        <Stack gap="md" mt="xl">
-                            <Text size="sm" c="dimmed">Configura tu primera caja de efectivo para empezar a operar.</Text>
-                            <Badge variant="light" color="blue" leftSection={<IconCalendar size={12} />} radius="sm">
-                                Se abrirá con fecha de hoy: {dayjs().format('DD/MM/YYYY')}
-                            </Badge>
-                            <Group>
-                                <Button
-                                    variant={form.values.caja_abrir ? 'filled' : 'light'}
-                                    onClick={() => form.setFieldValue('caja_abrir', true)}
-                                >
-                                    Abrir Caja ahora
-                                </Button>
-                                <Button
-                                    variant={!form.values.caja_abrir ? 'filled' : 'light'}
-                                    color="gray"
-                                    onClick={() => form.setFieldValue('caja_abrir', false)}
-                                >
-                                    Omitir por ahora
-                                </Button>
-                            </Group>
-
-                            {form.values.caja_abrir && (
-                                <Card withBorder p="md" radius="md" bg="blue.0">
-                                    <Stack gap="sm">
-                                        <NumberInput
-                                            label="Monto Inicial en Caja"
-                                            placeholder="0.00"
-                                            prefix="$"
-                                            decimalScale={2}
-                                            {...form.getInputProps('caja_monto_inicial')}
-                                        />
-                                        <TextInput
-                                            label="Responsable de Caja"
-                                            placeholder="Nombre del encargado"
-                                            {...form.getInputProps('caja_responsable')}
-                                        />
-                                    </Stack>
-                                </Card>
-                            )}
-                        </Stack>
-                    </Stepper.Step>
-
-                    <Stepper.Completed>
-                        <Stack align="center" gap="md" mt="xl" py="lg">
-                            <ThemeIcon size={60} radius="xl" color="teal" variant="light">
-                                <IconCheck size={36} />
-                            </ThemeIcon>
-                            <Title order={3}>¡Todo listo!</Title>
-                            <Text c="dimmed" ta="center">
-                                Has configurado los datos básicos. Al confirmar, tu empresa será creada y podrás empezar a trabajar.
-                            </Text>
-                        </Stack>
-                    </Stepper.Completed>
-                </Stepper>
+                <OnboardingWizard
+                    activeStep={activeStep}
+                    setActiveStep={(step: any) => {
+                        if (typeof step === 'function') {
+                            setState(prev => ({ ...prev, activeStep: step(prev.activeStep) }));
+                        } else {
+                            setState(prev => ({ ...prev, activeStep: step }));
+                        }
+                    }}
+                    form={form}
+                />
 
                 <Group justify="space-between" mt="xl">
                     <Button
                         variant="subtle"
                         color="gray"
-                        onClick={activeStep === 0 ? () => setShowCreateWizard(false) : prevStep}
+                        onClick={activeStep === 0 ? () => setState(prev => ({ ...prev, showCreateWizard: false })) : prevStep}
                         leftSection={activeStep === 0 ? undefined : <IconArrowLeft size={16} />}
                     >
                         {activeStep === 0 ? 'Atrás' : 'Anterior'}
@@ -353,28 +267,3 @@ export function OnboardingPage() {
         </Container>
     );
 }
-
-function invitationSection(invitations: any[], handleAccept: (inv: any) => void) {
-    if (invitations.length === 0) return null;
-
-    return (
-        <Stack gap="md">
-            <Text fw={700}>Invitaciones Pendientes</Text>
-            {invitations.map(inv => (
-                <Card key={inv.id} withBorder p="md" radius="md" bg="gray.0">
-                    <Group justify="space-between">
-                        <Group gap="md">
-                            <Avatar color="blue" radius="xl"><IconBuilding size={20} /></Avatar>
-                            <Stack gap={0}>
-                                <Text fw={600}>{inv.empresas?.nombre}</Text>
-                                <Text size="xs" c="dimmed">Rol: {inv.role}</Text>
-                            </Stack>
-                        </Group>
-                        <Button size="xs" onClick={() => handleAccept(inv)}>Aceptar</Button>
-                    </Group>
-                </Card>
-            ))}
-        </Stack>
-    );
-}
-

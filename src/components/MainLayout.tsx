@@ -26,23 +26,6 @@ export function MainLayout({ children, activeSection, onSectionChange, onAdd }: 
       </Stack>
 
       <Navbar activeSection={activeSection} onSectionChange={onSectionChange} onAdd={onAdd} />
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #cbd5e1;
-        }
-      `}} />
     </Box>
   );
 }

@@ -2,7 +2,7 @@ import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, Them
 import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
 import type { Transaction } from '../../hooks/useCajaCalculations';
 
 interface TransactionTableProps {
@@ -80,7 +80,7 @@ export function TransactionTable({
                         <Stack gap={0} p={4}>
                             <Text size="xs" fw={700} mb={2} c="blue.1">Items:</Text>
                             {t.items?.map((i: any, idx: number) => (
-                                <Text key={idx} size="xs" style={{ whiteSpace: 'normal' }}>• {i.nombre}</Text>
+                                <Text key={i.id || idx} size="xs" style={{ whiteSpace: 'normal' }}>• {i.nombre}</Text>
                             ))}
                         </Stack>
                     }
@@ -191,45 +191,47 @@ export function TransactionTable({
     ));
 
     return (
-        <ScrollArea h={600} type="auto" offsetScrollbars>
-            <Table stickyHeader verticalSpacing="xs" highlightOnHover>
-                <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
-                    <Table.Tr>
-                        <Table.Th style={{ cursor: 'pointer' }} onClick={() => onSort?.('fecha_factura')}>
-                            <Group gap="xs" wrap="nowrap">
-                                <Text size="sm" fw={700}>Fecha</Text>
-                                {sortBy === 'fecha_factura' ? (
-                                    sortOrder === 'asc' ? <IconSortAscending size={16} /> : <IconSortDescending size={16} />
-                                ) : (
-                                    <IconSelector size={16} color="var(--mantine-color-gray-5)" />
-                                )}
-                            </Group>
-                        </Table.Th>
-                        <Table.Th>Proveedor</Table.Th>
-                        <Table.Th>Documento</Table.Th>
-                        <Table.Th ta="right">Total</Table.Th>
-                        <Table.Th ta="right">Ret. Fuente</Table.Th>
-                        <Table.Th ta="right">Ret. IVA</Table.Th>
-                        <Table.Th ta="right">Gasto Neto</Table.Th>
-                        <Table.Th ta="right">Acciones</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    <AnimatePresence mode="popLayout">
-                        {!loading && rows.length > 0 ? rows : (
-                            <Table.Tr>
-                                <Table.Td colSpan={8}>
-                                    {loading ? (
-                                        <Text ta="center" py="xl" c="dimmed">Cargando transacciones...</Text>
+        <LazyMotion features={domAnimation}>
+            <ScrollArea h={600} type="auto" offsetScrollbars>
+                <Table stickyHeader verticalSpacing="xs" highlightOnHover>
+                    <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
+                        <Table.Tr>
+                            <Table.Th style={{ cursor: 'pointer' }} onClick={() => onSort?.('fecha_factura')}>
+                                <Group gap="xs" wrap="nowrap">
+                                    <Text size="sm" fw={700}>Fecha</Text>
+                                    {sortBy === 'fecha_factura' ? (
+                                        sortOrder === 'asc' ? <IconSortAscending size={16} /> : <IconSortDescending size={16} />
                                     ) : (
-                                        <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
+                                        <IconSelector size={16} color="var(--mantine-color-gray-5)" />
                                     )}
-                                </Table.Td>
-                            </Table.Tr>
-                        )}
-                    </AnimatePresence>
-                </Table.Tbody>
-            </Table>
-        </ScrollArea>
+                                </Group>
+                            </Table.Th>
+                            <Table.Th>Proveedor</Table.Th>
+                            <Table.Th>Documento</Table.Th>
+                            <Table.Th ta="right">Total</Table.Th>
+                            <Table.Th ta="right">Ret. Fuente</Table.Th>
+                            <Table.Th ta="right">Ret. IVA</Table.Th>
+                            <Table.Th ta="right">Gasto Neto</Table.Th>
+                            <Table.Th ta="right">Acciones</Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                        <AnimatePresence mode="popLayout">
+                            {!loading && rows.length > 0 ? rows : (
+                                <Table.Tr>
+                                    <Table.Td colSpan={8}>
+                                        {loading ? (
+                                            <Text ta="center" py="xl" c="dimmed">Cargando transacciones...</Text>
+                                        ) : (
+                                            <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
+                                        )}
+                                    </Table.Td>
+                                </Table.Tr>
+                            )}
+                        </AnimatePresence>
+                    </Table.Tbody>
+                </Table>
+            </ScrollArea>
+        </LazyMotion>
     );
 }

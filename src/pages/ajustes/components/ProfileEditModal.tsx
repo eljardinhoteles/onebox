@@ -4,6 +4,7 @@ import { AppActionButtons } from '../../../components/ui/AppActionButtons';
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
+import { useForm } from '@mantine/form';
 
 interface ProfileEditModalProps {
     opened: boolean;
@@ -22,18 +23,25 @@ export function ProfileEditModal({
     initialApellido,
     onSuccess
 }: ProfileEditModalProps) {
-    const [nombre, setNombre] = useState(initialNombre);
-    const [apellido, setApellido] = useState(initialApellido);
+    const form = useForm({
+        initialValues: {
+            nombre: initialNombre,
+            apellido: initialApellido,
+        },
+        validate: {
+            nombre: (val) => (val ? null : 'Nombre es requerido'),
+        }
+    });
+
     const [saving, setSaving] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (values: typeof form.values) => {
         setSaving(true);
 
         const { error } = await supabase.from('perfiles').upsert({
             id: userId,
-            nombre,
-            apellido,
+            nombre: values.nombre,
+            apellido: values.apellido,
             updated_at: new Date().toISOString(),
         });
 
@@ -54,21 +62,19 @@ export function ProfileEditModal({
 
     return (
         <AppModal opened={opened} onClose={onClose} title="Editar Mi Perfil" loading={saving}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">
                     <TextInput
                         label="Nombre"
                         placeholder="Juan"
                         radius="md"
-                        value={nombre}
-                        onChange={(e) => setNombre(e.currentTarget.value)}
+                        {...form.getInputProps('nombre')}
                     />
                     <TextInput
                         label="Apellido"
                         placeholder="Pérez"
                         radius="md"
-                        value={apellido}
-                        onChange={(e) => setApellido(e.currentTarget.value)}
+                        {...form.getInputProps('apellido')}
                     />
                     <AppActionButtons
                         onCancel={onClose}

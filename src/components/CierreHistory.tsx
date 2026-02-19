@@ -3,21 +3,30 @@ import { Table, Text, Badge, ScrollArea, Group, LoadingOverlay, Paper, Title, Av
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 
-export function CierreHistory() {
+interface CierreHistoryProps {
+    empresaId?: string;
+}
+
+export function CierreHistory({ empresaId }: CierreHistoryProps) {
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('cajas')
                 .select(`
                     id, fecha_cierre, monto_inicial, reposicion, numero_cheque_reposicion, banco_reposicion, responsable,
-                    datos_cierre
+                    datos_cierre, empresa_id
                 `)
-                .eq('estado', 'cerrada')
-                .order('fecha_cierre', { ascending: false });
+                .eq('estado', 'cerrada');
+
+            if (empresaId) {
+                query = query.eq('empresa_id', empresaId);
+            }
+
+            const { data, error } = await query.order('fecha_cierre', { ascending: false });
 
             if (error) throw error;
             setHistory(data || []);

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Paper, Text, Stack, Group, Button, Alert, Tooltip, ActionIcon, Menu, PillsInput, Pill, Title } from '@mantine/core';
+import { Paper, Text, Stack, Group, Button, Tooltip, ActionIcon } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -10,8 +10,8 @@ import { RetentionForm } from '../components/RetentionForm';
 import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
-    IconPlus, IconReceipt,
-    IconLock, IconPrinter, IconAlertTriangle, IconEye, IconSearch, IconFilter, IconArrowLeft, IconBuildingBank
+    IconPlus,
+    IconPrinter, IconAlertTriangle, IconEye
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
@@ -22,12 +22,12 @@ import { useCajaCalculations, type Transaction } from '../hooks/useCajaCalculati
 import { CajaSummaryCards } from '../components/caja/CajaSummaryCards';
 import { TransactionTable } from '../components/caja/TransactionTable';
 import { useAppConfig } from '../hooks/useAppConfig';
-import { MonthlyCloseAlert } from '../components/MonthlyCloseAlert';
 import { TransactionNovedadesDrawer } from '../components/caja/TransactionNovedadesDrawer';
 import { CierreCajaModal } from '../components/caja/CierreCajaModal';
 import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesRecaudacionDrawer';
 import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
 import { DepositoBancoModal } from '../components/caja/DepositoBancoModal';
+import { CajaHeader } from '../components/caja/CajaHeader';
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -46,8 +46,26 @@ const TIPO_LABELS: Record<string, string> = {
 
 export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {
     const queryClient = useQueryClient();
-    const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
-    const [retentionTransactionId, setRetentionTransactionId] = useState<number | null>(null);
+    const { configs } = useAppConfig();
+    const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
+
+    const [transactionState, setTransactionState] = useState({
+        editingId: null as number | null,
+        retentionId: null as number | null,
+        selectedForNovedades: null as Transaction | null,
+        readOnlyMessage: null as string | null
+    });
+
+    const [filterState, setFilterState] = useState({
+        query: '',
+        tipo: null as string | null,
+        sortBy: 'fecha_factura',
+        sortOrder: 'desc' as 'asc' | 'desc'
+    });
+
+    const [isClosingInReadOnlyMode, setIsClosingInReadOnlyMode] = useState(false);
+
+    // Modals/Drawers
     const [formOpened, { open, close }] = useDisclosure(false);
     const [retentionOpened, { open: openRetention, close: closeRetention }] = useDisclosure(false);
     const [legalizationOpened, { open: openLegalization, close: closeLegalization }] = useDisclosure(false);
@@ -56,16 +74,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const [retencionesControlOpened, { open: openRetencionesControl, close: closeRetencionesControl }] = useDisclosure(false);
     const [arqueoControlOpened, { open: openArqueoControl, close: closeArqueoControl }] = useDisclosure(false);
     const [depositoOpened, { open: openDeposito, close: closeDeposito }] = useDisclosure(false);
-    const [isClosingInReadOnlyMode, setIsClosingInReadOnlyMode] = useState(false);
-    const [selectedTransactionForNovedades, setSelectedTransactionForNovedades] = useState<Transaction | null>(null);
-    const { configs } = useAppConfig();
-    const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
-
-    const [retentionReadOnlyMessage, setRetentionReadOnlyMessage] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterTipo, setFilterTipo] = useState<string | null>(null);
-    const [sortBy, setSortBy] = useState<string>('fecha_factura');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     const componentRef = useRef<HTMLDivElement>(null);
     const handlePrint = useReactToPrint({
@@ -73,11 +81,10 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         documentTitle: `Reporte-Caja-${cajaId}`,
     });
 
-    const handleCreate = () => {
-        setRetentionReadOnlyMessage(null);
-        setEditingTransactionId(null);
+    const handleCreate = useCallback(() => {
+        setTransactionState(prev => ({ ...prev, readOnlyMessage: null, editingId: null }));
         open();
-    };
+    }, [open]);
 
     // Atajos contextuales
     useHotkeys([
@@ -88,7 +95,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     // --- QUERIES ---
 
-    const { data: caja, isLoading: loadingCaja } = useQuery({
+    const { data: caja } = useQuery({
         queryKey: ['caja', cajaId],
         queryFn: async () => {
             const { data, error } = await supabase.from('cajas').select('*').eq('id', cajaId).single();
@@ -99,13 +106,18 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     // Exponer handleCreate al padre para el FAB
     useEffect(() => {
-        if (setOnAdd && caja?.estado === 'abierta') {
-            setOnAdd(() => handleCreate);
-        } else if (setOnAdd) {
+        if (!setOnAdd) return;
+
+        if (caja?.estado === 'abierta') {
+            setOnAdd(handleCreate);
+        } else {
             setOnAdd(undefined);
         }
-        return () => setOnAdd?.(undefined);
-    }, [caja?.estado]);
+
+        return () => {
+            setOnAdd(undefined);
+        };
+    }, [caja?.estado, setOnAdd, handleCreate]);
 
     const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
@@ -159,30 +171,21 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 .limit(1)
                 .single();
 
-            if (error) {
-                console.error('Error fetching arqueo:', error);
-                return null;
-            }
+            if (error) return null;
 
             return data?.detalle?.arqueo_cierre || null;
         },
         enabled: !!caja && caja.estado === 'cerrada'
     });
 
-    // Removed banks query as it's now internal to CierreCajaModal
-
-    const loading = loadingCaja || loadingTrans;
-
     // --- CÁLCULOS DERIVADOS ---
 
     const totals = useCajaCalculations(caja, transactions);
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
 
-    // Calcular Monto Inicial Neto (Monto Inicial - Depósitos)
     const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
     const montoInicialNeto = (caja?.monto_inicial || 0) - totalDepositos;
 
-    // Calcular porcentaje sobre el NETO
     const percentageRemaining = montoInicialNeto > 0
         ? (totals.efectivo / montoInicialNeto) * 100
         : 0;
@@ -203,39 +206,34 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
     });
 
-    // closeCajaMutation removed as it's now handled inside CierreCajaModal
-
     const filteredTransactions = transactions.filter(t => {
-        const matchesSearch = !searchQuery ||
-            t.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.proveedor?.ruc?.includes(searchQuery) ||
-            t.numero_factura?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchesSearch = !filterState.query ||
+            t.proveedor?.nombre?.toLowerCase().includes(filterState.query.toLowerCase()) ||
+            t.proveedor?.ruc?.includes(filterState.query) ||
+            t.numero_factura?.toLowerCase().includes(filterState.query.toLowerCase()) ||
+            t.items?.some((i: any) => i.nombre.toLowerCase().includes(filterState.query.toLowerCase()));
 
-        // Exclude deposits from the main table
         if (t.tipo_documento === 'deposito') return false;
 
-        const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
+        const matchesTipo = !filterState.tipo || t.tipo_documento === filterState.tipo;
 
         return matchesSearch && matchesTipo;
     }).sort((a, b) => {
-        if (sortBy === 'fecha_factura') {
+        if (filterState.sortBy === 'fecha_factura') {
             const dateA = dayjs(a.fecha_factura);
             const dateB = dayjs(b.fecha_factura);
-            return sortOrder === 'asc' ? dateA.diff(dateB) : dateB.diff(dateA);
+            return filterState.sortOrder === 'asc' ? dateA.diff(dateB) : dateB.diff(dateA);
         }
         return 0;
     });
 
     const handleSort = (key: string) => {
-        if (sortBy === key) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortBy(key);
-            setSortOrder('asc');
-        }
+        setFilterState(prev => ({
+            ...prev,
+            sortBy: key,
+            sortOrder: prev.sortBy === key && prev.sortOrder === 'asc' ? 'desc' : 'asc'
+        }));
     };
-
 
     useEffect(() => {
         if (!setHeaderActions) return;
@@ -247,27 +245,13 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             setHeaderActions(
                 isMonthlyCloseBlocking ? (
                     <Tooltip label="Cierre mensual bloqueado" withArrow position="bottom">
-                        <ActionIcon
-                            variant="filled"
-                            color="gray"
-                            size="lg"
-                            radius="md"
-                            disabled
-                            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-                        >
+                        <ActionIcon variant="filled" color="gray" size="lg" radius="md" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
                             <IconPlus size={18} />
                         </ActionIcon>
                     </Tooltip>
                 ) : (
                     <Tooltip label="Registrar Gasto [N]" withArrow position="bottom" radius="md">
-                        <ActionIcon
-                            variant="filled"
-                            color="blue"
-                            size="lg"
-                            radius="md"
-                            onClick={handleCreate}
-                            style={{ boxShadow: 'var(--mantine-shadow-sm)' }}
-                        >
+                        <ActionIcon variant="filled" color="blue" size="lg" radius="md" onClick={handleCreate} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
                             <IconPlus size={18} />
                         </ActionIcon>
                     </Tooltip>
@@ -278,7 +262,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         }
     }, [caja, setHeaderActions]);
 
-
     const handleEdit = (id: number) => {
         const trans = transactions.find(t => t.id === id);
         if (trans.tipo_documento === 'deposito') {
@@ -286,15 +269,13 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             return;
         }
 
-        if (trans && trans.retencion && trans.retencion.total_retenido > 0) {
-            setRetentionReadOnlyMessage('No se puede editar una transacción que tiene una retención asociada. Por favor, elimine la retención primero para poder modificar el documento.');
-        } else {
-            setRetentionReadOnlyMessage(null);
-        }
-        setEditingTransactionId(id);
+        const msg = (trans && trans.retencion && trans.retencion.total_retenido > 0)
+            ? 'No se puede editar una transacción que tiene una retención asociada. Por favor, elimine la retención primero para poder modificar el documento.'
+            : null;
+
+        setTransactionState(prev => ({ ...prev, readOnlyMessage: msg, editingId: id }));
         open();
     };
-
 
     const handleDelete = (t: Transaction) => {
         modals.openConfirmModal({
@@ -302,9 +283,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             centered: true,
             children: (
                 <Stack gap="sm">
-                    <Text size="sm">
-                        ¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.
-                    </Text>
+                    <Text size="sm">¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.</Text>
                     <Paper withBorder p="xs" radius="md" bg="gray.0">
                         <Group justify="space-between">
                             <Text size="xs" fw={700} c="dimmed">Detalle:</Text>
@@ -337,319 +316,111 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 centered: true,
                 children: (
                     <Stack gap="md">
-                        <Text size="sm">
-                            No es posible cerrar la caja debido a que existen transacciones registradas como <b>"Sin Factura"</b> que aún no han sido legalizadas.
-                        </Text>
+                        <Text size="sm">No es posible cerrar la caja debido a que existen transacciones registradas como <b>"Sin Factura"</b> que aún no han sido legalizadas.</Text>
                         <Paper withBorder p="xs" bg="orange.0" c="orange.9" className="border-orange-200">
-                            <Text size="xs" fw={500}>
-                                Debes legalizar todos los gastos pendientes antes de proceder con el cierre definitivo de la caja.
-                            </Text>
+                            <Text size="xs" fw={500}>Debes legalizar todos los gastos pendientes antes de proceder con el cierre definitivo de la caja.</Text>
                         </Paper>
                         <Group grow>
                             <Button variant="default" onClick={() => modals.closeAll()}>Entendido</Button>
-                            <Button
-                                variant="light"
-                                color="blue"
-                                leftSection={<IconEye size={16} />}
-                                onClick={() => {
-                                    modals.closeAll();
-                                    openClosingModal(true);
-                                }}
-                            >
-                                Ver Detalles
-                            </Button>
+                            <Button variant="light" color="blue" leftSection={<IconEye size={16} />} onClick={() => { modals.closeAll(); openClosingModal(true); }}>Ver Detalles</Button>
                         </Group>
                     </Stack>
                 )
             });
             return;
         }
-
         openClosingModal(false);
     };
 
-    if (!caja && loading) return <Text p="xl" ta="center">Cargando...</Text>;
+    if (!caja && loadingTrans) return <Text p="xl" ta="center">Cargando...</Text>;
 
     return (
         <Stack gap="md">
-            <div className="no-print">
-                <Stack gap="md">
-                    <Group align="center" gap="sm">
-                        {onBack && (
-                            <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" onClick={onBack}>
-                                <IconArrowLeft size={20} />
-                            </ActionIcon>
-                        )}
-                        <div>
-                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
-                            <Text size="sm" c="dimmed">
-                                {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
-                                {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
-                            </Text>
-                        </div>
-                    </Group>
-                    <MonthlyCloseAlert />
-                    {isLowBalance && (
-                        <Alert
-                            variant="light"
-                            color="orange"
-                            title="Saldo de Caja Bajo"
-                            icon={<IconAlertTriangle size={18} />}
-                            radius="md"
-                            mb="md"
-                        >
-                            <Text size="sm">
-                                Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo operativo (${montoInicialNeto.toLocaleString()}).
-                                <br />
-                                <Text span size="xs" c="dimmed">
-                                    (Inicial: ${caja?.monto_inicial?.toLocaleString()} - Depósitos: ${totalDepositos.toLocaleString()})
-                                </Text>
-                            </Text>
-                        </Alert>
-                    )}
-                    {isError && (
-                        <Alert
-                            variant="light"
-                            color="red"
-                            title="Error al cargar transacciones"
-                            icon={<IconAlertTriangle size={18} />}
-                            radius="md"
-                        >
-                            <Text size="sm">{error instanceof Error ? error.message : 'Ha ocurrido un error desconocido'}</Text>
-                        </Alert>
-                    )}
-                    <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
-                        <Group gap="xs" style={{ flex: 1, minWidth: '300px' }}>
-                            <PillsInput
-                                radius="md"
-                                style={{ flex: 1 }}
-                                leftSection={<IconSearch size={16} />}
-                                rightSection={
-                                    <Menu position="bottom-end" shadow="sm" width={220} withArrow transitionProps={{ transition: 'pop-top-right' }}>
-                                        <Menu.Target>
-                                            <ActionIcon variant="subtle" color={filterTipo ? 'blue' : 'gray'} radius="md">
-                                                <IconFilter size={18} />
-                                            </ActionIcon>
-                                        </Menu.Target>
-                                        <Menu.Dropdown>
-                                            <Menu.Label>Filtrar por Documento</Menu.Label>
-                                            <Menu.Divider />
-                                            {Object.entries(TIPO_LABELS).map(([val, label]) => (
-                                                <Menu.Item
-                                                    key={val}
-                                                    onClick={() => setFilterTipo(val)}
-                                                    bg={filterTipo === val ? 'blue.0' : undefined}
-                                                    c={filterTipo === val ? 'blue.7' : undefined}
-                                                >
-                                                    {label}
-                                                </Menu.Item>
-                                            ))}
-                                            {filterTipo && (
-                                                <>
-                                                    <Menu.Divider />
-                                                    <Menu.Item color="red" onClick={() => setFilterTipo(null)}>
-                                                        Limpiar Filtro
-                                                    </Menu.Item>
-                                                </>
-                                            )}
-                                        </Menu.Dropdown>
-                                    </Menu>
-                                }
-                            >
-                                <Pill.Group>
-                                    {filterTipo && (
-                                        <Pill
-                                            withRemoveButton
-                                            onRemove={() => setFilterTipo(null)}
-                                            size="sm"
-                                            color="blue"
-                                        >
-                                            {TIPO_LABELS[filterTipo]}
-                                        </Pill>
-                                    )}
-                                    <PillsInput.Field
-                                        placeholder={filterTipo ? "" : "Buscar por proveedor, RUC o factura..."}
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                                    />
-                                </Pill.Group>
-                            </PillsInput>
+            <CajaHeader
+                caja={caja}
+                onBack={onBack}
+                isLowBalance={isLowBalance}
+                percentageRemaining={percentageRemaining}
+                montoInicialNeto={montoInicialNeto}
+                totalDepositos={totalDepositos}
+                filterState={filterState}
+                setFilterState={setFilterState}
+                TIPO_LABELS={TIPO_LABELS}
+                openLegalization={openLegalization}
+                handleCloseCaja={handleCloseCaja}
+                openDeposito={openDeposito}
+                handlePrint={handlePrint}
+                isError={isError}
+                error={error}
+            />
+
+            <CajaSummaryCards caja={caja} totals={totals} onOpenRetencionesControl={openRetencionesControl} onOpenArqueoControl={openArqueoControl} />
+
+            <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
+                <TransactionTable
+                    transactions={filteredTransactions}
+                    loading={loadingTrans}
+                    cajaEstado={caja?.estado || 'abierta'}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onRetention={(id: number) => { setTransactionState(p => ({ ...p, retentionId: id })); openRetention(); }}
+                    onNovedades={(t: Transaction) => { setTransactionState(p => ({ ...p, selectedForNovedades: t })); openNovedades(); }}
+                    sortBy={filterState.sortBy}
+                    sortOrder={filterState.sortOrder}
+                    onSort={handleSort}
+                />
+
+                {(!filterState.query && !filterState.tipo) ? null : (
+                    <Paper withBorder mt="md" p="md" radius="md" bg="blue.0" style={{ borderColor: 'var(--mantine-color-blue-2)' }}>
+                        <Group justify="space-between" align="center">
+                            <Stack gap={0}><Text size="xs" fw={700} c="blue.9" tt="uppercase" lts={1}>Resumen de Filtro</Text><Text size="xs" c="dimmed">{filteredTransactions.length} transacciones encontradas</Text></Stack>
+                            <Group gap="xl">
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Total Facturado</Text><Text fw={800} size="sm" c="red.7">-${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. Fuente</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. IVA</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text><Text fw={900} size="md" c="blue.9">${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                            </Group>
                         </Group>
-
-                        <Group>
-                            {caja?.estado === 'abierta' && (
-                                <>
-                                    <Tooltip label="Legalizar Gastos [L]" withArrow radius="md">
-                                        <Button variant="outline" color="orange" leftSection={<IconReceipt size={16} />} onClick={openLegalization}>
-                                            Legalizar
-                                        </Button>
-                                    </Tooltip>
-                                    <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>
-                                        Cerrar Caja
-                                    </Button>
-                                    <Tooltip label="Registrar Depósito [D]" withArrow radius="md">
-                                        <ActionIcon
-                                            variant="light"
-                                            color="green"
-                                            onClick={openDeposito}
-                                            size="lg"
-                                            radius="md"
-                                        >
-                                            <IconBuildingBank size={20} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </>
-                            )}
-                            <Tooltip label="Imprimir Reporte [P]" withArrow radius="md" position="bottom">
-                                <ActionIcon
-                                    variant="light"
-                                    color="blue"
-                                    size="lg"
-                                    radius="md"
-                                    onClick={handlePrint}
-                                >
-                                    <IconPrinter size={18} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    </Group>
-
-                    <CajaSummaryCards
-                        caja={caja}
-                        totals={totals}
-                        onOpenRetencionesControl={openRetencionesControl}
-                        onOpenArqueoControl={openArqueoControl}
-                    />
-
-                    <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
-                        <TransactionTable
-                            transactions={filteredTransactions}
-                            loading={loading}
-                            cajaEstado={caja?.estado || 'abierta'}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                            onRetention={(id: number) => { setRetentionTransactionId(id); openRetention(); }}
-                            onNovedades={(t: Transaction) => { setSelectedTransactionForNovedades(t); openNovedades(); }}
-                            sortBy={sortBy}
-                            sortOrder={sortOrder}
-                            onSort={handleSort}
-                        />
-
-                        {(!searchQuery && !filterTipo) ? null : (
-                            <Paper withBorder mt="md" p="md" radius="md" bg="blue.0" style={{ borderColor: 'var(--mantine-color-blue-2)' }}>
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={0}>
-                                        <Text size="xs" fw={700} c="blue.9" tt="uppercase" lts={1}>Resumen de Filtro</Text>
-                                        <Text size="xs" c="dimmed">{filteredTransactions.length} transacciones encontradas</Text>
-                                    </Stack>
-                                    <Group gap="xl">
-                                        <Stack gap={0} align="flex-end">
-                                            <Text size="xs" c="dimmed" fw={500}>Total Facturado</Text>
-                                            <Text fw={800} size="sm" c="red.7">
-                                                -${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        </Stack>
-                                        <Stack gap={0} align="flex-end">
-                                            <Text size="xs" c="dimmed" fw={500}>Ret. Fuente</Text>
-                                            <Text fw={700} size="sm" c="orange.8">
-                                                -${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        </Stack>
-                                        <Stack gap={0} align="flex-end">
-                                            <Text size="xs" c="dimmed" fw={500}>Ret. IVA</Text>
-                                            <Text fw={700} size="sm" c="orange.8">
-                                                -${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        </Stack>
-                                        <Stack gap={0} align="flex-end">
-                                            <Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text>
-                                            <Text fw={900} size="md" c="blue.9">
-                                                ${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        </Stack>
-                                    </Group>
-                                </Group>
-                            </Paper>
-                        )}
                     </Paper>
-                </Stack>
-            </div >
+                )}
+            </Paper>
 
-            <AppDrawer
-                opened={formOpened}
-                onClose={() => { close(); setEditingTransactionId(null); }}
-                title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (editingTransactionId ? "Editar Gasto" : "Registrar Gasto")}
-                size="lg"
-                closeOnClickOutside={false}
-            >
+            <AppDrawer opened={formOpened} onClose={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }} title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (transactionState.editingId ? "Editar Gasto" : "Registrar Gasto")} size="lg" closeOnClickOutside={false}>
                 <TransactionForm
                     cajaId={cajaId}
-                    transactionId={editingTransactionId || undefined}
-                    warningMessage={retentionReadOnlyMessage}
+                    transactionId={transactionState.editingId || undefined}
+                    warningMessage={transactionState.readOnlyMessage}
                     currentBalance={totals.efectivo}
-                    readOnly={!!retentionReadOnlyMessage || caja?.estado !== 'abierta'}
+                    readOnly={!!transactionState.readOnlyMessage || caja?.estado !== 'abierta'}
                     onSuccess={() => {
                         close();
-                        setEditingTransactionId(null);
+                        setTransactionState(p => ({ ...p, editingId: null }));
                         queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                         queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-                        if (editingTransactionId) {
-                            queryClient.invalidateQueries({ queryKey: ['transaction_detail', editingTransactionId] });
+                        if (transactionState.editingId) {
+                            queryClient.invalidateQueries({ queryKey: ['transaction_detail', transactionState.editingId] });
                         }
                     }}
-                    onCancel={() => { close(); setEditingTransactionId(null); }}
+                    onCancel={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }}
                 />
             </AppDrawer>
 
-            <AppDrawer
-                opened={retentionOpened}
-                onClose={() => { closeRetention(); setRetentionTransactionId(null); }}
-                title="Comprobante de Retención"
-                size="xl"
-            >
-                {retentionTransactionId && (
+            <AppDrawer opened={retentionOpened} onClose={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); }} title="Comprobante de Retención" size="xl">
+                {transactionState.retentionId && (
                     <RetentionForm
-                        transactionId={retentionTransactionId}
-                        onSuccess={() => {
-                            closeRetention();
-                            setRetentionTransactionId(null);
-                            queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
-                            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-                        }}
-                        onCancel={() => { closeRetention(); setRetentionTransactionId(null); }}
+                        transactionId={transactionState.retentionId}
+                        onSuccess={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}
+                        onCancel={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); }}
                         readOnly={caja?.estado !== 'abierta'}
                     />
                 )}
             </AppDrawer>
 
-            <LegalizationDrawer
-                opened={legalizationOpened}
-                onClose={closeLegalization}
-                cajaId={cajaId}
-                onSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
-                    queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-                }}
-            />
-
-            <TransactionNovedadesDrawer
-                opened={novedadesOpened}
-                onClose={() => { closeNovedades(); setSelectedTransactionForNovedades(null); }}
-                transactionId={selectedTransactionForNovedades?.id || null}
-                transactionDetail={selectedTransactionForNovedades ?
-                    `${selectedTransactionForNovedades.proveedor?.nombre || 'Gasto'} - $${selectedTransactionForNovedades.total_factura}` :
-                    undefined
-                }
-            />
-
+            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
+            <TransactionNovedadesDrawer opened={novedadesOpened} onClose={() => { closeNovedades(); setTransactionState(p => ({ ...p, selectedForNovedades: null })); }} transactionId={transactionState.selectedForNovedades?.id || null} transactionDetail={transactionState.selectedForNovedades ? `${transactionState.selectedForNovedades.proveedor?.nombre || 'Gasto'} - $${transactionState.selectedForNovedades.total_factura}` : undefined} />
             <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} arqueoData={arqueoData} />
-
             <CierreCajaModal
-                opened={closingOpened}
-                close={closeClosing}
-                caja={caja}
-                totals={totals}
-                readOnly={isClosingInReadOnlyMode}
+                opened={closingOpened} close={closeClosing} caja={caja} totals={totals} readOnly={isClosingInReadOnlyMode}
                 onSuccess={() => {
                     closeClosing();
                     modals.open({
@@ -658,43 +429,19 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         children: (
                             <Stack gap="md">
                                 <Text size="sm">La caja ha sido finalizada correctamente con el arqueo verificado.</Text>
-                                <Button leftSection={<IconPrinter size={16} />} onClick={() => { modals.closeAll(); setTimeout(handlePrint, 500); }} fullWidth>
-                                    Imprimir Reporte
-                                </Button>
+                                <Button leftSection={<IconPrinter size={16} />} onClick={() => { modals.closeAll(); setTimeout(handlePrint, 500); }} fullWidth>Imprimir Reporte</Button>
                                 <Button variant="light" color="gray" onClick={() => modals.closeAll()} fullWidth>Cerrar</Button>
                             </Stack>
                         )
                     });
                 }}
             />
-
-            <RetencionesRecaudacionDrawer
-                opened={retencionesControlOpened}
-                onClose={closeRetencionesControl}
-                cajaId={cajaId}
-                sucursal={caja?.sucursal}
-            />
-
-            <ArqueoControlModal
-                opened={arqueoControlOpened}
-                onClose={closeArqueoControl}
-                cajaId={cajaId}
-                sucursal={caja?.sucursal}
-                efectivoEsperado={totals.efectivo}
-            />
-
+            <RetencionesRecaudacionDrawer opened={retencionesControlOpened} onClose={closeRetencionesControl} cajaId={cajaId} sucursal={caja?.sucursal} />
+            <ArqueoControlModal opened={arqueoControlOpened} onClose={closeArqueoControl} cajaId={cajaId} sucursal={caja?.sucursal} efectivoEsperado={totals.efectivo} />
             <DepositoBancoModal
-                opened={depositoOpened}
-                onClose={closeDeposito}
-                cajaId={cajaId}
-                maxMonto={totals.efectivo}
-                onSuccess={() => {
-                    // Refrescar datos
-                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
-                    queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-                }}
-                existingDeposits={deposits}
-                onDeleteDeposit={(id) => deleteTransactionMutation.mutate(id)}
+                opened={depositoOpened} onClose={closeDeposito} cajaId={cajaId} maxMonto={totals.efectivo}
+                onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}
+                existingDeposits={deposits} onDeleteDeposit={(id) => deleteTransactionMutation.mutate(id)}
             />
         </Stack>
     );

@@ -1,621 +1,594 @@
-import { IconLogout, IconDeviceFloppy, IconInfoCircle } from '@tabler/icons-react';
-import { Stack, Title, Group, Text, Button, Card, TextInput, Tooltip, Loader, NumberInput, Table, Badge, Code, ScrollArea, rem, Switch, ActionIcon, Modal, ThemeIcon, Divider } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select } from '@mantine/core';
+import { IconCheck, IconPlus, IconCalendar, IconArrowLeft } from '@tabler/icons-react';
+import { DatePickerInput } from '@mantine/dates';
+import { AjustesDashboard } from './ajustes/components/AjustesDashboard';
+import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
-import { useNotifications } from '../context/NotificationContext';
-import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
+import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { modals } from '@mantine/modals';
-import { motion, AnimatePresence } from 'framer-motion';
-import dayjs from 'dayjs';
 import { useAppConfig } from '../hooks/useAppConfig';
-import { CierreHistory } from '../components/CierreHistory';
-import { AppModal } from '../components/ui/AppModal';
-import { AppActionButtons } from '../components/ui/AppActionButtons';
-import { AjustesDashboard } from './ajustes/components/AjustesDashboard';
-import { EmpresaSection } from './ajustes/components/EmpresaSection';
-import { ProfileEditModal } from './ajustes/components/ProfileEditModal';
+import { AppDrawer } from '../components/ui/AppDrawer';
+
+// Extracted Components
+import { AjustesHeader } from '../components/ajustes/AjustesHeader';
+import { ConfigSection } from '../components/ajustes/ConfigSection';
+import { CrudSection } from '../components/ajustes/CrudSection';
 import { InviteModal } from './ajustes/components/InviteModal';
-import { SettingsTable } from './ajustes/components/SettingsTable';
+import { CierreHistory } from '../components/CierreHistory';
+import dayjs from 'dayjs';
+
+const ACTION_LABELS: Record<string, { label: string, color: string }> = {
+    'CREAR_TRANSACCION': { label: 'Nueva Transacción', color: 'teal' },
+    'ELIMINAR_TRANSACCION': { label: 'Gasto Eliminado', color: 'red' },
+    'ABRIR_CAJA': { label: 'Apertura de Caja', color: 'blue' },
+    'CERRAR_CAJA': { label: 'Cierre de Caja', color: 'indigo' },
+    'REGISTRAR_DEPOSITO': { label: 'Depósito Bancario', color: 'cyan' },
+    'INVITAR_USUARIO': { label: 'Invitación Enviada', color: 'orange' },
+    'ACTUALIZAR_EMPRESA': { label: 'Ajustes Empresa', color: 'gray' },
+    'ACTUALIZAR_PERFIL': { label: 'Cambio de Perfil', color: 'gray' },
+    'TOGGLE_MEMBER_STATUS': { label: 'Estado de Miembro', color: 'yellow' },
+    'DELETE_ITEM': { label: 'Elemento Eliminado', color: 'red' },
+    'SAVE_ITEM': { label: 'Elemento Guardado', color: 'teal' },
+};
 
 export function AjustesPage() {
-    const { empresa, role, perfil, refresh: refreshEmpresa } = useEmpresa();
-    const { configs, updateConfig, loading: configLoading } = useAppConfig();
+    const { empresa, role, refresh: refreshEmpresa } = useEmpresa();
+    const { configs, updateConfig } = useAppConfig();
     const { openNotifications } = useNotifications();
 
-    // User state
-    const [user, setUser] = useState<any>(null);
+    const [state, setState] = useState({
+        user: null as any,
+        activeTab: null as string | null,
+        perfilForm: { nombre: '', apellido: '' },
+        data: {
+            items: [] as any[],
+            logs: [] as any[],
+            miembros: [] as any[],
+            fetching: false,
+            editingId: null as string | null
+        },
+        localConfigs: {
+            alertPercentage: 15,
+            reservePercentage: 15,
+            autoFormatFactura: false
+        },
+        empresaForm: { nombre: '', ruc: '' },
+        auditRange: [null, null] as [Date | null, Date | null]
+    });
 
-    // Navigation state
-    const [activeTab, setActiveTab] = useState<string | null>(null);
+    const { user, activeTab, perfilForm, data: dataState, localConfigs, empresaForm, auditRange } = state;
+    const { items, logs, miembros, fetching, editingId } = dataState;
 
-    // Modal states
-    const [opened, { open, close }] = useDisclosure(false);
-    const [editProfileOpened, { open: openEditProfile, close: closeEditProfile }] = useDisclosure(false);
+    const setActiveTab = (tab: string | null) => setState(prev => ({ ...prev, activeTab: tab }));
+
+    const [crudOpened, { open: openCrud, close: closeCrud }] = useDisclosure(false);
     const [inviteOpened, { open: openInvite, close: closeInvite }] = useDisclosure(false);
-    const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
-
-    // Profile edit states
-    const [perfilNombre, setPerfilNombre] = useState('');
-    const [perfilApellido, setPerfilApellido] = useState('');
-
-    // Generic table states
-    const [items, setItems] = useState<any[]>([]);
-    const [fetching, setFetching] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
-
-    // Empresa-specific states
-    const [miembros, setMiembros] = useState<any[]>([]);
-
-    // Restored states
-    const [alertPercentage, setAlertPercentage] = useState<number>(15);
-    const [reservePercentage, setReservePercentage] = useState<number>(15);
-    const [autoFormatFactura, setAutoFormatFactura] = useState<boolean>(false);
-    const [logs, setLogs] = useState<any[]>([]);
 
     const form = useForm({
-        initialValues: {
-            nombre: '',
-            direccion: '',
-            secuencia_inicial: 0,
-        },
+        initialValues: { nombre: '', ruc: '', direccion: '', regimen: '', codigo: '', numero_cuenta: '', tipo_cuenta: '', secuencia_inicial: 0 }
     });
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-        };
-        getUser();
+        supabase.auth.getUser().then(({ data: { user } }) => setState(prev => ({ ...prev, user })));
     }, []);
 
     useEffect(() => {
-        if (perfil) {
-            setPerfilNombre(perfil.nombre || '');
-            setPerfilApellido(perfil.apellido || '');
+        if (user) {
+            supabase.from('perfiles').select('*').eq('id', user.id).single().then(({ data }) => {
+                if (data) setState(prev => ({ ...prev, perfilForm: { nombre: data.nombre || '', apellido: data.apellido || '' } }));
+            });
         }
-    }, [perfil]);
-
-    useEffect(() => {
-        if (configs.porcentaje_alerta_caja) {
-            setAlertPercentage(parseInt(configs.porcentaje_alerta_caja));
-        }
-        if (configs.porcentaje_reserva_caja) {
-            setReservePercentage(parseInt(configs.porcentaje_reserva_caja));
-        }
-        if (configs.formato_factura_automatico) {
-            setAutoFormatFactura(configs.formato_factura_automatico === 'true');
-        }
-    }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico]);
+    }, [user]);
 
     useEffect(() => {
         if (empresa) {
-            fetchData();
+            setState(prev => ({ ...prev, empresaForm: { nombre: empresa.nombre || '', ruc: empresa.ruc || '' } }));
         }
-    }, [empresa, activeTab]);
+    }, [empresa]);
 
-
-
-    const fetchData = async () => {
-        if (!empresa || !activeTab) return;
-        setFetching(true);
-
-        if (activeTab === 'empresa') {
-            // Fetch members using client-side join strategy
-            const { data: usersData } = await supabase
-                .from('empresa_usuarios')
-                .select('*')
-                .eq('empresa_id', empresa.id);
-
-            if (usersData && usersData.length > 0) {
-                const userIds = usersData.map(u => u.user_id);
-                const { data: profilesData } = await supabase
-                    .from('perfiles')
-                    .select('id, nombre, apellido, email, telefono')
-                    .in('id', userIds);
-
-                const membersWithProfiles = usersData.map(user => {
-                    const profile = profilesData?.find(p => p.id === user.user_id);
-                    return {
-                        ...user,
-                        perfiles: profile
-                    };
-                });
-                setMiembros(membersWithProfiles);
-            } else {
-                setMiembros([]);
+    useEffect(() => {
+        setState(prev => ({
+            ...prev,
+            localConfigs: {
+                alertPercentage: parseInt(configs.porcentaje_alerta_caja || '15'),
+                reservePercentage: parseInt(configs.porcentaje_reserva_caja || '15'),
+                autoFormatFactura: configs.formato_factura_automatico === 'true'
             }
-        } else if (activeTab === 'bitacora') {
-            const { data } = await supabase
-                .from('bitacora')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(50);
-            setLogs(data || []);
-        } else if (activeTab === 'sucursales') {
-            const { data: sucursales } = await supabase.from('sucursales').select('*').eq('empresa_id', empresa.id);
+        }));
+    }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico]);
 
-            if (sucursales && sucursales.length > 0) {
-                // Fetch all cajas to calculate max number per branch
-                // Note: Ideally use a view or RPC for large datasets, but this is fine for typical volume
-                const { data: cajas } = await supabase
-                    .from('cajas')
-                    .select('sucursal, numero');
+    useEffect(() => {
+        if (!activeTab || !empresa) return;
 
-                const sucursalesWithInfo = sucursales.map(s => {
-                    const branchCajas = cajas?.filter((c: any) => c.sucursal === s.nombre) || [];
-                    const maxCreated = branchCajas.reduce((max: number, c: any) => Math.max(max, c.numero || 0), 0);
-                    const maxNumero = Math.max(maxCreated, s.secuencia_inicial || 0);
-                    return { ...s, ultimo_numero: maxNumero };
-                });
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
 
-                setItems(sucursalesWithInfo);
-            } else {
-                setItems([]);
+        const fetchData = async () => {
+            try {
+                if (activeTab === 'empresa') {
+                    const { data } = await supabase.from('empresa_usuarios').select('*, perfiles:user_id(*)').eq('empresa_id', empresa.id);
+                    if (data) {
+                        const membersWithProfiles = data.map((m: any) => ({
+                            ...m,
+                            perfiles: Array.isArray(m.perfiles) ? m.perfiles[0] : m.perfiles
+                        }));
+                        setState(prev => ({ ...prev, data: { ...prev.data, miembros: membersWithProfiles, fetching: false } }));
+                    } else {
+                        setState(prev => ({ ...prev, data: { ...prev.data, miembros: [], fetching: false } }));
+                    }
+                } else if (activeTab === 'auditoria') {
+                    let query = supabase.from('bitacora').select('*').eq('empresa_id', empresa.id).order('created_at', { ascending: false });
+
+                    if (auditRange[0]) {
+                        query = query.gte('created_at', dayjs(auditRange[0]).startOf('day').toISOString());
+                    }
+                    if (auditRange[1]) {
+                        query = query.lte('created_at', dayjs(auditRange[1]).endOf('day').toISOString());
+                    }
+
+                    const { data } = await query.limit(200);
+                    setState(prev => ({ ...prev, data: { ...prev.data, logs: data || [], fetching: false } }));
+                } else if (['sucursales', 'bancos', 'regimenes'].includes(activeTab || '')) {
+                    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+                    const table = tableMap[activeTab];
+                    const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa.id).order('nombre');
+                    if (activeTab === 'sucursales' && data) {
+                        const { data: cajas } = await supabase.from('cajas').select('sucursal, estado').eq('empresa_id', empresa.id);
+                        const sucursalesWithInfo = data.map(s => ({
+                            ...s,
+                            has_active_caja: cajas?.some(c => c.sucursal === s.nombre && c.estado === 'abierta')
+                        }));
+                        setState(prev => ({ ...prev, data: { ...prev.data, items: sucursalesWithInfo, fetching: false } }));
+                    } else {
+                        setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
+                    }
+                } else {
+                    setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+                }
+            } catch (error) {
+                setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
             }
-        } else if (['bancos', 'regimenes'].includes(activeTab)) {
-            const { data } = await supabase.from(activeTab).select('*').eq('empresa_id', empresa.id);
-            setItems(data || []);
+        };
+
+        fetchData();
+    }, [activeTab, empresa, auditRange]);
+
+    const handleSaveEmpresa = async () => {
+        if (!empresa?.id || role !== 'owner') return;
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        const { error } = await supabase.from('empresas').update(empresaForm).eq('id', empresa.id);
+        if (!error) {
+            notifications.show({ title: 'Empresa actualizada', message: 'Los datos han sido guardados', color: 'teal' });
+            await refreshEmpresa();
+        } else {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
-
-        setFetching(false);
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
     };
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-    };
+    const handleToggleMemberStatus = async (memberId: string, currentStatus: boolean) => {
+        if (!empresa?.id || (role !== 'owner' && role !== 'admin')) return;
 
-    const handleSubmit = async (values: any) => {
-        if (!empresa) return;
-        setFetching(true);
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        const { error } = await supabase
+            .from('empresa_usuarios')
+            .update({ activo: !currentStatus })
+            .eq('id', memberId);
 
-        const payload = { ...values, empresa_id: empresa.id };
-
-        // Remove computed properties that are not columns in the database
-        if ('ultimo_numero' in payload) {
-            delete payload.ultimo_numero;
-        }
-
-        if (editingId) {
-            const { error } = await supabase.from(activeTab!).update(payload).eq('id', editingId);
-            if (error) {
-                notifications.show({ title: 'Error', message: error.message, color: 'red' });
+        if (!error) {
+            notifications.show({
+                title: 'Estado actualizado',
+                message: `Usuario ${!currentStatus ? 'activado' : 'desactivado'} correctamente`,
+                color: 'teal'
+            });
+            // Refrescar datos (pestaña miembros)
+            const { data } = await supabase.from('empresa_usuarios').select('*, perfiles:user_id(*)').eq('empresa_id', empresa.id);
+            if (data) {
+                const membersWithProfiles = data.map((m: any) => ({
+                    ...m,
+                    perfiles: Array.isArray(m.perfiles) ? m.perfiles[0] : m.perfiles
+                }));
+                setState(prev => ({ ...prev, data: { ...prev.data, miembros: membersWithProfiles, fetching: false } }));
             } else {
-                notifications.show({ title: 'Actualizado', message: 'Registro actualizado.', color: 'teal' });
-                close();
-                fetchData();
+                setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
             }
         } else {
-            const { error } = await supabase.from(activeTab!).insert(payload);
-            if (error) {
-                notifications.show({ title: 'Error', message: error.message, color: 'red' });
-            } else {
-                notifications.show({ title: 'Creado', message: 'Registro creado.', color: 'teal' });
-                close();
-                fetchData();
-            }
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
+            setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (!user) return;
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        const { error } = await supabase.from('perfiles').upsert({ id: user.id, ...perfilForm });
+        if (!error) notifications.show({ title: 'Perfil actualizado', message: 'Tus datos han sido guardados', color: 'teal' });
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+    };
+
+    const handleConfigSave = async (key: string, value: string) => {
+        const ok = await updateConfig(key, value);
+        if (ok) notifications.show({ title: 'Configuración guardada', message: 'Los cambios se aplicaron correctamente', color: 'teal' });
+    };
+
+    const handleCrudSave = async (values: any) => {
+        if (!empresa?.id || !activeTab) return;
+        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+        const table = tableMap[activeTab!];
+
+        // Filtrar valores según la tabla para evitar errores de columnas inexistentes
+        const filteredValues: any = { nombre: values.nombre };
+        if (activeTab === 'sucursales') {
+            filteredValues.direccion = values.direccion;
+            filteredValues.secuencia_inicial = values.secuencia_inicial;
+        } else if (activeTab === 'bancos') {
+            filteredValues.numero_cuenta = values.numero_cuenta;
+            filteredValues.tipo_cuenta = values.tipo_cuenta;
+        } else if (activeTab === 'regimenes') {
+            // regimenes solo usa nombre por ahora
         }
 
-        setFetching(false);
+        const { error } = editingId
+            ? await supabase.from(table).update(filteredValues).eq('id', editingId)
+            : await supabase.from(table).insert([{ ...filteredValues, empresa_id: empresa?.id }]);
+        if (!error) {
+            notifications.show({ title: 'Guardado', message: 'Elemento guardado correctamente', color: 'teal' });
+            closeCrud();
+            // Refrescar datos
+            setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+            const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa?.id).order('nombre');
+            setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
+        } else {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
+            setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+        }
     };
 
-    const handleEdit = (item: any) => {
-        setEditingId(item.id);
-        form.setValues(item);
-        open();
+    const handleDelete = async (id: string) => {
+        if (!activeTab) return;
+        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+        const table = tableMap[activeTab!];
+        const { error } = await supabase.from(table).delete().eq('id', id);
+        if (!error) {
+            notifications.show({ title: 'Eliminado', message: 'Elemento eliminado', color: 'teal' });
+            // Refrescar datos
+            setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+            const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa?.id).order('nombre');
+            setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
+        } else {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
+        }
     };
-
-    const handleDelete = async (id: string, nombre: string) => {
-        modals.openConfirmModal({
-            title: 'Confirmar eliminación',
-            children: (
-                <Text size="sm">
-                    ¿Estás seguro de eliminar <Text span fw={600}>"{nombre}"</Text>? Esta acción no se puede deshacer.
-                </Text>
-            ),
-            labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
-            confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                setFetching(true);
-                try {
-                    // Verificar si el registro está siendo usado
-                    let isInUse = false;
-                    let usageMessage = '';
-
-                    if (activeTab === 'sucursales') {
-                        // Verificar si hay cajas asociadas
-                        const { data: cajas, error: cajasError } = await supabase
-                            .from('cajas')
-                            .select('id')
-                            .eq('sucursal', nombre)
-                            .limit(1);
-
-                        if (cajasError) throw cajasError;
-                        if (cajas && cajas.length > 0) {
-                            isInUse = true;
-                            usageMessage = 'Esta sucursal tiene cajas asociadas. No se puede eliminar.';
-                        }
-                    } else if (activeTab === 'bancos') {
-                        // Verificar si hay transacciones asociadas
-                        const { data: transacciones, error: transError } = await supabase
-                            .from('transacciones')
-                            .select('id')
-                            .eq('banco', nombre)
-                            .limit(1);
-
-                        if (transError) throw transError;
-                        if (transacciones && transacciones.length > 0) {
-                            isInUse = true;
-                            usageMessage = 'Este banco tiene transacciones asociadas. No se puede eliminar.';
-                        }
-                    } else if (activeTab === 'regimenes') {
-                        // Verificar si hay transacciones asociadas
-                        const { data: transacciones, error: transError } = await supabase
-                            .from('transacciones')
-                            .select('id')
-                            .eq('regimen', nombre)
-                            .limit(1);
-
-                        if (transError) throw transError;
-                        if (transacciones && transacciones.length > 0) {
-                            isInUse = true;
-                            usageMessage = 'Este régimen tiene transacciones asociadas. No se puede eliminar.';
-                        }
-                    }
-
-                    if (isInUse) {
-                        notifications.show({
-                            title: 'No se puede eliminar',
-                            message: usageMessage,
-                            color: 'orange'
-                        });
-                        setFetching(false);
-                        return;
-                    }
-
-                    // Si no está en uso, proceder con la eliminación
-                    const { error } = await supabase.from(activeTab!).delete().eq('id', id);
-                    if (error) throw error;
-
-                    notifications.show({
-                        title: 'Eliminado',
-                        message: `"${nombre}" ha sido eliminado correctamente.`,
-                        color: 'teal'
-                    });
-                    fetchData();
-                } catch (error: any) {
-                    notifications.show({
-                        title: 'Error',
-                        message: error.message || 'Error al eliminar el registro',
-                        color: 'red'
-                    });
-                }
-                setFetching(false);
-            },
-        });
-    };
-
-
-
-    const handleEditProfileClick = (member: any) => {
-        setPerfilNombre(member.perfiles?.nombre || '');
-        setPerfilApellido(member.perfiles?.apellido || '');
-        openEditProfile();
-    };
-
-    if (!empresa) {
-        return (
-            <Stack align="center" justify="center" mih="100vh">
-                <Loader size="lg" />
-                <Text c="dimmed">Cargando empresa...</Text>
-            </Stack>
-        );
-    }
-
-    const inviteLink = empresa ? `${window.location.origin}/registro?empresa=${empresa.id}` : '';
 
     return (
-        <Stack gap="lg">
-            {/* Header with Title and User Info */}
-            <Group justify="space-between" align="center">
-                <Stack gap={4}>
-                    <Title order={2} fw={700}>
-                        Ajustes
-                    </Title>
-                    <Text size="sm" c="dimmed">
-                        {perfil?.nombre ? `${perfil.nombre} ${perfil.apellido || ''}` : 'Usuario'}: {user?.email}
-                    </Text>
-                </Stack>
+        <Container size="lg" py="xl">
+            <Stack gap="xl">
+                {!activeTab && <AjustesHeader user={user} empresa={empresa} />}
 
-                <Group gap="xs">
-                    <ActionIcon
-                        variant="light"
-                        color="blue"
-                        size="lg"
-                        radius="md"
-                        onClick={openAbout}
-                        title="Acerca del sistema"
-                    >
-                        <IconInfoCircle size={20} />
-                    </ActionIcon>
-                    <Button
-                        variant="light"
-                        color="red"
-                        leftSection={<IconLogout size={16} />}
-                        onClick={handleLogout}
-                        radius="md"
-                        size="sm"
-                    >
-                        Cerrar Sesión
-                    </Button>
-                </Group>
-            </Group>
-
-            <AnimatePresence mode="wait">
-                {activeTab === null ? (
-                    <motion.div
-                        key="dashboard"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <AjustesDashboard
-                            empresaNombre={empresa.nombre}
-                            onNavigate={setActiveTab}
-                            onOpenNotifications={openNotifications}
-                        />
-                    </motion.div>
+                {!activeTab ? (
+                    <AjustesDashboard
+                        empresaNombre={empresa?.nombre}
+                        onNavigate={(tab) => {
+                            const map: Record<string, string> = {
+                                'config': 'configs',
+                                'bitacora': 'auditoria'
+                            };
+                            setActiveTab(map[tab] || tab);
+                        }}
+                        onOpenNotifications={openNotifications}
+                    />
                 ) : (
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <Stack gap="lg">
-                            <Button variant="subtle" onClick={() => setActiveTab(null)} size="xs" w="fit-content">
-                                ← Volver
-                            </Button>
+                    <Stack gap="xl">
+                        <Group gap="sm">
+                            <ActionIcon variant="light" onClick={() => setActiveTab(null)} size="lg" radius="md">
+                                <IconArrowLeft size={20} />
+                            </ActionIcon>
+                            <Title order={2} size="h3">
+                                {activeTab === 'empresa' ? 'Equipo & Empresa' :
+                                    activeTab === 'sucursales' ? 'Sucursales' :
+                                        activeTab === 'bancos' ? 'Bancos' :
+                                            activeTab === 'regimenes' ? 'Regímenes' :
+                                                activeTab === 'configs' ? 'Configuración' :
+                                                    activeTab === 'history' ? 'Historial de Cierres' :
+                                                        activeTab === 'auditoria' ? 'Bitácora de Auditoría' :
+                                                            activeTab === 'perfil' ? 'Mi Perfil' : 'Ajustes'}
+                            </Title>
+                        </Group>
+
+                        <Box style={{ position: 'relative' }}>
+                            <LoadingOverlay visible={fetching} overlayProps={{ blur: 1 }} />
 
                             {activeTab === 'empresa' && (
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">Administra la información legal de tu negocio y gestiona el equipo de trabajo.</Text>
-                                    <EmpresaSection
-                                        empresa={empresa}
-                                        role={role || 'operador'}
-                                        miembros={miembros}
-                                        currentUserId={user?.id}
-                                        onInviteClick={openInvite}
-                                        onEditProfile={handleEditProfileClick}
-                                        onToggleMemberStatus={async (memberId, currentStatus) => {
-                                            const { error } = await supabase
-                                                .from('empresa_usuarios')
-                                                .update({ activo: !currentStatus })
-                                                .eq('id', memberId);
+                                <Stack gap="xl">
+                                    <Paper withBorder p="xl" radius="lg">
+                                        <Stack gap="md">
+                                            <Title order={3}>Datos de la Empresa</Title>
+                                            <Text size="sm" c="dimmed">
+                                                {role === 'owner'
+                                                    ? 'Como propietario, puedes actualizar la información legal de tu organización.'
+                                                    : 'Información general de tu organización.'}
+                                            </Text>
 
-                                            if (error) {
-                                                notifications.show({ title: 'Error', message: error.message, color: 'red' });
-                                            } else {
-                                                notifications.show({
-                                                    title: !currentStatus ? 'Miembro Activado' : 'Miembro Desactivado',
-                                                    message: `El acceso ha sido ${!currentStatus ? 'restablecido' : 'revocado'} correctamente.`,
-                                                    color: 'teal'
-                                                });
-                                                fetchData();
-                                            }
-                                        }}
-                                        onRefresh={() => {
-                                            refreshEmpresa();
-                                            fetchData();
-                                        }}
-                                        inviteLink={inviteLink}
+                                            <Stack gap="sm">
+                                                <ConfigSection.Input
+                                                    label="Razón Social"
+                                                    value={empresaForm.nombre}
+                                                    onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, nombre: v } }))}
+                                                    readOnly={role !== 'owner'}
+                                                />
+                                                <ConfigSection.Input
+                                                    label="RUC"
+                                                    value={empresaForm.ruc}
+                                                    onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ruc: v } }))}
+                                                    readOnly={role !== 'owner'}
+                                                />
+                                            </Stack>
+
+                                            {role === 'owner' && (
+                                                <Button
+                                                    onClick={handleSaveEmpresa}
+                                                    leftSection={<IconCheck size={16} />}
+                                                    radius="md"
+                                                    mt="md"
+                                                    w="fit-content"
+                                                >
+                                                    Guardar Cambios
+                                                </Button>
+                                            )}
+                                        </Stack>
+                                    </Paper>
+
+                                    <Paper withBorder p="xl" radius="lg">
+                                        <Stack gap="lg">
+                                            <Group justify="space-between">
+                                                <Title order={3}>Miembros del Equipo</Title>
+                                                {(role === 'owner' || role === 'admin') && (
+                                                    <Button
+                                                        variant="light"
+                                                        leftSection={<IconPlus size={16} />}
+                                                        onClick={openInvite}
+                                                        radius="md"
+                                                    >
+                                                        Invitar Miembro
+                                                    </Button>
+                                                )}
+                                            </Group>
+                                            {miembros.map((m) => (
+                                                <Paper key={m.id} withBorder p="md" radius="md">
+                                                    <Group justify="space-between">
+                                                        <Group>
+                                                            <Avatar color="blue">{m.perfiles?.nombre?.[0]}</Avatar>
+                                                            <div>
+                                                                <Text fw={600}>{m.perfiles?.nombre} {m.perfiles?.apellido}</Text>
+                                                                <Text size="xs" c="dimmed">{m.perfiles?.email}</Text>
+                                                            </div>
+                                                        </Group>
+                                                        <Stack align="flex-end" gap={4}>
+                                                            <Group gap="xs">
+                                                                <Badge color={m.activo !== false ? 'blue' : 'gray'}>
+                                                                    {m.activo !== false ? m.role : 'Desactivado'}
+                                                                </Badge>
+                                                                {(role === 'owner' || role === 'admin') && m.user_id !== user?.id && (
+                                                                    <Switch
+                                                                        checked={m.activo !== false}
+                                                                        onChange={() => handleToggleMemberStatus(m.id, m.activo !== false)}
+                                                                        size="sm"
+                                                                        color="teal"
+                                                                    />
+                                                                )}
+                                                            </Group>
+                                                        </Stack>
+                                                    </Group>
+                                                </Paper>
+                                            ))}
+                                        </Stack>
+                                    </Paper>
+                                </Stack>
+                            )}
+
+                            {activeTab === 'perfil' && (
+                                <Paper withBorder p="xl" radius="lg">
+                                    <Stack gap="md">
+                                        <Group mb="lg">
+                                            <Avatar size="xl" radius="xl" color="blue">{perfilForm.nombre[0] || ''}{perfilForm.apellido[0] || ''}</Avatar>
+                                            <div>
+                                                <Title order={3}>{perfilForm.nombre} {perfilForm.apellido}</Title>
+                                                <Text c="dimmed">{user?.email}</Text>
+                                            </div>
+                                        </Group>
+                                        <Group grow>
+                                            <ConfigSection.Input label="Nombre" value={perfilForm.nombre} onChange={(v: string) => setState(prev => ({ ...prev, perfilForm: { ...prev.perfilForm, nombre: v } }))} />
+                                            <ConfigSection.Input label="Apellido" value={perfilForm.apellido} onChange={(v: string) => setState(prev => ({ ...prev, perfilForm: { ...prev.perfilForm, apellido: v } }))} />
+                                        </Group>
+                                        <Button onClick={handleSaveProfile} leftSection={<IconCheck size={16} />} radius="md" mt="md" w="fit-content">Guardar Perfil</Button>
+                                    </Stack>
+                                </Paper>
+                            )}
+
+                            {activeTab === 'configs' && (
+                                <ConfigSection
+                                    localConfigs={localConfigs}
+                                    handleConfigSave={handleConfigSave}
+                                    setAlertPercentage={(v: number) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, alertPercentage: v } }))}
+                                    setReservePercentage={(v: number) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, reservePercentage: v } }))}
+                                    setAutoFormatFactura={(v: boolean) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, autoFormatFactura: v } }))}
+                                />
+                            )}
+
+                            {activeTab === 'sucursales' && (
+                                <CrudSection
+                                    title="Gestión de Sucursales"
+                                    type="sucursales"
+                                    items={items}
+                                    onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues(i); openCrud(); }}
+                                    onDelete={handleDelete}
+                                    onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                />
+                            )}
+
+                            {activeTab === 'bancos' && (
+                                <Stack gap="md">
+                                    <Paper withBorder p="md" radius="md" bg="blue.0" mb="xs">
+                                        <Text size="xs" fw={500} c="blue.8">
+                                            ℹ️ Estas cuentas se utilizarán para registrar los depósitos bancarios de los cierres de caja y para emitir los cheques de reposición.
+                                        </Text>
+                                    </Paper>
+                                    <CrudSection
+                                        title="Mis Cuentas Bancarias"
+                                        type="bancos"
+                                        items={items}
+                                        onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues(i); openCrud(); }}
+                                        onDelete={handleDelete}
+                                        onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
                                     />
                                 </Stack>
                             )}
 
-                            {activeTab === 'config' && (
-                                <Stack gap="lg">
-                                    <Stack gap={4}>
-                                        <Title order={3} size="h4" fw={700}>Configuración</Title>
-                                        <Text size="sm" c="dimmed">Ingresa el porcentaje mínimo para que alerte al usario que debe cerrar su caja.</Text>
-                                    </Stack>
-                                    <Card withBorder radius="md" p="md" bg="blue.0" maw={500} shadow="xs">
-                                        <Stack gap="md">
-                                            <Group justify="space-between" align="center">
-                                                <Stack gap={0}>
-                                                    <Text fw={700} size="sm">Alertas de Saldo</Text>
-                                                    <Text size="xs" c="dimmed">Porcentaje de reserva mínimo</Text>
-                                                </Stack>
-                                                <NumberInput
-                                                    value={alertPercentage}
-                                                    onChange={(val) => setAlertPercentage(Number(val))}
-                                                    min={0}
-                                                    max={100}
-                                                    suffix="%"
-                                                    w={100}
-                                                    radius="md"
-                                                />
-                                            </Group>
-
-                                            <Group justify="space-between" align="center">
-                                                <Stack gap={0}>
-                                                    <Text fw={700} size="sm">Reserva de Gasto</Text>
-                                                    <Text size="xs" c="dimmed">Mínimo para bloquear gastos</Text>
-                                                </Stack>
-                                                <NumberInput
-                                                    value={reservePercentage}
-                                                    onChange={(val) => setReservePercentage(Number(val))}
-                                                    min={0}
-                                                    max={100}
-                                                    suffix="%"
-                                                    w={100}
-                                                    radius="md"
-                                                />
-                                            </Group>
-
-                                            <Group justify="space-between" align="center">
-                                                <Stack gap={0}>
-                                                    <Text fw={700} size="sm">Formato de Factura</Text>
-                                                    <Text size="xs" c="dimmed">Autocompletar ceros y guiones</Text>
-                                                </Stack>
-                                                <Switch
-                                                    checked={autoFormatFactura}
-                                                    onChange={(event) => setAutoFormatFactura(event.currentTarget.checked)}
-                                                    size="md"
-                                                    onLabel="ON"
-                                                    offLabel="OFF"
-                                                />
-                                            </Group>
-
-                                            <Button onClick={async () => {
-                                                const p1 = updateConfig('porcentaje_alerta_caja', alertPercentage.toString());
-                                                const p2 = updateConfig('formato_factura_automatico', autoFormatFactura.toString());
-                                                const p3 = updateConfig('porcentaje_reserva_caja', reservePercentage.toString());
-
-                                                const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
-
-                                                if (r1.success && r2.success && r3.success) {
-                                                    notifications.show({ title: 'Guardado', message: 'Ajustes actualizados.', color: 'teal' });
-                                                }
-                                            }} loading={configLoading} leftSection={<IconDeviceFloppy size={14} />}>Guardar Cambios</Button>
-                                        </Stack>
-                                    </Card>
-                                </Stack>
+                            {activeTab === 'regimenes' && (
+                                <CrudSection
+                                    title="Tipos de Regímenes"
+                                    type="regimenes"
+                                    items={items}
+                                    onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues(i); openCrud(); }}
+                                    onDelete={handleDelete}
+                                    onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                />
                             )}
 
-                            {activeTab === 'bitacora' && (
-                                <Stack gap="md">
-                                    <Stack gap={4}>
+                            {activeTab === 'auditoria' && (
+                                <Paper withBorder p="xl" radius="lg">
+                                    <Stack gap="md">
                                         <Group justify="space-between" align="flex-end">
-                                            <Title order={3} size="h4" fw={700}>Bitácora</Title>
-                                            <Badge variant="light" color="gray">{logs.length} eventos</Badge>
+                                            <div>
+                                                <Title order={3}>Registro de Auditoría</Title>
+                                                <Text size="sm" c="dimmed">Seguimiento de las acciones realizadas en el sistema.</Text>
+                                            </div>
+                                            <Group align="flex-end">
+                                                <DatePickerInput
+                                                    type="range"
+                                                    label="Filtrar por fecha"
+                                                    placeholder="Desde — Hasta"
+                                                    value={auditRange}
+                                                    onChange={(val: any) => setState(p => ({ ...p, auditRange: val }))}
+                                                    leftSection={<IconCalendar size={18} stroke={1.5} />}
+                                                    clearable
+                                                    radius="md"
+                                                    size="sm"
+                                                    w={250}
+                                                />
+                                            </Group>
                                         </Group>
-                                        <Text size="sm" c="dimmed">Registro histórico de todas las acciones y cambios realizados por los usuarios en el sistema.</Text>
-                                    </Stack>
-                                    <ScrollArea h={rem(500)}>
-                                        <Table striped highlightOnHover style={{ fontSize: rem(13) }}>
-                                            <Table.Thead bg="gray.0"><Table.Tr><Table.Th>Fecha</Table.Th><Table.Th>Usuario</Table.Th><Table.Th>Acción</Table.Th><Table.Th>Detalles</Table.Th></Table.Tr></Table.Thead>
-                                            <Table.Tbody>
-                                                {logs.map((log: any) => (
-                                                    <Table.Tr key={log.id}>
-                                                        <Table.Td style={{ whiteSpace: 'nowrap' }}>{dayjs(log.created_at).format('DD/MM HH:mm')}</Table.Td>
-                                                        <Table.Td>{log.user_email || 'Sistema'}</Table.Td>
-                                                        <Table.Td><Badge color={log.accion.includes('ELIMINAR') ? 'red' : 'teal'} variant="dot" size="xs">{log.accion.split(' ')[0]}</Badge></Table.Td>
-                                                        <Table.Td><Tooltip label={JSON.stringify(log.detalle)} multiline w={250} withArrow><Code color="gray.1" style={{ cursor: 'help' }}>Ver</Code></Tooltip></Table.Td>
+
+                                        <ScrollArea h={500} offsetScrollbars>
+                                            <Table striped highlightOnHover verticalSpacing="sm" withTableBorder withColumnBorders={false}>
+                                                <Table.Thead bg="gray.0">
+                                                    <Table.Tr>
+                                                        <Table.Th style={{ width: '150px' }}>Fecha</Table.Th>
+                                                        <Table.Th style={{ width: '180px' }}>Acción</Table.Th>
+                                                        <Table.Th style={{ width: '200px' }}>Usuario</Table.Th>
+                                                        <Table.Th>Detalle</Table.Th>
                                                     </Table.Tr>
-                                                ))}
-                                            </Table.Tbody>
-                                        </Table>
-                                    </ScrollArea>
-                                </Stack>
+                                                </Table.Thead>
+                                                <Table.Tbody>
+                                                    {logs.length === 0 ? (
+                                                        <Table.Tr>
+                                                            <Table.Td colSpan={4} align="center" py="xl">
+                                                                <Text c="dimmed">No hay registros para este criterio.</Text>
+                                                            </Table.Td>
+                                                        </Table.Tr>
+                                                    ) : (
+                                                        logs.map((log) => {
+                                                            const actionInfo = ACTION_LABELS[log.accion] || { label: log.accion, color: 'gray' };
+                                                            return (
+                                                                <Table.Tr key={log.id}>
+                                                                    <Table.Td>
+                                                                        <Text size="xs" fw={500}>{dayjs(log.created_at).format('DD/MM/YY HH:mm')}</Text>
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        <Badge size="xs" color={actionInfo.color} variant="light" radius="sm">
+                                                                            {actionInfo.label}
+                                                                        </Badge>
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        <Text size="xs" fw={500}>{log.user_email || 'Sistema'}</Text>
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap', maxWidth: '300px' }}>
+                                                                            {typeof log.detalle === 'string' ? log.detalle : JSON.stringify(log.detalle)}
+                                                                        </Text>
+                                                                    </Table.Td>
+                                                                </Table.Tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </Table.Tbody>
+                                            </Table>
+                                        </ScrollArea>
+                                    </Stack>
+                                </Paper>
                             )}
 
                             {activeTab === 'history' && (
-                                <Stack gap="md">
-                                    <Stack gap={4}>
-                                        <Title order={3} size="h4" fw={700}>Historial de Cierres</Title>
-                                        <Text size="sm" c="dimmed">Consulta los reportes de arqueo y los balances confirmados en cada cierre de caja.</Text>
-                                    </Stack>
-                                    <CierreHistory />
-                                </Stack>
+                                <CierreHistory empresaId={empresa?.id} />
                             )}
-
-                            {['sucursales', 'bancos', 'regimenes'].includes(activeTab) && (
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        {activeTab === 'sucursales' && 'Configura los diferentes puntos de gasto de tu empresa.'}
-                                        {activeTab === 'bancos' && 'Administra las entidades bancarias para el registro de cheques de reposición.'}
-                                        {activeTab === 'regimenes' && 'Define los tipos de regímenes fiscales para categorizar adecuadamente a tus proveedores.'}
-                                    </Text>
-                                    <SettingsTable
-                                        title={getSingularName(activeTab)}
-                                        items={items}
-                                        activeTab={activeTab}
-                                        onEdit={handleEdit}
-                                        onDelete={handleDelete}
-                                        onAdd={() => { setEditingId(null); form.reset(); open(); }}
-                                        fetching={fetching}
-                                    />
-                                </Stack>
-                            )}
-                        </Stack>
-                    </motion.div>
+                        </Box>
+                    </Stack>
                 )}
-            </AnimatePresence>
+            </Stack>
 
-            {/* Generic CRUD Modal */}
-            <AppModal opened={opened} onClose={close} title={editingId ? `Editar ${getSingularName(activeTab)}` : `Nuevo ${getSingularName(activeTab)}`} loading={fetching}>
-                <form onSubmit={form.onSubmit(handleSubmit)}>
+            <AppDrawer opened={crudOpened} onClose={closeCrud} title={editingId ? "Editar Item" : "Añadir Item"} size="md">
+                <form onSubmit={form.onSubmit(handleCrudSave)}>
                     <Stack gap="md">
-                        <TextInput label="Nombre" placeholder="Nombre" required radius="md" {...form.getInputProps('nombre')} />
-                        {activeTab === 'sucursales' && <TextInput label="Dirección" placeholder="Dirección" radius="md" {...form.getInputProps('direccion')} />}
-                        {activeTab === 'sucursales' && (
-                            <NumberInput
-                                label="Secuencia Inicial"
-                                description="Establece el número desde donde iniciará el conteo si es mayor al historial."
-                                placeholder="0"
-                                min={0}
-                                radius="md"
-                                {...form.getInputProps('secuencia_inicial')}
-                            />
+                        {activeTab === 'regimenes' ? (
+                            <ConfigSection.Input label="Nombre del Régimen" {...form.getInputProps('nombre')} />
+                        ) : activeTab === 'bancos' ? (
+                            <>
+                                <ConfigSection.Input label="Institución Bancaria" {...form.getInputProps('nombre')} />
+                                <ConfigSection.Input label="Número de Cuenta" {...form.getInputProps('numero_cuenta')} />
+                                <Select
+                                    label="Tipo de Cuenta"
+                                    placeholder="Seleccione tipo"
+                                    data={[
+                                        { value: 'Cuenta de Ahorros', label: 'Cuenta de Ahorros' },
+                                        { value: 'Cuenta Corriente', label: 'Cuenta Corriente' }
+                                    ]}
+                                    radius="md"
+                                    {...form.getInputProps('tipo_cuenta')}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <ConfigSection.Input label="Nombre de Sucursal" {...form.getInputProps('nombre')} />
+                                <ConfigSection.Input label="Dirección" {...form.getInputProps('direccion')} />
+                                <ConfigSection.Input
+                                    label="Secuencia Inicial (Próxima Caja)"
+                                    description="Número desde el cual empezarán a contarse las cajas de esta sucursal."
+                                    type="number"
+                                    {...form.getInputProps('secuencia_inicial')}
+                                />
+                            </>
                         )}
-                        <AppActionButtons onCancel={close} loading={fetching} submitLabel={editingId ? 'Actualizar' : 'Crear'} />
+                        <Button type="submit" mt="md">{editingId ? 'Actualizar' : 'Crear'}</Button>
                     </Stack>
                 </form>
-            </AppModal>
+            </AppDrawer>
 
-            {/* Profile Edit Modal */}
-            <ProfileEditModal
-                opened={editProfileOpened}
-                onClose={closeEditProfile}
-                userId={user?.id || ''}
-                initialNombre={perfilNombre}
-                initialApellido={perfilApellido}
-                onSuccess={() => {
-                    refreshEmpresa();
-                    fetchData();
-                }}
-            />
-
-            {/* Invite Modal */}
-            <InviteModal
-                opened={inviteOpened}
-                onClose={closeInvite}
-                empresaId={empresa.id}
-                userId={user?.id || ''}
-                onSuccess={fetchData}
-            />
-
-            {/* About System Modal */}
-            <Modal opened={aboutOpened} onClose={closeAbout} title="Información del Sistema" centered radius="md">
-                <Stack align="center" gap="md" py="xl">
-                    <ThemeIcon size={64} radius="xl" variant="light" color="blue">
-                        <IconInfoCircle size={32} />
-                    </ThemeIcon>
-                    <Stack gap={0} align="center">
-                        <Title order={3}>Kajitta</Title>
-                        <Text size="sm" c="dimmed">Sistema de Gestión de Cajas Chicas</Text>
-                    </Stack>
-                    <Badge variant="dot" size="lg">Versión 1.5.1</Badge>
-                    <Divider w="100%" />
-                    <Text size="xs" c="dimmed" fw={500}>
-                        Creado en 2026 por Tere & Matt
-                    </Text>
-                </Stack>
-            </Modal>
-        </Stack>
+            {empresa && user && (
+                <InviteModal
+                    opened={inviteOpened}
+                    onClose={closeInvite}
+                    empresaId={empresa.id}
+                    userId={user.id}
+                    onSuccess={() => {
+                        // Refrescar lista de miembros
+                        setActiveTab(null);
+                        setTimeout(() => setActiveTab('empresa'), 10);
+                    }}
+                />
+            )}
+        </Container>
     );
-}
-
-function getSingularName(tab: string | null) {
-    switch (tab) {
-        case 'sucursales': return 'Sucursal';
-        case 'bancos': return 'Banco';
-        case 'regimenes': return 'Régimen';
-        default: return 'Registro';
-    }
 }
