@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack, TextInput, Select, Group, MultiSelect, Textarea } from '@mantine/core';
+import { Stack, TextInput, Select, Group, MultiSelect, Textarea, Checkbox } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
@@ -50,10 +50,12 @@ export const validarRucEcuador = (ruc: string): boolean => {
     } else if (tercerDigito === 9) {
         // Persona Jurídica / Privada - Módulo 11
         coeficientes = [4, 3, 2, 7, 6, 5, 4, 3, 2];
+        modulo = 11;
     } else if (tercerDigito === 6) {
         // Entidad Pública - Módulo 11
         coeficientes = [3, 2, 7, 6, 5, 4, 3, 2];
         posicionVerificador = 8;
+        modulo = 11;
     } else {
         return false;
     }
@@ -90,15 +92,29 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
             regimen: '',
             telefono: '',
             sucursales: [] as string[],
+            bypassRucValidation: false,
         },
-        validate: {
-            ruc: (value) => {
-                if (value.length < 13) return 'El RUC debe tener 13 dígitos';
-                if (!validarRucEcuador(value)) return 'RUC inválido (error en algoritmo de verificación)';
-                return null;
-            },
-            nombre: (value) => (value.length < 2 ? 'El nombre es obligatorio' : null),
-            regimen: (value) => (value ? null : 'Debes seleccionar un régimen'),
+        validate: (values) => {
+            const errors: Record<string, string | null> = {};
+
+            // Validación de RUC
+            if (values.ruc.length < 13) {
+                errors.ruc = 'El RUC debe tener 13 dígitos';
+            } else if (!values.bypassRucValidation && !validarRucEcuador(values.ruc)) {
+                errors.ruc = 'RUC inválido (error en algoritmo). Marque "Ignorar validación" si está seguro.';
+            }
+
+            // Validación de Nombre
+            if (values.nombre.length < 2) {
+                errors.nombre = 'El nombre es obligatorio';
+            }
+
+            // Validación de Régimen
+            if (!values.regimen) {
+                errors.regimen = 'Debes seleccionar un régimen';
+            }
+
+            return errors;
         },
     });
 
@@ -113,6 +129,7 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                     regimen: editingProveedor.regimen || '',
                     telefono: editingProveedor.telefono || '',
                     sucursales: editingProveedor.sucursales || [],
+                    bypassRucValidation: false,
                 });
             } else {
                 form.reset();
@@ -139,8 +156,18 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
 
     // --- MUTATIONS ---
     const mutation = useMutation({
-        mutationFn: async (values: any) => {
+        mutationFn: async (values: typeof form.values) => {
             const isEditing = !!editingProveedor;
+
+            // Preparar datos para enviar (excluyendo bypassRucValidation)
+            const proveedorData = {
+                ruc: values.ruc,
+                nombre: values.nombre,
+                actividad_economica: values.actividad_economica,
+                regimen: values.regimen,
+                telefono: values.telefono,
+                sucursales: values.sucursales
+            };
 
             // 1. Si es creación, verificar duplicidad por RUC
             if (!isEditing) {
@@ -158,8 +185,8 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
 
             // 2. Ejecutar inserción o actualización
             const { error } = isEditing
-                ? await supabase.from('proveedores').update(values).eq('id', editingProveedor.id)
-                : await supabase.from('proveedores').insert([values]);
+                ? await supabase.from('proveedores').update(proveedorData).eq('id', editingProveedor.id)
+                : await supabase.from('proveedores').insert([proveedorData]);
 
             if (error) throw error;
 
@@ -203,12 +230,22 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
         >
             <form onSubmit={form.onSubmit((v) => mutation.mutate(v))}>
                 <Stack gap="md">
-                    <TextInput
-                        label="RUC"
-                        placeholder="Ingrese el RUC"
-                        required
-                        {...form.getInputProps('ruc')}
-                    />
+                    <Stack gap={4}>
+                        <TextInput
+                            label="RUC"
+                            placeholder="Ingrese el RUC"
+                            required
+                            {...form.getInputProps('ruc')}
+                        />
+                        <Checkbox
+                            label="Ignorar validación de RUC (permitir RUCs no estándar)"
+                            size="xs"
+                            mt={4}
+                            checked={form.values.bypassRucValidation}
+                            {...form.getInputProps('bypassRucValidation', { type: 'checkbox' })}
+                        />
+                    </Stack>
+
                     <TextInput
                         label="Razón Social / Nombre"
                         placeholder="Nombre de la empresa o persona"
