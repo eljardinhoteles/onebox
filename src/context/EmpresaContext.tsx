@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export type EmpresaRole = 'owner' | 'admin' | 'operador';
@@ -39,8 +39,20 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     const [perfil, setPerfil] = useState<Perfil | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Ref para acceder al estado actual dentro de closures sin dependencias
+    const empresaLoadedRef = useRef(false);
+
+    useEffect(() => {
+        if (empresa) empresaLoadedRef.current = true;
+        else empresaLoadedRef.current = false;
+    }, [empresa]);
+
     const fetchEmpresa = async () => {
-        setLoading(true);
+        // Solo mostrar loading si no tenemos datos cargados previamente
+        if (!empresaLoadedRef.current) {
+            setLoading(true);
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
