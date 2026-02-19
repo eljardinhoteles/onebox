@@ -193,7 +193,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                             </Text>
                         </Stack>
                         <Stack gap={0} align="flex-end">
-                            <Text size="xs" c="dimmed" fw={600}>${montoInicialNeto.toLocaleString(undefined, { minimumFractionDigits: 2 })} neto</Text>
+                            <Text size="xs" c="dimmed" fw={600}>${montoInicialNeto.toLocaleString(undefined, { minimumFractionDigits: 2 })} Neto</Text>
                             {isLowBalance && (
                                 <Badge color="orange" variant="dot" size="xs">Saldo Bajo</Badge>
                             )}
