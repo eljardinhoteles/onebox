@@ -84,10 +84,10 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
         if (parts.length === 3) {
             // 000-000-000000000
-            const p1 = parts[0].padStart(3, '0');
-            const p2 = parts[1].padStart(3, '0');
-            const p3 = parts[2].padStart(9, '0');
-            formatted = `${p1} -${p2} -${p3} `;
+            const p1 = parts[0].trim().padStart(3, '0');
+            const p2 = parts[1].trim().padStart(3, '0');
+            const p3 = parts[2].trim().padStart(9, '0');
+            formatted = `${p1}-${p2}-${p3}`;
         } else if (parts.length === 1 && /^\d+$/.test(parts[0])) {
             // Si el usuario escribe todo junto "001001123" -> tratar de splitear
             if (val.length <= 15) {
@@ -556,7 +556,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                         <TextInput
                             label="Número de Documento"
                             placeholder={autoFormatFactura ? "000-000-000000000" : "Ej: 001-001-000000123"}
-                            required
+                            required={form.values.tipo_documento !== 'sin_factura'}
                             readOnly={readOnly}
                             maxLength={autoFormatFactura ? 17 : 20}
                             variant={readOnly ? "filled" : "default"}
