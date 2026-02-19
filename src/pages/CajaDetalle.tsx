@@ -416,7 +416,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 )}
             </AppDrawer>
 
-            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
+            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} cajaNumero={caja?.numero} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
             <TransactionNovedadesDrawer opened={novedadesOpened} onClose={() => { closeNovedades(); setTransactionState(p => ({ ...p, selectedForNovedades: null })); }} transactionId={transactionState.selectedForNovedades?.id || null} transactionDetail={transactionState.selectedForNovedades ? `${transactionState.selectedForNovedades.proveedor?.nombre || 'Gasto'} - $${transactionState.selectedForNovedades.total_factura}` : undefined} />
             <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} arqueoData={arqueoData} />
             <CierreCajaModal
@@ -436,8 +436,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     });
                 }}
             />
-            <RetencionesRecaudacionDrawer opened={retencionesControlOpened} onClose={closeRetencionesControl} cajaId={cajaId} sucursal={caja?.sucursal} />
-            <ArqueoControlModal opened={arqueoControlOpened} onClose={closeArqueoControl} cajaId={cajaId} sucursal={caja?.sucursal} efectivoEsperado={totals.efectivo} />
+            <RetencionesRecaudacionDrawer opened={retencionesControlOpened} onClose={closeRetencionesControl} cajaId={cajaId} cajaNumero={caja?.numero} sucursal={caja?.sucursal} />
+            <ArqueoControlModal opened={arqueoControlOpened} onClose={closeArqueoControl} cajaId={cajaId} cajaNumero={caja?.numero} sucursal={caja?.sucursal} efectivoEsperado={totals.efectivo} />
             <DepositoBancoModal
                 opened={depositoOpened} onClose={closeDeposito} cajaId={cajaId} maxMonto={totals.efectivo}
                 onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}

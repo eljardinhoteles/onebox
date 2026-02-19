@@ -16,6 +16,7 @@ import { AppDrawer } from '../components/ui/AppDrawer';
 import { AjustesHeader } from '../components/ajustes/AjustesHeader';
 import { ConfigSection } from '../components/ajustes/ConfigSection';
 import { CrudSection } from '../components/ajustes/CrudSection';
+import { AboutSection } from './ajustes/components/AboutSection';
 import { InviteModal } from './ajustes/components/InviteModal';
 import { CierreHistory } from '../components/CierreHistory';
 import dayjs from 'dayjs';
@@ -204,7 +205,12 @@ export function AjustesPage() {
         if (!user) return;
         setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
         const { error } = await supabase.from('perfiles').upsert({ id: user.id, ...perfilForm });
-        if (!error) notifications.show({ title: 'Perfil actualizado', message: 'Tus datos han sido guardados', color: 'teal' });
+        if (!error) {
+            notifications.show({ title: 'Perfil actualizado', message: 'Tus datos han sido guardados', color: 'teal' });
+            await refreshEmpresa();
+        } else {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
+        }
         setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
     };
 
@@ -266,15 +272,16 @@ export function AjustesPage() {
     return (
         <Container size="lg" py="xl">
             <Stack gap="xl">
-                {!activeTab && <AjustesHeader user={user} empresa={empresa} />}
+                {!activeTab && <AjustesHeader user={user} empresa={empresa} onEditProfile={() => setActiveTab('perfil')} />}
 
                 {!activeTab ? (
                     <AjustesDashboard
-                        empresaNombre={empresa?.nombre}
                         onNavigate={(tab) => {
                             const map: Record<string, string> = {
                                 'config': 'configs',
-                                'bitacora': 'auditoria'
+                                'bitacora': 'auditoria',
+                                'perfil': 'perfil',
+                                'about': 'about'
                             };
                             setActiveTab(map[tab] || tab);
                         }}
@@ -294,7 +301,8 @@ export function AjustesPage() {
                                                 activeTab === 'configs' ? 'Configuración' :
                                                     activeTab === 'history' ? 'Historial de Cierres' :
                                                         activeTab === 'auditoria' ? 'Bitácora de Auditoría' :
-                                                            activeTab === 'perfil' ? 'Mi Perfil' : 'Ajustes'}
+                                                            activeTab === 'perfil' ? 'Mi Perfil' :
+                                                                activeTab === 'about' ? 'Suscripción & Info' : 'Ajustes'}
                             </Title>
                         </Group>
 
@@ -305,7 +313,10 @@ export function AjustesPage() {
                                 <Stack gap="xl">
                                     <Paper withBorder p="xl" radius="lg">
                                         <Stack gap="md">
-                                            <Title order={3}>Datos de la Empresa</Title>
+                                            <Group justify="space-between" align="center">
+                                                <Title order={3}>Datos de la Empresa</Title>
+                                                <Button variant="subtle" size="xs" onClick={() => setActiveTab('perfil')}>Mantenimiento Perfil Personal</Button>
+                                            </Group>
                                             <Text size="sm" c="dimmed">
                                                 {role === 'owner'
                                                     ? 'Como propietario, puedes actualizar la información legal de tu organización.'
@@ -406,6 +417,10 @@ export function AjustesPage() {
                                         <Button onClick={handleSaveProfile} leftSection={<IconCheck size={16} />} radius="md" mt="md" w="fit-content">Guardar Perfil</Button>
                                     </Stack>
                                 </Paper>
+                            )}
+
+                            {activeTab === 'about' && (
+                                <AboutSection />
                             )}
 
                             {activeTab === 'configs' && (

@@ -13,11 +13,12 @@ interface ArqueoControlModalProps {
     opened: boolean;
     onClose: () => void;
     cajaId: number;
+    cajaNumero?: number;
     sucursal?: string;
     efectivoEsperado: number;
 }
 
-export function ArqueoControlModal({ opened, onClose, cajaId, sucursal, efectivoEsperado }: ArqueoControlModalProps) {
+export function ArqueoControlModal({ opened, onClose, cajaId, cajaNumero, sucursal, efectivoEsperado }: ArqueoControlModalProps) {
     const queryClient = useQueryClient();
     const [arqueoDesglose, setArqueoDesglose] = useState<ArqueoDesglose | null>(null);
     const [observacion, setObservacion] = useState('');
@@ -118,7 +119,7 @@ export function ArqueoControlModal({ opened, onClose, cajaId, sucursal, efectivo
                                     </Group>
                                     <Group justify="space-between">
                                         <Text size="sm" c="dimmed">Caja:</Text>
-                                        <Text size="sm" fw={600}>#{cajaId}</Text>
+                                        <Text size="sm" fw={600}>#{cajaNumero || cajaId}</Text>
                                     </Group>
                                     <Divider />
                                     <Group justify="space-between">

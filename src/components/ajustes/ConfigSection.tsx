@@ -1,4 +1,4 @@
-import { Paper, Stack, Title, Text, Group, NumberInput, Switch, Divider } from '@mantine/core';
+import { Paper, Stack, Title, Text, Group, NumberInput, Switch, Divider, TextInput } from '@mantine/core';
 
 interface ConfigSectionProps {
     localConfigs: {
@@ -88,21 +88,11 @@ export function ConfigSection({
     );
 }
 
-ConfigSection.Input = ({ label, ...props }: any) => (
-    <Stack gap={4}>
-        <Text size="sm" fw={500}>{label}</Text>
-        <Paper withBorder p={0} radius="sm">
-            <input
-                style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '14px',
-                    borderRadius: '4px'
-                }}
-                {...props}
-            />
-        </Paper>
-    </Stack>
+ConfigSection.Input = ({ label, onChange, ...props }: any) => (
+    <TextInput
+        label={label}
+        onChange={(e) => onChange?.(e.currentTarget.value)}
+        radius="md"
+        {...props}
+    />
 );

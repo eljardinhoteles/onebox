@@ -141,7 +141,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             title={
                 <Group gap="xs">
                     {readOnly ? <IconLock size={20} color="gray" /> : <IconLock size={20} color="red" />}
-                    <Text fw={700}>{readOnly ? 'Simulación de Cierre' : 'Cierre de Caja Definitivo'}</Text>
+                    <Text fw={700}>{readOnly ? 'Simulación de Cierre' : 'Cierre de Caja Definitivo'} #{caja.numero || caja.id}</Text>
                 </Group>
             }
             loading={closeCajaMutation.isPending}

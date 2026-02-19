@@ -27,10 +27,11 @@ interface LegalizationDrawerProps {
     opened: boolean;
     onClose: () => void;
     cajaId: number;
+    cajaNumero?: number;
     onSuccess: () => void;
 }
 
-export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: LegalizationDrawerProps) {
+export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSuccess }: LegalizationDrawerProps) {
     const [state, setState] = useState({
         loading: false,
         submitting: false,
@@ -147,7 +148,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, onSuccess }: Legal
     };
 
     return (
-        <Drawer opened={opened} onClose={onClose} title={<Text fw={700} size="lg">Legalización de Gastos</Text>} position="right" size="md">
+        <Drawer opened={opened} onClose={onClose} title={<Text fw={700} size="lg">Legalización de Gastos {cajaNumero && `· Caja #${cajaNumero}`}</Text>} position="right" size="md">
             <Stack gap="md" pos="relative">
                 <LoadingOverlay visible={state.loading || state.submitting} overlayProps={{ blur: 2 }} />
                 <Text size="sm" c="dimmed">Selecciona los gastos registrados "Sin Factura" para agrupar bajo una factura formal.</Text>

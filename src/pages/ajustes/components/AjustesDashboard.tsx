@@ -1,20 +1,19 @@
 import { SimpleGrid } from '@mantine/core';
-import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory } from '@tabler/icons-react';
+import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory, IconUserCircle, IconInfoCircle } from '@tabler/icons-react';
 import { MenuCard } from './MenuCard';
 
 interface AjustesDashboardProps {
-    empresaNombre?: string;
     onNavigate: (tab: string) => void;
     onOpenNotifications: () => void;
 }
 
-export function AjustesDashboard({ empresaNombre, onNavigate, onOpenNotifications }: AjustesDashboardProps) {
+export function AjustesDashboard({ onNavigate, onOpenNotifications }: AjustesDashboardProps) {
     return (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
             <MenuCard
                 icon={<IconBuilding size={32} color="var(--mantine-color-indigo-6)" />}
                 title="Equipo & Empresa"
-                description={empresaNombre || 'Perfil y gestión de equipo.'}
+                description="Editar razón social, RUC y gestionar equipo."
                 onClick={() => onNavigate('empresa')}
             />
             <MenuCard
@@ -58,6 +57,18 @@ export function AjustesDashboard({ empresaNombre, onNavigate, onOpenNotification
                 title="Historial Cierres"
                 description="Reposiciones y cajas cerradas."
                 onClick={() => onNavigate('history')}
+            />
+            <MenuCard
+                icon={<IconUserCircle size={32} color="var(--mantine-color-indigo-6)" />}
+                title="Mi Perfil"
+                description="Editar nombre y apellido."
+                onClick={() => onNavigate('perfil')}
+            />
+            <MenuCard
+                icon={<IconInfoCircle size={32} color="var(--mantine-color-teal-6)" />}
+                title="Suscripción & Info"
+                description="Versión y estado del plan."
+                onClick={() => onNavigate('about')}
             />
         </SimpleGrid>
     );

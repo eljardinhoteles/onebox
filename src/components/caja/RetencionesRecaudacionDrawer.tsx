@@ -12,6 +12,7 @@ interface RetencionesRecaudacionDrawerProps {
     opened: boolean;
     onClose: () => void;
     cajaId: number;
+    cajaNumero?: number;
     sucursal?: string;
 }
 
@@ -27,7 +28,7 @@ interface RetencioData {
     recaudada: boolean;
 }
 
-export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, sucursal }: RetencionesRecaudacionDrawerProps) {
+export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNumero, sucursal }: RetencionesRecaudacionDrawerProps) {
     const queryClient = useQueryClient();
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -147,7 +148,7 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, sucursal
                 <Group justify="space-between" align="flex-end">
                     <Stack gap={0}>
                         <Text size="sm" c="dimmed">Sucursal: <Text span fw={700} c="dark">{sucursal || '---'}</Text></Text>
-                        <Text size="sm" c="dimmed">ID Caja: <Text span fw={700} c="dark">#{cajaId}</Text></Text>
+                        <Text size="sm" c="dimmed">Caja: <Text span fw={700} c="dark">#{cajaNumero || cajaId}</Text></Text>
                     </Stack>
                     <Button
                         variant="light"
@@ -236,7 +237,7 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, sucursal
                     <Group justify="space-between" mb="xl">
                         <Stack gap={4}>
                             <Title order={3}>CONTROL DE RECAUDACIÓN DE RETENCIONES</Title>
-                            <Text size="sm" fw={700}>Sucursal: {sucursal} | Caja #{cajaId}</Text>
+                            <Text size="sm" fw={700}>Sucursal: {sucursal} | Caja #{cajaNumero || cajaId}</Text>
                         </Stack>
                         <Stack gap={0} align="flex-end">
                             <Text size="xs" fw={700}>FECHA IMPRESIÓN</Text>
