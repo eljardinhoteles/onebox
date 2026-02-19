@@ -1,5 +1,5 @@
-import { Stack, Title, Group, Text, Button, Card, TextInput, Tooltip, Loader, NumberInput, Table, Badge, Code, ScrollArea, rem, Switch } from '@mantine/core';
-import { IconLogout, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconLogout, IconDeviceFloppy, IconInfoCircle } from '@tabler/icons-react';
+import { Stack, Title, Group, Text, Button, Card, TextInput, Tooltip, Loader, NumberInput, Table, Badge, Code, ScrollArea, rem, Switch, ActionIcon, Modal, ThemeIcon, Divider } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
@@ -35,6 +35,7 @@ export function AjustesPage() {
     const [opened, { open, close }] = useDisclosure(false);
     const [editProfileOpened, { open: openEditProfile, close: closeEditProfile }] = useDisclosure(false);
     const [inviteOpened, { open: openInvite, close: closeInvite }] = useDisclosure(false);
+    const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
 
     // Profile edit states
     const [perfilNombre, setPerfilNombre] = useState('');
@@ -328,16 +329,28 @@ export function AjustesPage() {
                     </Text>
                 </Stack>
 
-                <Button
-                    variant="light"
-                    color="red"
-                    leftSection={<IconLogout size={16} />}
-                    onClick={handleLogout}
-                    radius="md"
-                    size="sm"
-                >
-                    Cerrar Sesión
-                </Button>
+                <Group gap="xs">
+                    <ActionIcon
+                        variant="light"
+                        color="blue"
+                        size="lg"
+                        radius="md"
+                        onClick={openAbout}
+                        title="Acerca del sistema"
+                    >
+                        <IconInfoCircle size={20} />
+                    </ActionIcon>
+                    <Button
+                        variant="light"
+                        color="red"
+                        leftSection={<IconLogout size={16} />}
+                        onClick={handleLogout}
+                        radius="md"
+                        size="sm"
+                    >
+                        Cerrar Sesión
+                    </Button>
+                </Group>
             </Group>
 
             <AnimatePresence mode="wait">
@@ -576,6 +589,24 @@ export function AjustesPage() {
                 userId={user?.id || ''}
                 onSuccess={fetchData}
             />
+
+            {/* About System Modal */}
+            <Modal opened={aboutOpened} onClose={closeAbout} title="Información del Sistema" centered radius="md">
+                <Stack align="center" gap="md" py="xl">
+                    <ThemeIcon size={64} radius="xl" variant="light" color="blue">
+                        <IconInfoCircle size={32} />
+                    </ThemeIcon>
+                    <Stack gap={0} align="center">
+                        <Title order={3}>OneBox</Title>
+                        <Text size="sm" c="dimmed">Sistema de Gestión de Cajas</Text>
+                    </Stack>
+                    <Badge variant="dot" size="lg">Versión 1.0.0</Badge>
+                    <Divider w="100%" />
+                    <Text size="xs" c="dimmed" fw={500}>
+                        Creado en 2026 por Tere & Matt
+                    </Text>
+                </Stack>
+            </Modal>
         </Stack>
     );
 }
