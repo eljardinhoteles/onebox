@@ -1,5 +1,5 @@
-import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip } from '@mantine/core';
-import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector } from '@tabler/icons-react';
+import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, ThemeIcon } from '@mantine/core';
+import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,12 +46,21 @@ export function TransactionTable({
             </Table.Td>
             <Table.Td>
                 <Group gap="xs">
+                    {t.tipo_documento === 'deposito' && (
+                        <ThemeIcon variant="light" color="teal" size="md" radius="md">
+                            <IconBuildingBank size={18} stroke={1.5} />
+                        </ThemeIcon>
+                    )}
                     <Stack gap={0}>
                         <Text fw={500} size="sm">
-                            {t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto sin detalle'}
+                            {t.tipo_documento === 'deposito'
+                                ? t.banco?.nombre || 'Banco'
+                                : t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto sin detalle'}
                         </Text>
                         <Text size="xs" c="dimmed">
-                            {t.proveedor?.ruc || 'Categoría/Producto'}
+                            {t.tipo_documento === 'deposito'
+                                ? 'Depósito Bancario'
+                                : t.proveedor?.ruc || 'Categoría/Producto'}
                         </Text>
                     </Stack>
                     {t.es_justificacion && (
@@ -89,7 +98,8 @@ export function TransactionTable({
                                 t.tipo_documento === 'factura' ? 'blue' :
                                     t.tipo_documento === 'nota_venta' ? 'orange' :
                                         t.tipo_documento === 'liquidacion_compra' ? 'teal' :
-                                            'gray'
+                                            t.tipo_documento === 'deposito' ? 'green' :
+                                                'gray'
                             }
                             size="sm"
                         >
@@ -129,7 +139,7 @@ export function TransactionTable({
                         variant="subtle"
                         color="orange"
                         onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
-                        disabled={t.tipo_documento === 'sin_factura'}
+                        disabled={t.tipo_documento === 'sin_factura' || t.tipo_documento === 'deposito'}
                         title="Comprobante de Retención"
                     >
                         {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={16} /> : <IconFileInvoice size={16} />}
@@ -146,6 +156,8 @@ export function TransactionTable({
                         variant="subtle"
                         color="blue"
                         onClick={(e) => { e.stopPropagation(); onEdit(t.id); }}
+                        disabled={t.tipo_documento === 'deposito'}
+                        style={t.tipo_documento === 'deposito' ? { opacity: 0.5 } : undefined}
                     >
                         {cajaEstado !== 'abierta' || (t.retencion && t.retencion.total_retenido > 0) ?
                             <IconEye size={16} /> :

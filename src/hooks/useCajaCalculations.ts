@@ -5,7 +5,7 @@ export interface Transaction {
     fecha_factura: string;
     numero_factura: string;
     total_factura: number;
-    tipo_documento: 'factura' | 'nota_venta' | 'liquidacion_compra' | 'sin_factura';
+    tipo_documento: 'factura' | 'nota_venta' | 'liquidacion_compra' | 'sin_factura' | 'deposito';
     proveedor: {
         nombre: string;
         ruc: string;
@@ -16,6 +16,9 @@ export interface Transaction {
         con_iva: boolean;
         monto_iva: number;
     }[];
+    banco?: {
+        nombre: string;
+    } | null;
     retencion?: {
         id: number;
         numero_retencion: string;

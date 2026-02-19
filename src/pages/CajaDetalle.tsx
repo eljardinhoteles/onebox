@@ -27,6 +27,7 @@ import { TransactionNovedadesDrawer } from '../components/caja/TransactionNoveda
 import { CierreCajaModal } from '../components/caja/CierreCajaModal';
 import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesRecaudacionDrawer';
 import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
+import { DepositoBancoModal } from '../components/caja/DepositoBancoModal';
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -40,6 +41,7 @@ const TIPO_LABELS: Record<string, string> = {
     nota_venta: 'N. Venta',
     liquidacion_compra: 'Liq. Compra',
     sin_factura: 'S/ Factura',
+    deposito: 'Depósito a Banco',
 };
 
 export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {
@@ -53,6 +55,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const [closingOpened, { open: openClosing, close: closeClosing }] = useDisclosure(false);
     const [retencionesControlOpened, { open: openRetencionesControl, close: closeRetencionesControl }] = useDisclosure(false);
     const [arqueoControlOpened, { open: openArqueoControl, close: closeArqueoControl }] = useDisclosure(false);
+    const [depositoOpened, { open: openDeposito, close: closeDeposito }] = useDisclosure(false);
     const [isClosingInReadOnlyMode, setIsClosingInReadOnlyMode] = useState(false);
     const [selectedTransactionForNovedades, setSelectedTransactionForNovedades] = useState<Transaction | null>(null);
     const { configs } = useAppConfig();
@@ -114,7 +117,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     parent_id, es_justificacion, has_manual_novedad,
                     proveedor:proveedores (nombre, ruc),
                     retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
-                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
+                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre),
+                    banco:bancos (nombre)
                 `)
                 .eq('caja_id', cajaId)
                 .is('parent_id', null)
@@ -172,7 +176,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             t.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.proveedor?.ruc?.includes(searchQuery) ||
             t.numero_factura?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
+            t.items?.some((i: any) => i.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (t.tipo_documento === 'deposito' && 'Deposito'.toLowerCase().includes(searchQuery.toLowerCase()));
 
         const matchesTipo = !filterTipo || t.tipo_documento === filterTipo;
 
@@ -240,6 +245,11 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     const handleEdit = (id: number) => {
         const trans = transactions.find(t => t.id === id);
+        if (trans.tipo_documento === 'deposito') {
+            notifications.show({ title: 'No editable', message: 'Los depósitos bancarios no se pueden editar, solo eliminar y volver a crear.', color: 'orange' });
+            return;
+        }
+
         if (trans && trans.retencion && trans.retencion.total_retenido > 0) {
             setRetentionReadOnlyMessage('No se puede editar una transacción que tiene una retención asociada. Por favor, elimine la retención primero para poder modificar el documento.');
         } else {
@@ -261,8 +271,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     </Text>
                     <Paper withBorder p="xs" radius="md" bg="gray.0">
                         <Group justify="space-between">
-                            <Text size="xs" fw={700} c="dimmed">Proveedor:</Text>
-                            <Text size="xs" fw={600}>{t.proveedor?.nombre || (t.items && t.items[0]?.nombre)}</Text>
+                            <Text size="xs" fw={700} c="dimmed">Detalle:</Text>
+                            <Text size="xs" fw={600}>{t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || (t.tipo_documento === 'deposito' ? 'Depósito Bancario' : 'Sin detalle')}</Text>
                         </Group>
                         <Group justify="space-between" mt={4}>
                             <Text size="xs" fw={700} c="dimmed">Monto:</Text>
@@ -459,6 +469,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         totals={totals}
                         onOpenRetencionesControl={openRetencionesControl}
                         onOpenArqueoControl={openArqueoControl}
+                        onOpenDepositoControl={caja?.estado === 'abierta' ? openDeposito : undefined}
                     />
 
                     <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
@@ -621,6 +632,18 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 cajaId={cajaId}
                 sucursal={caja?.sucursal}
                 efectivoEsperado={totals.efectivo}
+            />
+
+            <DepositoBancoModal
+                opened={depositoOpened}
+                onClose={closeDeposito}
+                cajaId={cajaId}
+                maxMonto={totals.efectivo}
+                onSuccess={() => {
+                    // Refrescar datos
+                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                    queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                }}
             />
         </Stack>
     );
