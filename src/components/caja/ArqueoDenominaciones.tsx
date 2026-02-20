@@ -174,7 +174,7 @@ export function ArqueoDenominaciones({ montoEsperado, onChange }: ArqueoDenomina
 
                     <Group justify="space-between" p="sm" px="md">
                         <Text size="sm" fw={700}>Total Arqueo:</Text>
-                        <Text size="lg" fw={800} className="font-mono">
+                        <Text size="lg" fw={700} className="font-mono">
                             ${totalRounded.toFixed(2)}
                         </Text>
                     </Group>

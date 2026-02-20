@@ -129,7 +129,7 @@ export function TransactionTable({
                 </Text>
             </Table.Td>
             <Table.Td ta="right">
-                <Text fw={800} size="sm">
+                <Text fw={700} size="sm">
                     ${(t.total_factura - (t.retencion?.total_retenido || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
             </Table.Td>

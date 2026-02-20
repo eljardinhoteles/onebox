@@ -63,7 +63,7 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 <Flex justify="space-between" gap={40} mt="md">
                     <Box style={{ flex: 1 }}>
                         <Stack gap={4}>
-                            <Text size="xs" fw={800} tt="uppercase" c="dimmed">Información de la Caja</Text>
+                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Información de la Caja</Text>
                             <Group gap="xs"><Text size="sm" fw={700}>Responsable:</Text><Text size="sm">{caja.responsable}</Text></Group>
                             <Group gap="xs"><Text size="sm" fw={700}>Sucursal:</Text><Text size="sm">{caja.sucursal}</Text></Group>
                             <Group gap="xs"><Text size="sm" fw={700}>Fecha de Apertura:</Text><Text size="sm">{dayjs(caja.fecha_apertura).format('DD/MM/YYYY HH:mm')}</Text></Group>
@@ -74,11 +74,11 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                     </Box>
                     <Box style={{ flex: 1, borderLeft: '1px solid #eee', paddingLeft: '40px' }}>
                         <Stack gap={4}>
-                            <Text size="xs" fw={800} tt="uppercase" c="dimmed">Resumen Financiero</Text>
+                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
                             <Group justify="space-between"><Text size="sm" fw={700}>Monto Inicial:</Text><Text size="sm">${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             <Group justify="space-between"><Text size="sm" fw={700}>Total Gastos (Neto):</Text><Text size="sm">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             <Divider variant="dashed" my={4} />
-                            <Group justify="space-between"><Text size="md" fw={900}>EFECTIVO FINAL:</Text><Text size="md" fw={900}>${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            <Group justify="space-between"><Text size="md" fw={700}>EFECTIVO FINAL:</Text><Text size="md" fw={700}>${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                         </Stack>
                     </Box>
                 </Flex>
@@ -88,10 +88,10 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
             {caja.estado === 'cerrada' && (
                 <Paper withBorder p="sm" radius="md" mb="xl" style={{ border: '2px solid black' }}>
                     <Stack gap={4}>
-                        <Text size="xs" fw={800} tt="uppercase">Detalle de Reposición</Text>
+                        <Text size="xs" fw={700} tt="uppercase">Detalle de Reposición</Text>
                         <Group justify="space-between">
                             <Text fw={700} size="lg">MONTO A REPONER:</Text>
-                            <Text fw={900} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            <Text fw={700} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                         </Group>
                         <Text size="sm" fw={600}>Número de Cheque: {caja.numero_cheque_reposicion || '---'}</Text>
                         <Text size="sm" fw={600}>Banco: {caja.banco_reposicion || '---'}</Text>
@@ -182,7 +182,7 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                         <Table.Td ta="right" fw={700}>${totals.facturado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                         <Table.Td ta="right" fw={700}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                         <Table.Td ta="right" fw={700} c="red.8">-${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                        <Table.Td ta="right" fw={800}>${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                        <Table.Td ta="right" fw={700}>${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                     </Table.Tr>
                 </Table.Tbody>
             </Table>

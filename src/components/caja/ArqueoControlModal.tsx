@@ -124,7 +124,7 @@ export function ArqueoControlModal({ opened, onClose, cajaId, cajaNumero, sucurs
                                     <Divider />
                                     <Group justify="space-between">
                                         <Text size="sm" fw={700}>Efectivo Esperado:</Text>
-                                        <Text size="lg" fw={800} c="teal.9">
+                                        <Text size="lg" fw={700} c="teal.9">
                                             ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Group>

@@ -191,7 +191,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                     <Divider />
                                     <Group justify="space-between">
                                         <Text size="sm" fw={700}>Efectivo Final Esperado:</Text>
-                                        <Text size="lg" fw={800} c="blue.9">
+                                        <Text size="lg" fw={700} c="blue.9">
                                             ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Group>
@@ -202,7 +202,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                                 <IconFileInvoice size={14} color="orange" />
                                                 <Text size="xs" fw={700} c="orange.6" tt="uppercase">Retenciones Totales</Text>
                                             </Group>
-                                            <Text size="sm" fw={800} c="orange.9">
+                                            <Text size="sm" fw={700} c="orange.9">
                                                 ${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </Text>
                                         </Group>

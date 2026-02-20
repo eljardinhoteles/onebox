@@ -36,7 +36,7 @@ export function AjustesHeader({ user, empresa, onEditProfile }: AjustesHeaderPro
                         <Title
                             order={3}
                             size="h4"
-                            fw={800}
+                            fw={700}
                             style={{
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',

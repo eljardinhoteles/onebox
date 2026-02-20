@@ -6,20 +6,22 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { NotificationCenter } from './NotificationCenter';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const NAV_ITEMS = [
-    { value: 'cajas', label: 'Cajas', icon: IconReceipt2, color: '#228be6' },
-    { value: 'proveedores', label: 'Proveedores', icon: IconUsers, color: '#228be6' },
-    { value: 'ajustes', label: 'Ajustes', icon: IconSettings, color: '#228be6' },
+    { value: 'cajas', path: '/cajas', label: 'Cajas', icon: IconReceipt2, color: '#228be6' },
+    { value: 'proveedores', path: '/proveedores', label: 'Proveedores', icon: IconUsers, color: '#228be6' },
+    { value: 'ajustes', path: '/ajustes', label: 'Ajustes', icon: IconSettings, color: '#228be6' },
 ];
 
 interface NavbarProps {
-    activeSection: string;
-    onSectionChange: (s: string) => void;
     onAdd?: () => void;
 }
 
-export function Navbar({ activeSection, onSectionChange, onAdd }: NavbarProps) {
+export function Navbar({ onAdd }: NavbarProps) {
+    const location = useLocation();
+    const navigate = useNavigate();
+
     return (
         <div
             className="no-print"
@@ -52,13 +54,13 @@ export function Navbar({ activeSection, onSectionChange, onAdd }: NavbarProps) {
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {NAV_ITEMS.map((item) => {
-                        const isActive = activeSection === item.value;
+                        const isActive = location.pathname.startsWith(item.path);
                         const Icon = item.icon;
 
                         return (
                             <UnstyledButton
                                 key={item.value}
-                                onClick={() => onSectionChange(item.value)}
+                                onClick={() => navigate(item.path)}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',

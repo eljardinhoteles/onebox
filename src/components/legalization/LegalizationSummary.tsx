@@ -11,11 +11,11 @@ export function LegalizationSummary({ selectedCount, totalAmount }: Legalization
             <Group justify="space-between">
                 <Stack gap={0}>
                     <Text size="xs" fw={700} c="blue.6">SELECCIONADOS</Text>
-                    <Text size="lg" fw={800} c="blue.9">{selectedCount} Gastos</Text>
+                    <Text size="lg" fw={700} c="blue.9">{selectedCount} Gastos</Text>
                 </Stack>
                 <Stack gap={0} align="flex-end">
                     <Text size="xs" fw={700} c="blue.6">TOTAL A JUSTIFICAR</Text>
-                    <Text size="lg" fw={800} c="blue.9">
+                    <Text size="lg" fw={700} c="blue.9">
                         ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </Text>
                 </Stack>

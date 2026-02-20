@@ -531,9 +531,50 @@ export function AjustesPage() {
                                                                         <Text size="xs" fw={500}>{log.user_email || 'Sistema'}</Text>
                                                                     </Table.Td>
                                                                     <Table.Td>
-                                                                        <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap', maxWidth: '300px' }}>
-                                                                            {typeof log.detalle === 'string' ? log.detalle : JSON.stringify(log.detalle)}
-                                                                        </Text>
+                                                                        <Box maw={350} style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                                                                            {typeof log.detalle === 'object' && log.detalle !== null ? (
+                                                                                <Stack gap={2}>
+                                                                                    {Object.entries(log.detalle).map(([key, value]) => {
+                                                                                        const isComplex = typeof value === 'object' && value !== null;
+                                                                                        const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                                                                        return (
+                                                                                            <Box key={key} display={isComplex ? "block" : "flex"} style={{ alignItems: 'flex-start', gap: 4, marginBottom: 4 }}>
+                                                                                                <Text size="xs" fw={700} c="dark.5" style={{ whiteSpace: 'nowrap' }}>{formattedKey}:</Text>
+                                                                                                {isComplex ? (
+                                                                                                    <Box
+                                                                                                        component="pre"
+                                                                                                        mt={2}
+                                                                                                        p={6}
+                                                                                                        style={{
+                                                                                                            backgroundColor: 'var(--mantine-color-gray-0)',
+                                                                                                            border: '1px solid var(--mantine-color-gray-2)',
+                                                                                                            borderRadius: 4,
+                                                                                                            fontSize: 10,
+                                                                                                            fontFamily: 'monospace',
+                                                                                                            whiteSpace: 'pre-wrap',
+                                                                                                            wordBreak: 'break-word',
+                                                                                                            maxHeight: 180,
+                                                                                                            overflowY: 'auto',
+                                                                                                            margin: 0
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        {JSON.stringify(value, null, 2)}
+                                                                                                    </Box>
+                                                                                                ) : (
+                                                                                                    <Text size="xs" c="dimmed" style={{ wordBreak: 'break-word', marginLeft: isComplex ? 0 : 4, flex: 1 }}>
+                                                                                                        {String(value)}
+                                                                                                    </Text>
+                                                                                                )}
+                                                                                            </Box>
+                                                                                        );
+                                                                                    })}
+                                                                                </Stack>
+                                                                            ) : (
+                                                                                <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                                                    {String(log.detalle)}
+                                                                                </Text>
+                                                                            )}
+                                                                        </Box>
                                                                     </Table.Td>
                                                                 </Table.Tr>
                                                             );

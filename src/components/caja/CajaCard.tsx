@@ -101,10 +101,10 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
             setStrictDeleteOpen(false);
             if (onDelete) onDelete();
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             notifications.show({
                 title: 'Error al eliminar',
-                message: error.message || 'No se pudo eliminar la caja.',
+                message: (error as Error).message || 'No se pudo eliminar la caja.',
                 color: 'red'
             });
         } finally {
@@ -158,7 +158,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                             </ActionIcon>
                         </Tooltip>
                         <div>
-                            <Text size="lg" fw={800} c="dark.9" lineClamp={1} style={{ lineHeight: 1.1 }}>{caja.sucursal}</Text>
+                            <Text size="lg" fw={700} c="dark.9" lineClamp={1} style={{ lineHeight: 1.1 }}>{caja.sucursal}</Text>
                             <Text size="xs" c="dimmed" fw={600} mt={2}>CAJA #{caja.numero ?? caja.id}</Text>
                         </div>
                     </Group>
@@ -188,7 +188,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                     <Group justify="space-between" align="flex-end">
                         <Stack gap={0}>
                             <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Efectivo Disponible</Text>
-                            <Text size="xl" fw={800} className="font-mono" c={isLowBalance ? 'orange.8' : 'blue.9'}>
+                            <Text size="xl" fw={700} className="font-mono" c={isLowBalance ? 'orange.8' : 'blue.9'}>
                                 ${caja.saldo_actual.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </Text>
                         </Stack>
@@ -256,7 +256,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                                 icon: <IconLock size={16} />,
                             });
                         }
-                        onSelectCaja(caja.id);
+                        onSelectCaja(caja.numero ?? caja.id);
                     }}
                 >
                     {caja.estado === 'abierta' ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}

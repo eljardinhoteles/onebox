@@ -164,13 +164,13 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
                     <Paper withBorder p="xs" radius="md" bg="orange.0">
                         <Stack gap={0} align="center">
                             <Text size="xs" fw={700} c="orange.9">PENDIENTES</Text>
-                            <Text size="lg" fw={800} c="orange.9">${totalPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            <Text size="lg" fw={700} c="orange.9">${totalPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                         </Stack>
                     </Paper>
                     <Paper withBorder p="xs" radius="md" bg="teal.0">
                         <Stack gap={0} align="center">
                             <Text size="xs" fw={700} c="teal.9">RECAUDADAS</Text>
-                            <Text size="lg" fw={800} c="teal.9">${totalRecaudado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            <Text size="lg" fw={700} c="teal.9">${totalRecaudado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                         </Stack>
                     </Paper>
                 </Group>
@@ -273,7 +273,7 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
                         <Table.Tfoot>
                             <Table.Tr>
                                 <Table.Td colSpan={4} ta="right"><Text size="xs" fw={700}>TOTAL A RECAUDAR:</Text></Table.Td>
-                                <Table.Td ta="right"><Text size="xs" fw={800}>${(totalPendiente + totalRecaudado).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Table.Td>
+                                <Table.Td ta="right"><Text size="xs" fw={700}>${(totalPendiente + totalRecaudado).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Table.Td>
                             </Table.Tr>
                         </Table.Tfoot>
                     </Table>

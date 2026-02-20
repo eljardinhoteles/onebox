@@ -3,12 +3,10 @@ import { Navbar } from './Navbar';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  activeSection: string;
-  onSectionChange: (section: string) => void;
   onAdd?: () => void;
 }
 
-export function MainLayout({ children, activeSection, onSectionChange, onAdd }: MainLayoutProps) {
+export function MainLayout({ children, onAdd }: MainLayoutProps) {
   return (
     <Box className="h-screen w-full bg-[#f8fafc] overflow-hidden flex flex-col relative">
       <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
@@ -25,7 +23,7 @@ export function MainLayout({ children, activeSection, onSectionChange, onAdd }: 
         </Box>
       </Stack>
 
-      <Navbar activeSection={activeSection} onSectionChange={onSectionChange} onAdd={onAdd} />
+      <Navbar onAdd={onAdd} />
     </Box>
   );
 }

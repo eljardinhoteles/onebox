@@ -25,6 +25,32 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queryClient.ts'
 import { EmpresaProvider } from './context/EmpresaContext.tsx'
 
+import { BrowserRouter } from 'react-router-dom'
+import { ErrorBoundary } from 'react-error-boundary'
+import type { FallbackProps } from 'react-error-boundary'
+import { Container, Title, Text, Button, Center, Stack } from '@mantine/core'
+
+export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  return (
+    <Container size="sm" pt={100}>
+      <Center>
+        <Stack align="center" gap="md">
+          <Title order={2} c="red">¡Ups! Algo salió mal</Title>
+          <Text c="dimmed" ta="center">
+            Ha ocurrido un error inesperado. Hemos capturado el problema para que la aplicación no colapse por completo.
+          </Text>
+          <Text size="sm" color="red" ta="center" style={{ wordBreak: 'break-all' }}>
+            {(error as Error).message}
+          </Text>
+          <Button onClick={resetErrorBoundary} color="blue" mt="md">
+            Intentar Recargar
+          </Button>
+        </Stack>
+      </Center>
+    </Container>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -33,7 +59,11 @@ createRoot(document.getElementById('root')!).render(
         <ModalsProvider>
           <NotificationProvider>
             <EmpresaProvider>
-              <App />
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.href = '/'}>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </ErrorBoundary>
             </EmpresaProvider>
           </NotificationProvider>
         </ModalsProvider>

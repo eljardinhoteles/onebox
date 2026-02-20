@@ -50,7 +50,7 @@ export function DashboardHeader({ title, actions, onBack }: HeaderProps) {
                             )}
                             <Title
                                 order={1}
-                                fw={900}
+                                fw={700}
                                 size="h4"
                                 c="dark"
                                 style={{ letterSpacing: '-1px' }}

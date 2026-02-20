@@ -109,7 +109,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         if (!setOnAdd) return;
 
         if (caja?.estado === 'abierta') {
-            setOnAdd(handleCreate);
+            setOnAdd(() => handleCreate);
         } else {
             setOnAdd(undefined);
         }
@@ -117,7 +117,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         return () => {
             setOnAdd(undefined);
         };
-    }, [caja?.estado, setOnAdd, handleCreate]);
+    }, [caja?.estado, setOnAdd]);
 
     const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
@@ -375,10 +375,10 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                         <Group justify="space-between" align="center">
                             <Stack gap={0}><Text size="xs" fw={700} c="blue.9" tt="uppercase" lts={1}>Resumen de Filtro</Text><Text size="xs" c="dimmed">{filteredTransactions.length} transacciones encontradas</Text></Stack>
                             <Group gap="xl">
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Total Facturado</Text><Text fw={800} size="sm" c="red.7">-${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Total Facturado</Text><Text fw={700} size="sm" c="red.7">-${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
                                 <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. Fuente</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
                                 <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. IVA</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text><Text fw={900} size="md" c="blue.9">${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
+                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text><Text fw={700} size="md" c="blue.9">${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
                             </Group>
                         </Group>
                     </Paper>
