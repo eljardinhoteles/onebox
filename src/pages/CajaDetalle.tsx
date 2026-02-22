@@ -129,7 +129,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     parent_id, es_justificacion, has_manual_novedad,
                     proveedor:proveedores (nombre, ruc),
                     retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
-                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre),
+                    items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre, cantidad),
                     banco:bancos (nombre)
                 `)
                 .eq('caja_id', cajaId)
@@ -385,7 +385,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 )}
             </Paper>
 
-            <AppDrawer opened={formOpened} onClose={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }} title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (transactionState.editingId ? "Editar Gasto" : "Registrar Gasto")} size="lg" closeOnClickOutside={false}>
+            <AppDrawer opened={formOpened} onClose={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }} title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (transactionState.editingId ? "Editar Gasto" : "Registrar Gasto")} size="xl" closeOnClickOutside={false}>
                 <TransactionForm
                     cajaId={cajaId}
                     transactionId={transactionState.editingId || undefined}

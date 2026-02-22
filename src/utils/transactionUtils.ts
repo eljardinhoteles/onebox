@@ -2,8 +2,10 @@ import dayjs from 'dayjs';
 
 interface Item {
     nombre: string;
-    monto: number;
+    monto?: number;
     con_iva: boolean;
+    cantidad?: number;
+    valor?: number;
 }
 
 export const calculateTransactionTotals = (items: Item[]) => {
@@ -11,7 +13,12 @@ export const calculateTransactionTotals = (items: Item[]) => {
     let iva = 0;
 
     items.forEach((item) => {
-        const base = Number(item.monto) || 0;
+        // If the UI provides valor and cantidad, multiply them. Otherwise, fall back to monto (old behavior).
+        const itemTotal = (item.valor !== undefined && item.cantidad !== undefined)
+            ? (Number(item.valor) * Number(item.cantidad))
+            : (Number(item.monto) || 0);
+
+        const base = itemTotal;
         if (item.con_iva) {
             const itemIva = Number((base * 0.15).toFixed(4));
             subtotal += base;
@@ -33,12 +40,20 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
     if (!printWindow) return;
 
     const fecha = dayjs(fechaFactura).format('DD/MM/YYYY');
-    const itemsHtml = items.map((item) => `
-    <tr>
-        <td style="padding: 5px; border-bottom: 1px solid #eee;">${item.nombre}</td>
-        <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right;">$${item.monto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-    </tr>
-  `).join('');
+    const itemsHtml = items.map((item) => {
+        const qty = item.cantidad ?? 1;
+        const vlr = item.valor !== undefined ? item.valor : (item.monto || 0);
+        const itemTotal = qty * vlr;
+
+        return `
+        <tr>
+            <td style="padding: 5px; border-bottom: 1px solid #eee;">
+                ${qty !== 1 ? `${qty} x ` : ''}${item.nombre}
+            </td>
+            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right;">$${itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    }).join('');
 
     printWindow.document.write(`
     <html>

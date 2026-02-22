@@ -1,5 +1,5 @@
 
-import { Group, Autocomplete, NumberInput, Stack, Text, Checkbox, ActionIcon } from '@mantine/core';
+import { Group, Autocomplete, NumberInput, Checkbox, ActionIcon, Text, Stack } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 
 interface TransactionItemListProps {
@@ -10,10 +10,9 @@ interface TransactionItemListProps {
 
 export function TransactionItemList({ form, readOnly, itemSuggestions }: TransactionItemListProps) {
     const fields = form.values.items.map((_item: any, index: number) => (
-        <Group key={form.values.items[index].key} align="flex-end" gap="xs">
+        <Group key={form.values.items[index].key} align="center" gap="xs">
             <Autocomplete
                 placeholder="Nombre del producto/servicio"
-                label={index === 0 ? "Producto" : null}
                 style={{ flex: 1 }}
                 data={itemSuggestions}
                 {...form.getInputProps(`items.${index}.nombre`)}
@@ -26,33 +25,40 @@ export function TransactionItemList({ form, readOnly, itemSuggestions }: Transac
                 styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
             />
             <NumberInput
+                placeholder="1"
+                allowNegative={false}
+                min={1}
+                w={80}
+                {...form.getInputProps(`items.${index}.cantidad`)}
+                readOnly={readOnly}
+                variant={readOnly ? "filled" : "default"}
+                styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+            />
+            <NumberInput
                 placeholder="0.00"
-                label={index === 0 ? "Monto" : null}
                 decimalScale={4}
                 fixedDecimalScale
                 hideControls
                 leftSection="$"
                 w={100}
-                {...form.getInputProps(`items.${index}.monto`)}
+                {...form.getInputProps(`items.${index}.valor`)}
                 readOnly={readOnly}
                 variant={readOnly ? "filled" : "default"}
                 styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
             />
-            <Stack gap={0} mb={5}>
-                {index === 0 && <Text size="xs" fw={500} mb={2}>IVA 15%</Text>}
+            <Group h={36} align="center" px={4} w={60} justify="center">
                 <Checkbox
                     {...form.getInputProps(`items.${index}.con_iva`, { type: 'checkbox' })}
                     color="blue"
                     disabled={readOnly}
                 />
-            </Stack>
+            </Group>
             {!readOnly && (
                 <ActionIcon
                     color="red"
                     variant="subtle"
                     onClick={() => form.removeListItem('items', index)}
                     disabled={form.values.items.length === 1}
-                    mb={2}
                 >
                     <IconTrash size={16} />
                 </ActionIcon>
@@ -60,5 +66,18 @@ export function TransactionItemList({ form, readOnly, itemSuggestions }: Transac
         </Group>
     ));
 
-    return <>{fields}</>;
+    return (
+        <Stack gap="xs">
+            {form.values.items.length > 0 && (
+                <Group align="center" gap="xs" px={4} mb={-4}>
+                    <Text size="sm" fw={500} style={{ flex: 1 }}>Producto</Text>
+                    <Text size="sm" fw={500} w={80}>Cantidad</Text>
+                    <Text size="sm" fw={500} w={100}>Valor</Text>
+                    <Text size="sm" fw={500} w={60} ta="center">IVA 15%</Text>
+                    {!readOnly && <div style={{ width: 28 }} />}
+                </Group>
+            )}
+            {fields}
+        </Stack>
+    );
 }

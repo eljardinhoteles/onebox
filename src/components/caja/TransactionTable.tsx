@@ -79,9 +79,14 @@ export function TransactionTable({
                     label={
                         <Stack gap={0} p={4}>
                             <Text size="xs" fw={700} mb={2} c="blue.1">Items:</Text>
-                            {t.items?.map((i: any, idx: number) => (
-                                <Text key={i.id || idx} size="xs" style={{ whiteSpace: 'normal' }}>• {i.nombre}</Text>
-                            ))}
+                            {t.items?.map((i: any, idx: number) => {
+                                const qty = Number(i.cantidad) || 1;
+                                return (
+                                    <Text key={i.id || idx} size="xs" style={{ whiteSpace: 'normal' }}>
+                                        • {qty !== 1 ? `${qty} x ` : ''}{i.nombre}
+                                    </Text>
+                                );
+                            })}
                         </Stack>
                     }
                     multiline

@@ -230,7 +230,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                     </Tooltip>
                 </Stack>
 
-                <Divider my="sm" />
+                <Divider my="sm" color="white" />
 
                 <Group justify="space-between" align="center" mb="md">
                     <Group gap="xs">

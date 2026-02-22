@@ -53,7 +53,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
                     supabase.from('transacciones').select(`
                         id, fecha_factura, numero_factura, total_factura,
                         proveedor:proveedores (id, nombre),
-                        items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre)
+                        items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre, cantidad)
                     `).eq('caja_id', cajaId).eq('tipo_documento', 'sin_factura').is('parent_id', null),
                     supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre')
                 ]);

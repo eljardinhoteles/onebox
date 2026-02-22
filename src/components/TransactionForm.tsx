@@ -41,7 +41,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
             numero_factura: '',
             proveedor_id: '',
             items: [
-                { key: Math.random().toString(36).substring(7), nombre: '', monto: 0, con_iva: false }
+                { key: Math.random().toString(36).substring(7), nombre: '', cantidad: 1, valor: 0, con_iva: false }
             ],
         },
         validate: {
@@ -52,7 +52,8 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 (values.tipo_documento !== 'sin_factura' && !value ? 'Seleccione un proveedor' : null),
             items: {
                 nombre: (value) => (value && value.length < 2 ? 'Nombre inválido' : null),
-                monto: (value) => (value && value <= 0 ? 'Monto debe ser mayor a 0' : null),
+                cantidad: (value) => (!value || value <= 0 ? 'Cantidad debe ser mayor a 0' : null),
+                valor: (value) => (value === undefined || value <= 0 ? 'Valor debe ser mayor a 0' : null),
             }
         }
     });
@@ -152,7 +153,8 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 items: editingData.items.map((item: any) => ({
                     key: item.id?.toString() || Math.random().toString(36).substring(7),
                     nombre: item.nombre,
-                    monto: Number(item.monto),
+                    cantidad: Number(item.cantidad) || 1,
+                    valor: Number(item.valor) || Number(item.monto),
                     con_iva: item.con_iva
                 }))
             });
@@ -190,15 +192,20 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 currentTransId = transData.id;
             }
 
-            const itemsToInsert = values.items.map((item: any) => ({
-                transaccion_id: currentTransId,
-                nombre: item.nombre,
-                monto: item.monto,
-                con_iva: item.con_iva,
-                monto_iva: item.con_iva ? item.monto * 0.15 : 0,
-                subtotal: item.monto,
-                parent_id: editingData?.parent_id || null
-            }));
+            const itemsToInsert = values.items.map((item: any) => {
+                const itemTotal = (item.cantidad || 1) * (item.valor || 0);
+                return {
+                    transaccion_id: currentTransId,
+                    nombre: item.nombre,
+                    cantidad: Number(item.cantidad) || 1,
+                    valor: Number(item.valor) || 0,
+                    monto: itemTotal,
+                    con_iva: item.con_iva,
+                    monto_iva: item.con_iva ? itemTotal * 0.15 : 0,
+                    subtotal: itemTotal,
+                    parent_id: editingData?.parent_id || null
+                };
+            });
 
             const { error: itemsError } = await supabase.from('transaccion_items').insert(itemsToInsert);
             if (itemsError) throw itemsError;
@@ -285,7 +292,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     <Divider label={<Group gap="xs"><IconReceipt size={14} />Detalle de Productos</Group>} labelPosition="center" />
                     <TransactionItemList form={form} readOnly={readOnly} itemSuggestions={itemSuggestions} />
                     {!readOnly && (
-                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => form.insertListItem('items', { key: Math.random().toString(36).substring(7), nombre: '', monto: 0, con_iva: false })} size="xs">Añadir Producto</Button>
+                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => form.insertListItem('items', { key: Math.random().toString(36).substring(7), nombre: '', cantidad: 1, valor: 0, con_iva: false })} size="xs">Añadir Producto</Button>
                     )}
 
                     <TransactionSummary totals={totals} availableBalance={availableBalance} originalTotal={originalTotal} transactionId={transactionId} />

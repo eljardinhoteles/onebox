@@ -15,6 +15,8 @@ interface Transaction {
     items?: {
         nombre: string;
         monto: number;
+        cantidad?: number;
+        valor?: number;
         con_iva: boolean;
         monto_iva: number;
     }[];
@@ -155,12 +157,21 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                                 </Table.Td>
                                 <Table.Td>
                                     <Text fw={700} size="sm">{t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto'}</Text>
-                                    {t.items && t.items.length > 1 && (
-                                        <Text size="xs" c="dimmed" fs="italic"> + {t.items.length - 1} productos adicionales</Text>
-                                    )}
                                 </Table.Td>
                                 <Table.Td>
-                                    <Text size="xs">{t.numero_factura}</Text>
+                                    <Text size="xs" fw={700}>{t.numero_factura}</Text>
+                                    {t.items && t.items.length > 0 && (
+                                        <Box mt={4}>
+                                            {t.items.map((i, idx) => {
+                                                const qty = Number(i.cantidad) || 1;
+                                                return (
+                                                    <Text key={idx} size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                                                        • {qty !== 1 ? `${qty} x ` : ''}{i.nombre}
+                                                    </Text>
+                                                );
+                                            })}
+                                        </Box>
+                                    )}
                                 </Table.Td>
                                 <Table.Td ta="right">
                                     <Text size="sm">${subtotalGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>

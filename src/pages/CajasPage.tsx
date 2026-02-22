@@ -7,6 +7,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { CajaCard } from '../components/caja/CajaCard';
 import { AperturaCajaModal } from '../components/caja/AperturaCajaModal';
 import { useQueryClient } from '@tanstack/react-query';
+import IconReceipt from '../assets/Icon.svg';
 
 interface CajasPageProps {
     opened: boolean;
@@ -157,19 +158,22 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
             <Group justify="space-between" align="center" wrap="wrap">
                 <Menu shadow="md" width={200} trigger="click" withinPortal transitionProps={{ transition: 'pop-top-left' }}>
                     <Menu.Target>
-                        <Group gap={8} style={{ cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
-                            <Title order={2} size="h3" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} visibleFrom="sm">
-                                {filterSucursal
-                                    ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
-                                    : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
-                                }
-                            </Title>
-                            <Title order={2} size="h5" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} hiddenFrom="sm">
-                                {filterSucursal
-                                    ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
-                                    : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
-                                }
-                            </Title>
+                        <Group gap={12} style={{ cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
+                            <Group gap={12} align="center">
+                                <img src={IconReceipt} alt="Cajas" width="40" height="40" style={{ display: 'block' }} />
+                                <Title order={2} size="h3" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} visibleFrom="sm">
+                                    {filterSucursal
+                                        ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
+                                        : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
+                                    }
+                                </Title>
+                                <Title order={2} size="h5" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} hiddenFrom="sm">
+                                    {filterSucursal
+                                        ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
+                                        : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
+                                    }
+                                </Title>
+                            </Group>
                             <IconChevronDown
                                 size={20}
                                 className={(filterSucursal || filter !== 'abiertas') ? 'text-blue-500' : 'text-gray-400'}
