@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useEmpresa } from '../../context/EmpresaContext';
 import { ArqueoDenominaciones, type ArqueoDesglose } from './ArqueoDenominaciones';
 
 interface AperturaCajaModalProps {
@@ -17,6 +18,7 @@ interface AperturaCajaModalProps {
 }
 
 export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
+    const { empresa } = useEmpresa();
     const queryClient = useQueryClient();
     const [arqueoDesglose, setArqueoDesglose] = useState<ArqueoDesglose | null>(null);
 
@@ -40,13 +42,15 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
     const tieneItemsArqueo = (arqueoDesglose?.items.length ?? 0) > 0;
 
     const { data: sucursales = [] } = useQuery({
-        queryKey: ['sucursales_list'],
+        queryKey: ['sucursales_list', empresa?.id],
         queryFn: async () => {
-            const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
+            if (!empresa) return [];
+            const { data } = await supabase.from('sucursales').select('nombre').eq('empresa_id', empresa.id).order('nombre');
             return (data || [])
                 .filter(s => s.nombre != null)
                 .map(s => ({ value: String(s.nombre), label: String(s.nombre) }));
-        }
+        },
+        enabled: !!empresa
     });
 
     const openCajaMutation = useMutation({
@@ -58,6 +62,7 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
                 ...values,
                 monto_inicial,
                 fecha_apertura: dayjs(values.fecha_apertura).toISOString(),
+                empresa_id: empresa?.id
             }]).select().single();
 
             if (error) throw error;
@@ -79,7 +84,8 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
                     } : null,
                 },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: empresa?.id
             });
             return newCaja;
         },

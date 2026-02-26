@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDisclosure } from '@mantine/hooks';
 import { ProveedorFormModal } from './proveedores/ProveedorFormModal';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { useEmpresa } from '../context/EmpresaContext';
 
 import { TransactionItemList } from './transaction/TransactionItemList';
 import { TransactionSummary } from './transaction/TransactionSummary';
@@ -30,6 +31,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     const queryClient = useQueryClient();
     const [createProveedorOpened, { open: openCreateProveedor, close: closeCreateProveedor }] = useDisclosure(false);
 
+    const { empresa } = useEmpresa();
     const { configs } = useAppConfig();
     const autoFormatFactura = configs.formato_factura_automatico === 'true';
     const reservePercentage = configs.porcentaje_reserva_caja ? parseInt(configs.porcentaje_reserva_caja) : 15;
@@ -109,23 +111,51 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     const availableBalance = currentBalance !== undefined ? currentBalance : (dbData?.fallbackBalance ?? 0);
 
     const { data: proveedores = [] } = useQuery({
-        queryKey: ['proveedores_simple'],
+        queryKey: ['proveedores_simple', empresa?.id],
         queryFn: async () => {
-            const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre');
+            if (!empresa) return [];
+            const { data } = await supabase.from('proveedores').select('id, nombre, ruc, regimen').eq('empresa_id', empresa.id).order('nombre');
             return (data || []).map(p => ({
                 value: p.id.toString(),
                 label: `${p.nombre} (${p.ruc}) ${p.regimen ? `- ${p.regimen}` : ''} `
             }));
-        }
+        },
+        enabled: !!empresa
     });
 
     const { data: itemSuggestions = [] } = useQuery({
-        queryKey: ['item_suggestions'],
+        queryKey: ['item_suggestions', empresa?.id],
         queryFn: async () => {
-            const { data } = await supabase.from('transaccion_items').select('nombre').order('id', { ascending: false }).limit(500);
+            if (!empresa) return [];
+            // Para filtrar items por empresa, necesitamos unir transaccion_items -> transacciones -> cajas
+            // Pero dado que transacciones ya tiene user_id, y cajas tiene empresa_id, 
+            // podemos filtrar transacciones por empresa_id (si existiera) o por cajas que pertenecen a la empresa.
+            const { data } = await supabase
+                .from('transaccion_items')
+                .select('nombre, transacciones!inner(caja_id, cajas!inner(empresa_id))')
+                .eq('transacciones.cajas.empresa_id', empresa.id)
+                .order('id', { ascending: false })
+                .limit(500);
+
             if (!data) return [];
             return Array.from(new Set(data.map(i => i.nombre)));
         },
+        enabled: !!empresa,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const { data: recurringProducts = [] } = useQuery({
+        queryKey: ['productos_recurrentes', empresa?.id],
+        queryFn: async () => {
+            if (!empresa) return [];
+            const { data } = await supabase
+                .from('productos_recurrentes')
+                .select('nombre, valor_unitario')
+                .eq('empresa_id', empresa.id)
+                .order('nombre');
+            return data || [];
+        },
+        enabled: !!empresa,
         staleTime: 1000 * 60 * 5,
     });
 
@@ -221,7 +251,8 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                 accion: transactionId ? 'EDITAR_GASTO' : 'CREAR_GASTO',
                 detalle: { transaccion_id: currentTransId, caja_id: cajaId, total: totals.total, numero_factura: values.numero_factura || 'S/N', proveedor_id: values.proveedor_id },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: empresa?.id
             });
 
             return currentTransId;
@@ -296,7 +327,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     </Group>
 
                     <Divider label={<Group gap="xs"><IconReceipt size={14} />Detalle de Productos</Group>} labelPosition="center" />
-                    <TransactionItemList form={form} readOnly={readOnly} itemSuggestions={itemSuggestions} />
+                    <TransactionItemList form={form} readOnly={readOnly} itemSuggestions={itemSuggestions} recurringProducts={recurringProducts} />
                     {!readOnly && (
                         <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => form.insertListItem('items', { key: Math.random().toString(36).substring(7), nombre: '', cantidad: 1, valor: 0, con_iva: false })} size="xs">Añadir Producto</Button>
                     )}

@@ -50,6 +50,9 @@ export function CrudSection({ title, items, onEdit, onDelete, onAdd }: CrudSecti
                                             {item.numero_cuenta && (
                                                 <Text size="sm" fw={500}>{item.numero_cuenta}</Text>
                                             )}
+                                            {item.valor_unitario !== undefined && (
+                                                <Text size="sm" fw={500} c="teal.7">${Number(item.valor_unitario).toFixed(2)}</Text>
+                                            )}
                                             {item.regimen && <Badge variant="light" size="xs">{item.regimen}</Badge>}
                                             {item.secuencia_inicial !== undefined && item.secuencia_inicial > 0 && (
                                                 <Badge variant="dot" color="blue" size="xs">Próxima: {item.secuencia_inicial}</Badge>

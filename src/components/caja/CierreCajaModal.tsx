@@ -62,6 +62,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
 
     const closeCajaMutation = useMutation({
         mutationFn: async (values: typeof form.values) => {
+            if (!caja) throw new Error('Caja not found');
             const { data: { user } } = await supabase.auth.getUser();
 
             const payload = {
@@ -109,6 +110,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             return true;
         },
         onSuccess: () => {
+            if (!caja) return;
             queryClient.invalidateQueries({ queryKey: ['caja', caja.id] });
             queryClient.invalidateQueries({ queryKey: ['cajas'] });
             notifications.show({
@@ -128,6 +130,8 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             });
         }
     });
+
+    if (!caja) return null;
 
     const handleFormSubmit = (values: typeof form.values) => {
         if (!canSubmit) return;
@@ -178,7 +182,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                 <Stack gap="xs">
                                     <Group justify="space-between">
                                         <Text size="sm">Monto Inicial:</Text>
-                                        <Text size="sm" fw={600}>${caja?.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                        <Text size="sm" fw={600}>${caja.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                     </Group>
                                     <Group justify="space-between">
                                         <Text size="sm" c="red.6">Total Gastos Netos:</Text>

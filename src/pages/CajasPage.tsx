@@ -7,6 +7,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { CajaCard } from '../components/caja/CajaCard';
 import { AperturaCajaModal } from '../components/caja/AperturaCajaModal';
 import { useQueryClient } from '@tanstack/react-query';
+import { useEmpresa } from '../context/EmpresaContext';
 import IconReceipt from '../assets/Icon.svg';
 
 interface CajasPageProps {
@@ -73,13 +74,17 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         window.history.replaceState(null, '', newUrl);
     }, [filter, filterSucursal]);
 
+    const { empresa } = useEmpresa();
+
     const { data: cajas = [], isLoading: fetching } = useQuery({
-        queryKey: ['cajas'],
+        queryKey: ['cajas', empresa?.id],
         queryFn: async () => {
+            if (!empresa) return [];
             try {
                 const { data, error } = await supabase
                     .from('v_cajas_con_saldo')
                     .select('*')
+                    .eq('empresa_id', empresa.id)
                     .order('id', { ascending: false });
 
                 if (error) {
@@ -87,6 +92,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     const { data: baseData, error: baseError } = await supabase
                         .from('cajas')
                         .select('*')
+                        .eq('empresa_id', empresa.id)
                         .order('id', { ascending: false });
 
                     if (baseError) throw baseError;

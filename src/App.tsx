@@ -55,6 +55,7 @@ function CajaDetalleRoute({ setDetailOnAdd }: { setDetailOnAdd: (fn: (() => void
 }
 
 export default function App() {
+  const { empresa, loading: empresaLoading } = useEmpresa();
   const [authState, setAuthState] = useState({ session: null as Session | null, loading: true });
   const { session, loading } = authState;
 
@@ -89,34 +90,42 @@ export default function App() {
       setAuthState(prev => ({ ...prev, session }));
     });
 
-    const notificationSubscription = supabase
-      .channel('global:notificaciones')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, (payload: unknown) => {
-        const notif = (payload as { new: Record<string, string> }).new;
-        const types: Record<string, { color: string; icon: React.ReactNode }> = {
-          warning: { color: 'orange', icon: <IconAlertTriangle size={18} /> },
-          error: { color: 'red', icon: <IconExclamationCircle size={18} /> },
-          success: { color: 'teal', icon: <IconCheck size={18} /> }
-        };
-        const { color = 'blue', icon = <IconInfoCircle size={18} /> } = types[notif.tipo] || {};
+    let notificationSubscription: any = null;
 
-        notifications.show({
-          title: notif.titulo,
-          message: notif.mensaje,
-          color,
-          icon,
-          autoClose: 5000,
-        });
-      })
-      .subscribe();
+    if (empresa?.id) {
+      notificationSubscription = supabase
+        .channel(`global:notificaciones:${empresa.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notificaciones',
+          filter: `empresa_id=eq.${empresa.id}`
+        }, (payload: any) => {
+          const notif = payload.new;
+          const types: Record<string, { color: string; icon: React.ReactNode }> = {
+            warning: { color: 'orange', icon: <IconAlertTriangle size={18} /> },
+            error: { color: 'red', icon: <IconExclamationCircle size={18} /> },
+            success: { color: 'teal', icon: <IconCheck size={18} /> }
+          };
+          const { color = 'blue', icon = <IconInfoCircle size={18} /> } = types[notif.tipo] || {};
+
+          notifications.show({
+            title: notif.titulo,
+            message: notif.mensaje,
+            color,
+            icon,
+            autoClose: 5000,
+          });
+        })
+        .subscribe();
+    }
 
     return () => {
       subscription.unsubscribe();
-      supabase.removeChannel(notificationSubscription);
+      if (notificationSubscription) supabase.removeChannel(notificationSubscription);
     };
-  }, []);
+  }, [empresa?.id]);
 
-  const { empresa, loading: empresaLoading } = useEmpresa();
 
   if (loading || empresaLoading) {
     return (

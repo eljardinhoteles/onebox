@@ -3,6 +3,7 @@ import { Drawer, ActionIcon, Indicator, Paper, Text, ScrollArea, Group, Stack, B
 import { notifications as mantineNotifications } from '@mantine/notifications';
 import { IconBell, IconCheck, IconTrash, IconInfoCircle, IconAlertTriangle, IconExclamationCircle, IconBellOff } from '@tabler/icons-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useEmpresa } from '../context/EmpresaContext';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -12,6 +13,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('es');
 
 export function NotificationCenter() {
+    const { empresa } = useEmpresa();
     const { opened, openNotifications, closeNotifications } = useNotifications();
     const [notifList, setNotifList] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -21,6 +23,7 @@ export function NotificationCenter() {
             const { data, error } = await supabase
                 .from('notificaciones')
                 .select('*')
+                .or(`empresa_id.eq.${empresa?.id},and(empresa_id.is.null,user_id.eq.${(await supabase.auth.getUser()).data.user?.id})`)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -36,17 +39,33 @@ export function NotificationCenter() {
     };
 
     useEffect(() => {
+        if (!empresa?.id) return;
         fetchNotifications();
 
         const subscription = supabase
-            .channel('public:notificaciones_center')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, () => {
+            .channel(`notificaciones:${empresa.id}`)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'notificaciones',
+                filter: `empresa_id=eq.${empresa.id}`
+            }, () => {
                 fetchNotifications();
             })
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notificaciones' }, () => {
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'notificaciones',
+                filter: `empresa_id=eq.${empresa.id}`
+            }, () => {
                 fetchNotifications();
             })
-            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notificaciones' }, () => {
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'notificaciones',
+                filter: `empresa_id=eq.${empresa.id}`
+            }, () => {
                 fetchNotifications();
             })
             .subscribe();
@@ -54,7 +73,7 @@ export function NotificationCenter() {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, []);
+    }, [empresa?.id]);
 
     const markAsRead = async (id: any) => {
         try {

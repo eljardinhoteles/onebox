@@ -49,7 +49,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
         queryFn: async () => {
             const { data: trans } = await supabase
                 .from('transacciones')
-                .select('*, items:transaccion_items!transaccion_items_transaccion_id_fkey(*)')
+                .select('*, items:transaccion_items!transaccion_items_transaccion_id_fkey(*), cajas:caja_id(empresa_id)')
                 .eq('id', transactionId)
                 .single();
 
@@ -150,7 +150,8 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                     total_retenido: totals.total
                 },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: retentionData?.trans?.cajas?.empresa_id || retentionData?.trans?.empresa_id
             });
 
             return retData;
@@ -179,7 +180,8 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                     numero_retencion: form.values.numero_retencion
                 },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: retentionData?.trans?.cajas?.empresa_id || retentionData?.trans?.empresa_id
             });
         },
         onSuccess: () => {

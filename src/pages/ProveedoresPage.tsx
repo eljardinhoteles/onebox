@@ -3,6 +3,7 @@ import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Toolti
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
+import { useEmpresa } from '../context/EmpresaContext';
 import { IconPencil, IconTrash, IconSearch, IconFilter } from '@tabler/icons-react';
 import { useDisclosure, useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -294,6 +295,7 @@ function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, 
 }
 
 export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
+    const { empresa } = useEmpresa();
     const queryClient = useQueryClient();
     const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
     const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
@@ -312,14 +314,16 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
 
     // Consulta de Proveedores (Paginada)
     const { data: proveedoresData, isLoading: fetching } = useQuery({
-        queryKey: ['proveedores', debouncedSearch, filterSucursal, filterRegimen, page],
+        queryKey: ['proveedores', debouncedSearch, filterSucursal, filterRegimen, page, empresa?.id],
         queryFn: async () => {
+            if (!empresa) return { data: [], count: 0 };
             const from = (page - 1) * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
             let query = supabase
                 .from('proveedores')
                 .select('*', { count: 'exact' })
+                .eq('empresa_id', empresa.id)
                 .order('nombre', { ascending: true })
                 .range(from, to);
 
@@ -383,7 +387,8 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 accion: 'ELIMINAR_PROVEEDOR',
                 detalle: { id },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: empresa?.id
             });
         },
         onSuccess: () => {

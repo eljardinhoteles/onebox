@@ -1,5 +1,5 @@
 import { SimpleGrid } from '@mantine/core';
-import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory, IconUserCircle, IconInfoCircle } from '@tabler/icons-react';
+import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory, IconUserCircle, IconInfoCircle, IconPackage } from '@tabler/icons-react';
 import { MenuCard } from './MenuCard';
 
 interface AjustesDashboardProps {
@@ -39,6 +39,12 @@ export function AjustesDashboard({ onNavigate, onOpenNotifications }: AjustesDas
                 title="Configuración"
                 description="Alertas y parámetros."
                 onClick={() => onNavigate('config')}
+            />
+            <MenuCard
+                icon={<IconPackage size={32} color="var(--mantine-color-teal-6)" />}
+                title="Productos Recurrentes"
+                description="Productos frecuentes para agilizar registro."
+                onClick={() => onNavigate('productos')}
             />
             <MenuCard
                 icon={<IconBell size={32} color="var(--mantine-color-blue-6)" />}

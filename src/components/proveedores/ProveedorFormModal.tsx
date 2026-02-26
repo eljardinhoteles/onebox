@@ -4,6 +4,7 @@ import { useForm } from '@mantine/form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
+import { useEmpresa } from '../../context/EmpresaContext';
 import { AppModal } from '../ui/AppModal';
 import { AppActionButtons } from '../ui/AppActionButtons';
 
@@ -82,6 +83,7 @@ export const validarRucEcuador = (ruc: string): boolean => {
 };
 
 export function ProveedorFormModal({ opened, onClose, editingProveedor, onSuccess }: ProveedorFormModalProps) {
+    const { empresa } = useEmpresa();
     const queryClient = useQueryClient();
 
     const form = useForm({
@@ -139,19 +141,23 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
 
     // --- DATA QUERIES (Para los Selects) ---
     const { data: regimenes = [] } = useQuery({
-        queryKey: ['regimenes'],
+        queryKey: ['regimenes', empresa?.id],
         queryFn: async () => {
-            const { data } = await supabase.from('regimenes').select('nombre').order('nombre');
+            if (!empresa) return [];
+            const { data } = await supabase.from('regimenes').select('nombre').eq('empresa_id', empresa.id).order('nombre');
             return (data || []).map(r => ({ value: r.nombre, label: r.nombre }));
-        }
+        },
+        enabled: !!empresa
     });
 
     const { data: sucursalesList = [] } = useQuery({
-        queryKey: ['sucursales_list'],
+        queryKey: ['sucursales_list', empresa?.id],
         queryFn: async () => {
-            const { data } = await supabase.from('sucursales').select('nombre').order('nombre');
+            if (!empresa) return [];
+            const { data } = await supabase.from('sucursales').select('nombre').eq('empresa_id', empresa.id).order('nombre');
             return (data || []).map(s => ({ value: s.nombre, label: s.nombre }));
-        }
+        },
+        enabled: !!empresa
     });
 
     // --- MUTATIONS ---
@@ -175,6 +181,7 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                     .from('proveedores')
                     .select('id, nombre')
                     .eq('ruc', values.ruc)
+                    .eq('empresa_id', empresa?.id)
                     .maybeSingle();
 
                 if (checkError) throw checkError;
@@ -186,7 +193,7 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
             // 2. Ejecutar inserción o actualización
             const { error } = isEditing
                 ? await supabase.from('proveedores').update(proveedorData).eq('id', editingProveedor.id)
-                : await supabase.from('proveedores').insert([proveedorData]);
+                : await supabase.from('proveedores').insert([{ ...proveedorData, empresa_id: empresa?.id }]);
 
             if (error) throw error;
 
@@ -196,7 +203,8 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                 accion: isEditing ? 'EDITAR_PROVEEDOR' : 'CREAR_PROVEEDOR',
                 detalle: isEditing ? { id: editingProveedor.id, nombre: values.nombre } : { nombre: values.nombre, ruc: values.ruc },
                 user_id: user?.id,
-                user_email: user?.email
+                user_email: user?.email,
+                empresa_id: empresa?.id
             });
         },
         onSuccess: () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select } from '@mantine/core';
+import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select, NumberInput } from '@mantine/core';
 import { IconCheck, IconPlus, IconCalendar, IconArrowLeft } from '@tabler/icons-react';
 import { DatePickerInput } from '@mantine/dates';
 import { AjustesDashboard } from './ajustes/components/AjustesDashboard';
@@ -69,7 +69,7 @@ export function AjustesPage() {
     const [inviteOpened, { open: openInvite, close: closeInvite }] = useDisclosure(false);
 
     const form = useForm({
-        initialValues: { nombre: '', ruc: '', direccion: '', regimen: '', codigo: '', numero_cuenta: '', tipo_cuenta: '', secuencia_inicial: 0 }
+        initialValues: { nombre: '', ruc: '', direccion: '', regimen: '', codigo: '', numero_cuenta: '', tipo_cuenta: '', secuencia_inicial: 0, valor_unitario: 0 }
     });
 
     useEffect(() => {
@@ -131,8 +131,8 @@ export function AjustesPage() {
 
                     const { data } = await query.limit(200);
                     setState(prev => ({ ...prev, data: { ...prev.data, logs: data || [], fetching: false } }));
-                } else if (['sucursales', 'bancos', 'regimenes'].includes(activeTab || '')) {
-                    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+                } else if (['sucursales', 'bancos', 'regimenes', 'productos'].includes(activeTab || '')) {
+                    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
                     const table = tableMap[activeTab];
                     const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa.id).order('nombre');
                     if (activeTab === 'sucursales' && data) {
@@ -222,7 +222,7 @@ export function AjustesPage() {
     const handleCrudSave = async (values: any) => {
         if (!empresa?.id || !activeTab) return;
         setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
-        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
         const table = tableMap[activeTab!];
 
         // Filtrar valores según la tabla para evitar errores de columnas inexistentes
@@ -235,6 +235,8 @@ export function AjustesPage() {
             filteredValues.tipo_cuenta = values.tipo_cuenta;
         } else if (activeTab === 'regimenes') {
             // regimenes solo usa nombre por ahora
+        } else if (activeTab === 'productos') {
+            filteredValues.valor_unitario = values.valor_unitario;
         }
 
         const { error } = editingId
@@ -255,7 +257,7 @@ export function AjustesPage() {
 
     const handleDelete = async (id: string) => {
         if (!activeTab) return;
-        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes' };
+        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
         const table = tableMap[activeTab!];
         const { error } = await supabase.from(table).delete().eq('id', id);
         if (!error) {
@@ -281,7 +283,8 @@ export function AjustesPage() {
                                 'config': 'configs',
                                 'bitacora': 'auditoria',
                                 'perfil': 'perfil',
-                                'about': 'about'
+                                'about': 'about',
+                                'productos': 'productos'
                             };
                             setActiveTab(map[tab] || tab);
                         }}
@@ -298,11 +301,12 @@ export function AjustesPage() {
                                     activeTab === 'sucursales' ? 'Sucursales' :
                                         activeTab === 'bancos' ? 'Bancos' :
                                             activeTab === 'regimenes' ? 'Regímenes' :
-                                                activeTab === 'configs' ? 'Configuración' :
-                                                    activeTab === 'history' ? 'Historial de Cierres' :
-                                                        activeTab === 'auditoria' ? 'Bitácora de Auditoría' :
-                                                            activeTab === 'perfil' ? 'Mi Perfil' :
-                                                                activeTab === 'about' ? 'Suscripción & Info' : 'Ajustes'}
+                                                activeTab === 'productos' ? 'Productos Recurrentes' :
+                                                    activeTab === 'configs' ? 'Configuración' :
+                                                        activeTab === 'history' ? 'Historial de Cierres' :
+                                                            activeTab === 'auditoria' ? 'Bitácora de Auditoría' :
+                                                                activeTab === 'perfil' ? 'Mi Perfil' :
+                                                                    activeTab === 'about' ? 'Suscripción & Info' : 'Ajustes'}
                             </Title>
                         </Group>
 
@@ -473,6 +477,17 @@ export function AjustesPage() {
                                 />
                             )}
 
+                            {activeTab === 'productos' && (
+                                <CrudSection
+                                    title="Productos Recurrentes"
+                                    type="productos"
+                                    items={items}
+                                    onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues({ ...form.values, nombre: i.nombre, valor_unitario: i.valor_unitario }); openCrud(); }}
+                                    onDelete={handleDelete}
+                                    onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                />
+                            )}
+
                             {activeTab === 'auditoria' && (
                                 <Paper withBorder p="xl" radius="lg">
                                     <Stack gap="md">
@@ -598,7 +613,22 @@ export function AjustesPage() {
             <AppDrawer opened={crudOpened} onClose={closeCrud} title={editingId ? "Editar Item" : "Añadir Item"} size="md">
                 <form onSubmit={form.onSubmit(handleCrudSave)}>
                     <Stack gap="md">
-                        {activeTab === 'regimenes' ? (
+                        {activeTab === 'productos' ? (
+                            <>
+                                <ConfigSection.Input label="Nombre del Producto" {...form.getInputProps('nombre')} />
+                                <NumberInput
+                                    label="Valor Unitario"
+                                    placeholder="0.00"
+                                    decimalScale={4}
+                                    fixedDecimalScale
+                                    hideControls
+                                    leftSection="$"
+                                    min={0}
+                                    radius="md"
+                                    {...form.getInputProps('valor_unitario')}
+                                />
+                            </>
+                        ) : activeTab === 'regimenes' ? (
                             <ConfigSection.Input label="Nombre del Régimen" {...form.getInputProps('nombre')} />
                         ) : activeTab === 'bancos' ? (
                             <>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Drawer, Stack, Text, Button, Divider, LoadingOverlay } from '@mantine/core';
 import { supabase } from '../lib/supabaseClient';
+import { useEmpresa } from '../context/EmpresaContext';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX, IconFileDescription } from '@tabler/icons-react';
 
@@ -32,6 +33,7 @@ interface LegalizationDrawerProps {
 }
 
 export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSuccess }: LegalizationDrawerProps) {
+    const { empresa } = useEmpresa();
     const [state, setState] = useState({
         loading: false,
         submitting: false,
@@ -55,7 +57,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
                         proveedor:proveedores (id, nombre),
                         items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre, cantidad)
                     `).eq('caja_id', cajaId).eq('tipo_documento', 'sin_factura').is('parent_id', null),
-                    supabase.from('proveedores').select('id, nombre, ruc, regimen').order('nombre')
+                    supabase.from('proveedores').select('id, nombre, ruc, regimen').eq('empresa_id', empresa?.id).order('nombre')
                 ]);
 
                 const formattedExpenses = (expensesRes.data || []).map((t: any) => ({
@@ -102,7 +104,8 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
                 numero_factura: state.invoiceNumber,
                 total_factura: totalSelected,
                 tipo_documento: 'factura',
-                es_justificacion: true
+                es_justificacion: true,
+                empresa_id: empresa?.id
             }).select().single();
 
             if (transError) throw transError;
@@ -127,7 +130,8 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
             await supabase.from('bitacora').insert({
                 accion: 'LEGALIZACION_GASTOS',
                 detalle: { main_transaccion_id: mainTrans.id, total: totalSelected, factura: state.invoiceNumber },
-                user_id: user?.id, user_email: user?.email
+                user_id: user?.id, user_email: user?.email,
+                empresa_id: empresa?.id
             });
 
             notifications.show({ title: 'Éxito', message: 'Legalización procesada', color: 'teal', icon: <IconCheck size={16} /> });
