@@ -28,7 +28,7 @@ export function TransactionItemList({ form, readOnly, itemSuggestions }: Transac
                 placeholder="1"
                 allowNegative={false}
                 min={1}
-                w={80}
+                w={70}
                 {...form.getInputProps(`items.${index}.cantidad`)}
                 readOnly={readOnly}
                 variant={readOnly ? "filled" : "default"}
@@ -40,19 +40,27 @@ export function TransactionItemList({ form, readOnly, itemSuggestions }: Transac
                 fixedDecimalScale
                 hideControls
                 leftSection="$"
-                w={100}
+                w={85}
                 {...form.getInputProps(`items.${index}.valor`)}
                 readOnly={readOnly}
                 variant={readOnly ? "filled" : "default"}
                 styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
             />
-            <Group h={36} align="center" px={4} w={60} justify="center">
+
+            <Group justify="flex-end" w={85} px={0}>
+                <Text fw={600} size="sm" c="blue.7">
+                    ${((form.values.items[index].cantidad || 0) * (form.values.items[index].valor || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                </Text>
+            </Group>
+
+            <Group h={36} align="center" px={4} w={40} justify="center">
                 <Checkbox
                     {...form.getInputProps(`items.${index}.con_iva`, { type: 'checkbox' })}
                     color="blue"
                     disabled={readOnly}
                 />
             </Group>
+
             {!readOnly && (
                 <ActionIcon
                     color="red"
@@ -70,10 +78,11 @@ export function TransactionItemList({ form, readOnly, itemSuggestions }: Transac
         <Stack gap="xs">
             {form.values.items.length > 0 && (
                 <Group align="center" gap="xs" px={4} mb={-4}>
-                    <Text size="sm" fw={500} style={{ flex: 1 }}>Producto</Text>
-                    <Text size="sm" fw={500} w={80}>Cantidad</Text>
-                    <Text size="sm" fw={500} w={100}>Valor</Text>
-                    <Text size="sm" fw={500} w={60} ta="center">IVA 15%</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ flex: 1 }}>Producto</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={70}>Cant.</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85}>P. Unit.</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85} ta="right">Subtotal</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={40} ta="center">IVA</Text>
                     {!readOnly && <div style={{ width: 28 }} />}
                 </Group>
             )}

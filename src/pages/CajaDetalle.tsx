@@ -41,7 +41,6 @@ const TIPO_LABELS: Record<string, string> = {
     nota_venta: 'N. Venta',
     liquidacion_compra: 'Liq. Compra',
     sin_factura: 'S/ Factura',
-    deposito: 'Depósito a Banco',
 };
 
 export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {

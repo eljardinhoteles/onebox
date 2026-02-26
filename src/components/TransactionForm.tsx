@@ -89,17 +89,23 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
     const { data: dbData } = useQuery({
         queryKey: ['caja_meta', cajaId],
         queryFn: async () => {
-            const { data: cajaData } = await supabase.from('cajas').select('monto_inicial').eq('id', cajaId).single();
+            const { data: cajaData } = await supabase.from('cajas').select('monto_inicial, numero, sucursal').eq('id', cajaId).single();
             let dbBalance = 0;
             if (currentBalance === undefined) {
                 const { data: saldoData } = await supabase.from('v_cajas_con_saldo').select('saldo_actual').eq('id', cajaId).single();
                 dbBalance = saldoData?.saldo_actual ?? 0;
             }
-            return { initial: cajaData?.monto_inicial ?? 0, fallbackBalance: dbBalance };
+            return {
+                initial: cajaData?.monto_inicial ?? 0,
+                numero: cajaData?.numero ?? cajaId.toString(),
+                sucursal: cajaData?.sucursal || '',
+                fallbackBalance: dbBalance
+            };
         }
     });
 
     const initialAmount = dbData?.initial ?? 0;
+    const cajaNumeroLabel = dbData?.numero ?? cajaId.toString();
     const availableBalance = currentBalance !== undefined ? currentBalance : (dbData?.fallbackBalance ?? 0);
 
     const { data: proveedores = [] } = useQuery({
@@ -229,7 +235,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
     const totals = calculateTransactionTotals(form.values.items);
 
-    const handlePrintReceipt = () => printReceipt(cajaId, form.values.fecha_factura, form.values.items, totals.total);
+    const handlePrintReceipt = () => printReceipt(cajaNumeroLabel as any, form.values.fecha_factura, form.values.items, totals.total, dbData?.sucursal);
 
     const handleSubmit = async (values: typeof form.values) => {
         const totalAValidar = calculateTransactionTotals(values.items).total;

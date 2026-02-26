@@ -138,7 +138,7 @@ export default function App() {
   const showFab = (isCajas && !isCajaDetail) || (isCajaDetail && !!detailOnAdd) || isProveedores;
 
   return (
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="never">
       <MainLayout onAdd={showFab ? handleFabAction : undefined}>
         <Suspense fallback={<Center h="100vh"><Loader /></Center>}>
           <Routes>
