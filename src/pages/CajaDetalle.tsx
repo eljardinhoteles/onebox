@@ -238,7 +238,9 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         if (!setHeaderActions) return;
 
         const day = new Date().getDate();
-        const isMonthlyCloseBlocking = day >= 28;
+        const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
+        const closingDay = parseInt(configs.dia_cierre_mensual || '28');
+        const isMonthlyCloseBlocking = cierreEnabled && day >= closingDay;
 
         if (caja?.estado === 'abierta') {
             setHeaderActions(
@@ -259,7 +261,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         } else {
             setHeaderActions(null);
         }
-    }, [caja, setHeaderActions]);
+    }, [caja, setHeaderActions, configs.cierre_mensual_obligatorio, configs.dia_cierre_mensual]);
 
     const handleEdit = (id: number) => {
         const trans = transactions.find(t => t.id === id);

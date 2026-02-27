@@ -1,12 +1,12 @@
 import dayjs from 'dayjs';
-import { Paper, Text, Stack, Group, NumberInput, TextInput, Select, Grid, Divider } from '@mantine/core';
+import { Paper, Text, Stack, Group, NumberInput, TextInput, Select, Grid, Divider, Button, Badge, Tooltip } from '@mantine/core';
 import { AppModal } from '../ui/AppModal';
 import { AppActionButtons } from '../ui/AppActionButtons';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { IconCheck, IconX, IconArrowRight, IconCash } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useEmpresa } from '../../context/EmpresaContext';
@@ -36,6 +36,7 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
         },
     });
 
+    const sucursalSeleccionada = form.values.sucursal;
     const montoInicial = (form.values.saldo_anterior || 0) + (form.values.reposicion || 0);
     const arqueoTotal = arqueoDesglose?.total ?? 0;
     const arqueoConcuerda = montoInicial > 0 && Math.abs(arqueoTotal - montoInicial) < 0.005;
@@ -52,6 +53,38 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
         },
         enabled: !!empresa
     });
+
+    // Buscar la caja cerrada más reciente de la sucursal seleccionada
+    const { data: cajaAnterior } = useQuery({
+        queryKey: ['caja_anterior', empresa?.id, sucursalSeleccionada],
+        queryFn: async () => {
+            if (!empresa || !sucursalSeleccionada) return null;
+            const { data } = await supabase
+                .from('cajas')
+                .select('id, numero, fecha_cierre, monto_inicial, reposicion, responsable')
+                .eq('empresa_id', empresa.id)
+                .eq('sucursal', sucursalSeleccionada)
+                .eq('estado', 'cerrada')
+                .order('fecha_cierre', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            return data || null;
+        },
+        enabled: !!empresa && !!sucursalSeleccionada,
+    });
+
+    // Calcular el efectivo sobrante de la caja anterior
+    // El efectivo sobrante = monto_inicial - reposicion (gastos netos descontados)
+    // En realidad el valor neto guardado en cajas es totals.efectivo al momento del cierre,
+    // que se guarda como (monto_inicial - reposicion [gastos netos])
+    const effectivoSobrante = cajaAnterior
+        ? Math.max(0, (cajaAnterior.monto_inicial || 0) - (cajaAnterior.reposicion || 0))
+        : 0;
+
+    const aplicarSaldoAnterior = () => {
+        form.setFieldValue('saldo_anterior', effectivoSobrante);
+        setArqueoDesglose(null); // Resetear arqueo al cambiar el monto
+    };
 
     const openCajaMutation = useMutation({
         mutationFn: async (values: any) => {
@@ -74,6 +107,9 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
                     sucursal: newCaja.sucursal,
                     responsable: newCaja.responsable,
                     monto_inicial,
+                    saldo_anterior: values.saldo_anterior,
+                    reposicion: values.reposicion,
+                    caja_anterior_id: cajaAnterior?.id ?? null,
                     arqueo: arqueoDesglose ? {
                         items: arqueoDesglose.items.map(i => ({
                             denominacion: i.denominacion,
@@ -164,20 +200,59 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
                                 ]}
                                 required
                                 {...form.getInputProps('sucursal')}
+                                onChange={(v) => {
+                                    form.setFieldValue('sucursal', v ?? '');
+                                    // Limpiar saldo anterior al cambiar de sucursal
+                                    form.setFieldValue('saldo_anterior', 0);
+                                    setArqueoDesglose(null);
+                                }}
                             />
+
+                            {/* Sugerencia de saldo sobrante de caja anterior */}
+                            {cajaAnterior && effectivoSobrante > 0 && (
+                                <Paper withBorder p="sm" radius="md" bg="teal.0" style={{ borderColor: 'var(--mantine-color-teal-3)' }}>
+                                    <Stack gap={6}>
+                                        <Group gap="xs">
+                                            <IconCash size={16} color="var(--mantine-color-teal-7)" />
+                                            <Text size="xs" fw={700} c="teal.8">Saldo sobrante disponible</Text>
+                                            <Badge variant="light" color="teal" size="xs">
+                                                Caja #{cajaAnterior.numero ?? cajaAnterior.id}
+                                            </Badge>
+                                        </Group>
+                                        <Text size="xs" c="teal.7">
+                                            La última caja de <b>{sucursalSeleccionada}</b> cerró con{' '}
+                                            <b>${effectivoSobrante.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b>{' '}
+                                            de efectivo sobrante ({dayjs(cajaAnterior.fecha_cierre).format('DD/MM/YYYY')}).
+                                        </Text>
+                                        <Tooltip label="Carga este valor en el campo Saldo Anterior" position="right" withArrow>
+                                            <Button
+                                                variant="light"
+                                                color="teal"
+                                                size="xs"
+                                                leftSection={<IconArrowRight size={14} />}
+                                                w="fit-content"
+                                                onClick={aplicarSaldoAnterior}
+                                            >
+                                                Aplicar ${effectivoSobrante.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Button>
+                                        </Tooltip>
+                                    </Stack>
+                                </Paper>
+                            )}
 
                             <Group grow>
                                 <NumberInput
                                     label="Saldo Anterior"
+                                    description="Efectivo sobrante de la caja previa"
                                     placeholder="0.00"
                                     leftSection="$"
                                     decimalScale={2}
-                                    required
                                     hideControls
                                     {...form.getInputProps('saldo_anterior')}
                                 />
                                 <NumberInput
                                     label="Reposición"
+                                    description="Monto nuevo que ingresa a la caja"
                                     placeholder="0.00"
                                     leftSection="$"
                                     decimalScale={2}

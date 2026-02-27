@@ -3,6 +3,7 @@ import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInp
 import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { MonthlyCloseAlert } from '../MonthlyCloseAlert';
+import { useAppConfig } from '../../hooks/useAppConfig';
 
 interface CajaHeaderProps {
     caja: any;
@@ -39,6 +40,10 @@ export function CajaHeader({
     isError,
     error
 }: CajaHeaderProps) {
+    const { configs } = useAppConfig();
+    const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
+    const closingDay = parseInt(configs.dia_cierre_mensual || '28');
+
     return (
         <Stack gap="md" className="no-print">
             <Group align="center" gap="sm">
@@ -53,7 +58,7 @@ export function CajaHeader({
                     </Text>
                 </div>
             </Group>
-            <MonthlyCloseAlert />
+            <MonthlyCloseAlert enabled={cierreEnabled} closingDay={closingDay} />
             {isLowBalance && (
                 <Alert variant="light" color="orange" title="Saldo de Caja Bajo" icon={<IconAlertTriangle size={18} />} radius="md" mb="md">
                     <Text size="sm">

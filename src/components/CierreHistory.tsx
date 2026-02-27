@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Text, Badge, ScrollArea, Group, LoadingOverlay, Paper, Title, Avatar } from '@mantine/core';
+import { IconBuildingBank, IconTransfer } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 
@@ -17,7 +18,9 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
             let query = supabase
                 .from('cajas')
                 .select(`
-                    id, fecha_cierre, monto_inicial, reposicion, numero_cheque_reposicion, banco_reposicion, responsable,
+                    id, fecha_cierre, monto_inicial, reposicion,
+                    numero_cheque_reposicion, banco_reposicion,
+                    metodo_reposicion, responsable,
                     datos_cierre, empresa_id
                 `)
                 .eq('estado', 'cerrada');
@@ -59,45 +62,63 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
                                 <Table.Th>Responsable</Table.Th>
                                 <Table.Th ta="right">Monto Inicial</Table.Th>
                                 <Table.Th ta="right">Total Gastos (Neto)</Table.Th>
-                                <Table.Th>Reposición (Cheque)</Table.Th>
+                                <Table.Th>Método</Table.Th>
+                                <Table.Th>Referencia / Cheque</Table.Th>
                                 <Table.Th>Banco</Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                            {history.map((item) => (
-                                <Table.Tr key={item.id}>
-                                    <Table.Td>{dayjs(item.fecha_cierre).format('DD/MM/YYYY HH:mm')}</Table.Td>
-                                    <Table.Td>
-                                        <Group gap="xs">
-                                            <Avatar size="sm" radius="xl" color="blue" variant="light">
-                                                {item.responsable?.charAt(0).toUpperCase()}
-                                            </Avatar>
-                                            <Text size="sm">{item.responsable || 'Desconocido'}</Text>
-                                        </Group>
-                                    </Table.Td>
-                                    <Table.Td ta="right">${item.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                                    <Table.Td ta="right">
-                                        <Text fw={700} c="red.6">
-                                            -${item.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </Text>
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {item.numero_cheque_reposicion ? (
-                                            <Badge variant="outline" color="blue" size="sm">
-                                                {item.numero_cheque_reposicion}
+                            {history.map((item) => {
+                                const metodo = item.metodo_reposicion || 'cheque';
+                                const esTransferencia = metodo === 'transferencia';
+                                return (
+                                    <Table.Tr key={item.id}>
+                                        <Table.Td>{dayjs(item.fecha_cierre).format('DD/MM/YYYY HH:mm')}</Table.Td>
+                                        <Table.Td>
+                                            <Group gap="xs">
+                                                <Avatar size="sm" radius="xl" color="blue" variant="light">
+                                                    {item.responsable?.charAt(0).toUpperCase()}
+                                                </Avatar>
+                                                <Text size="sm">{item.responsable || 'Desconocido'}</Text>
+                                            </Group>
+                                        </Table.Td>
+                                        <Table.Td ta="right">${item.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                                        <Table.Td ta="right">
+                                            <Text fw={700} c="red.6">
+                                                -${item.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Badge
+                                                variant="light"
+                                                color={esTransferencia ? 'violet' : 'blue'}
+                                                size="sm"
+                                                leftSection={esTransferencia
+                                                    ? <IconTransfer size={11} />
+                                                    : <IconBuildingBank size={11} />
+                                                }
+                                            >
+                                                {esTransferencia ? 'Transferencia' : 'Cheque'}
                                             </Badge>
-                                        ) : (
-                                            <Text size="xs" c="dimmed">-</Text>
-                                        )}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <Text size="sm">{item.banco_reposicion || '-'}</Text>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
+                                        </Table.Td>
+                                        <Table.Td>
+                                            {item.numero_cheque_reposicion ? (
+                                                <Badge variant="outline" color={esTransferencia ? 'violet' : 'blue'} size="sm">
+                                                    {item.numero_cheque_reposicion}
+                                                </Badge>
+                                            ) : (
+                                                <Text size="xs" c="dimmed">-</Text>
+                                            )}
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Text size="sm">{item.banco_reposicion || '-'}</Text>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                );
+                            })}
                             {!loading && history.length === 0 && (
                                 <Table.Tr>
-                                    <Table.Td colSpan={6} ta="center" py="xl" c="dimmed">
+                                    <Table.Td colSpan={7} ta="center" py="xl" c="dimmed">
                                         No hay cierres registrados.
                                     </Table.Td>
                                 </Table.Tr>

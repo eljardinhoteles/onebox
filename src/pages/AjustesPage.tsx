@@ -54,7 +54,9 @@ export function AjustesPage() {
         localConfigs: {
             alertPercentage: 15,
             reservePercentage: 15,
-            autoFormatFactura: false
+            autoFormatFactura: false,
+            cierreMensualObligatorio: true,
+            diaCierreMensual: '28'
         },
         empresaForm: { nombre: '', ruc: '' },
         auditRange: [null, null] as [Date | null, Date | null]
@@ -96,10 +98,12 @@ export function AjustesPage() {
             localConfigs: {
                 alertPercentage: parseInt(configs.porcentaje_alerta_caja || '15'),
                 reservePercentage: parseInt(configs.porcentaje_reserva_caja || '15'),
-                autoFormatFactura: configs.formato_factura_automatico === 'true'
+                autoFormatFactura: configs.formato_factura_automatico === 'true',
+                cierreMensualObligatorio: configs.cierre_mensual_obligatorio !== 'false',
+                diaCierreMensual: configs.dia_cierre_mensual || '28'
             }
         }));
-    }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico]);
+    }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico, configs.cierre_mensual_obligatorio, configs.dia_cierre_mensual]);
 
     useEffect(() => {
         if (!activeTab || !empresa) return;
@@ -434,6 +438,8 @@ export function AjustesPage() {
                                     setAlertPercentage={(v: number) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, alertPercentage: v } }))}
                                     setReservePercentage={(v: number) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, reservePercentage: v } }))}
                                     setAutoFormatFactura={(v: boolean) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, autoFormatFactura: v } }))}
+                                    setCierreMensualObligatorio={(v: boolean) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, cierreMensualObligatorio: v } }))}
+                                    setDiaCierreMensual={(v: string) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, diaCierreMensual: v } }))}
                                 />
                             )}
 

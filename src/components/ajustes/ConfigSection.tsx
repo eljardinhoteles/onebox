@@ -1,15 +1,19 @@
-import { Paper, Stack, Title, Text, Group, NumberInput, Switch, Divider, TextInput } from '@mantine/core';
+import { Paper, Stack, Title, Text, Group, NumberInput, Switch, Divider, TextInput, Select } from '@mantine/core';
 
 interface ConfigSectionProps {
     localConfigs: {
         alertPercentage: number;
         reservePercentage: number;
         autoFormatFactura: boolean;
+        cierreMensualObligatorio: boolean;
+        diaCierreMensual: string;
     };
     handleConfigSave: (key: string, value: string) => void;
     setAlertPercentage: (v: number) => void;
     setReservePercentage: (v: number) => void;
     setAutoFormatFactura: (v: boolean) => void;
+    setCierreMensualObligatorio: (v: boolean) => void;
+    setDiaCierreMensual: (v: string) => void;
 }
 
 export function ConfigSection({
@@ -17,7 +21,9 @@ export function ConfigSection({
     handleConfigSave,
     setAlertPercentage,
     setReservePercentage,
-    setAutoFormatFactura
+    setAutoFormatFactura,
+    setCierreMensualObligatorio,
+    setDiaCierreMensual
 }: ConfigSectionProps) {
     return (
         <Paper withBorder p="xl" radius="lg">
@@ -81,6 +87,45 @@ export function ConfigSection({
                                 handleConfigSave('formato_factura_automatico', checked.toString());
                             }}
                         />
+                    </Group>
+
+                    <Divider />
+
+                    <Group justify="space-between" align="flex-start">
+                        <div style={{ flex: 1 }}>
+                            <Text fw={600}>Cierre Mensual Obligatorio</Text>
+                            <Text size="xs" c="dimmed">Bloquear nuevas transacciones a partir del día elegido hasta que se cierre la caja.</Text>
+                        </div>
+                        <Group gap="sm">
+                            {localConfigs.cierreMensualObligatorio && (
+                                <Select
+                                    value={localConfigs.diaCierreMensual}
+                                    onChange={(v) => {
+                                        if (v) {
+                                            setDiaCierreMensual(v);
+                                            handleConfigSave('dia_cierre_mensual', v);
+                                        }
+                                    }}
+                                    data={[
+                                        { value: '25', label: 'Día 25' },
+                                        { value: '26', label: 'Día 26' },
+                                        { value: '27', label: 'Día 27' },
+                                        { value: '28', label: 'Día 28' },
+                                    ]}
+                                    w={110}
+                                    size="xs"
+                                    radius="md"
+                                />
+                            )}
+                            <Switch
+                                checked={localConfigs.cierreMensualObligatorio}
+                                onChange={(e) => {
+                                    const checked = e.currentTarget.checked;
+                                    setCierreMensualObligatorio(checked);
+                                    handleConfigSave('cierre_mensual_obligatorio', checked.toString());
+                                }}
+                            />
+                        </Group>
                     </Group>
                 </Stack>
             </Stack>

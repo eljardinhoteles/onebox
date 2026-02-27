@@ -1,14 +1,22 @@
 import { Alert, Text } from '@mantine/core';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 
-export function MonthlyCloseAlert() {
+interface MonthlyCloseAlertProps {
+    enabled?: boolean;
+    closingDay?: number;
+}
+
+export function MonthlyCloseAlert({ enabled = true, closingDay = 28 }: MonthlyCloseAlertProps) {
+    if (!enabled) return null;
+
     const day = new Date().getDate();
+    const warningStart = closingDay - 3;
 
-    // No mostrar nada antes del día 25
-    if (day < 25) return null;
+    // No mostrar nada antes de 3 días del cierre
+    if (day < warningStart) return null;
 
-    // Alerta de Bloqueo (Día 28 en adelante)
-    if (day >= 28) {
+    // Alerta de Bloqueo (día de cierre en adelante)
+    if (day >= closingDay) {
         return (
             <Alert
                 variant="filled"
@@ -25,7 +33,7 @@ export function MonthlyCloseAlert() {
         );
     }
 
-    // Alerta Preventiva (Días 25, 26, 27)
+    // Alerta Preventiva (3 días antes del cierre)
     return (
         <Alert
             variant="light"
@@ -35,7 +43,7 @@ export function MonthlyCloseAlert() {
             mb="md"
         >
             <Text size="sm">
-                Recuerda que debes realizar el <strong>Cierre de Caja</strong> antes del día 28.
+                Recuerda que debes realizar el <strong>Cierre de Caja</strong> antes del día {closingDay}.
                 A partir de esa fecha, no se podrán registrar nuevos movimientos hasta que se cierre la caja.
             </Text>
         </Alert>
