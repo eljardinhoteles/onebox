@@ -40,7 +40,7 @@ export function CajaHeader({
     isError,
     error
 }: CajaHeaderProps) {
-    const { configs } = useAppConfig();
+    const { configs, loading: configLoading } = useAppConfig();
     const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
     const closingDay = parseInt(configs.dia_cierre_mensual || '28');
 
@@ -58,7 +58,7 @@ export function CajaHeader({
                     </Text>
                 </div>
             </Group>
-            <MonthlyCloseAlert enabled={cierreEnabled} closingDay={closingDay} />
+            {!configLoading && <MonthlyCloseAlert enabled={cierreEnabled} closingDay={closingDay} />}
             {isLowBalance && (
                 <Alert variant="light" color="orange" title="Saldo de Caja Bajo" icon={<IconAlertTriangle size={18} />} radius="md" mb="md">
                     <Text size="sm">

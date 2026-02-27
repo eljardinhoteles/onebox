@@ -7,10 +7,13 @@ interface Transaction {
     fecha_factura: string;
     numero_factura: string;
     total_factura: number;
-    tipo_documento: 'factura' | 'nota_venta' | 'sin_factura';
+    tipo_documento: 'factura' | 'nota_venta' | 'sin_factura' | 'deposito';
     proveedor: {
         nombre: string;
         ruc: string;
+    } | null;
+    banco?: {
+        nombre: string;
     } | null;
     items?: {
         nombre: string;
@@ -44,6 +47,10 @@ interface CajaReportProps {
 
 export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, transactions, totals, arqueoData }, ref) => {
     if (!caja) return null;
+
+    const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
+    const gastos = transactions.filter(t => t.tipo_documento !== 'deposito');
+    const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
 
     return (
         <div ref={ref} className="print-only p-8 bg-white text-black font-sans">
@@ -79,6 +86,9 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                             <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
                             <Group justify="space-between"><Text size="sm" fw={700}>Monto Inicial:</Text><Text size="sm">${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             <Group justify="space-between"><Text size="sm" fw={700}>Total Gastos (Neto):</Text><Text size="sm">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            {totalDepositos > 0 && (
+                                <Group justify="space-between"><Text size="sm" fw={700}>Depósitos a Banco:</Text><Text size="sm">-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            )}
                             <Divider variant="dashed" my={4} />
                             <Group justify="space-between"><Text size="md" fw={700}>EFECTIVO FINAL:</Text><Text size="md" fw={700}>${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                         </Stack>
@@ -140,6 +150,41 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 </>
             )}
 
+            {/* Depósitos Bancarios */}
+            {deposits.length > 0 && (
+                <>
+                    <Title order={4} mb="sm" tt="uppercase">Depósitos Bancarios de Efectivo</Title>
+                    <Table withTableBorder withColumnBorders style={{ color: 'black' }} mb="xl">
+                        <Table.Thead>
+                            <Table.Tr bg="gray.1">
+                                <Table.Th w={80} ta="center">Fecha</Table.Th>
+                                <Table.Th>Banco Destino</Table.Th>
+                                <Table.Th ta="right" w={120}>Monto Depositado</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {deposits.map(d => (
+                                <Table.Tr key={d.id}>
+                                    <Table.Td ta="center">
+                                        <Text size="xs">{dayjs(d.fecha_factura).format('DD/MM/YYYY')}</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700}>{d.banco?.nombre || 'Banco'}</Text>
+                                    </Table.Td>
+                                    <Table.Td ta="right">
+                                        <Text size="sm" fw={700}>${d.total_factura.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                            ))}
+                            <Table.Tr bg="gray.1" fw={700}>
+                                <Table.Td colSpan={2} ta="right">TOTAL DEPOSITADO:</Table.Td>
+                                <Table.Td ta="right">${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                            </Table.Tr>
+                        </Table.Tbody>
+                    </Table>
+                </>
+            )}
+
             {/* Listado de Gastos */}
             <Title order={4} mb="sm" tt="uppercase">Detalle de Gastos Registrados</Title>
             <Table variant="striped" withTableBorder withColumnBorders style={{ color: 'black' }}>
@@ -155,7 +200,7 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                    {transactions.map(t => {
+                    {gastos.map(t => {
                         const subtotalGasto = t.total_factura - (t.retencion?.total_iva || 0);
                         const retencionTotal = t.retencion?.total_retenido || 0;
                         const netoGasto = t.total_factura - retencionTotal;
@@ -169,7 +214,13 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                                     <Text fw={700} size="sm">{t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto'}</Text>
                                 </Table.Td>
                                 <Table.Td>
-                                    <Text size="xs" fw={700}>{t.numero_factura}</Text>
+                                    <Text size="xs" fw={700}>
+                                        {(() => {
+                                            const prefijos: Record<string, string> = { factura: 'FAC', nota_venta: 'NV', liquidacion_compra: 'LC' };
+                                            const prefijo = prefijos[t.tipo_documento] ?? '';
+                                            return t.numero_factura ? `${prefijo}${prefijo ? ': ' : ''}${t.numero_factura}` : 'S/N';
+                                        })()}
+                                    </Text>
                                     {t.items && t.items.length > 0 && (
                                         <Box mt={4}>
                                             {t.items.map((i, idx) => {
