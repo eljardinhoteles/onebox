@@ -1,12 +1,11 @@
 import dayjs from 'dayjs';
-import { Paper, Text, Stack, Group, TextInput, Select, Grid, Divider, SegmentedControl, Alert } from '@mantine/core';
+import { Paper, Text, Stack, Group, TextInput, Select, Divider, SegmentedControl, Alert, Textarea, Stepper, Button, Badge, Grid } from '@mantine/core';
 import { AppModal } from '../ui/AppModal';
-import { AppActionButtons } from '../ui/AppActionButtons';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
-import { IconCheck, IconX, IconLock, IconFileInvoice, IconBuildingBank, IconTransfer, IconCircleOff, IconAlertCircle } from '@tabler/icons-react';
+import { IconCheck, IconX, IconLock, IconFileInvoice, IconBuildingBank, IconTransfer, IconCircleOff, IconAlertCircle, IconNotes, IconCalendar, IconCreditCard } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ArqueoDenominaciones, type ArqueoDesglose } from './ArqueoDenominaciones';
@@ -31,6 +30,7 @@ interface CierreCajaModalProps {
 export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOnly = false }: CierreCajaModalProps) {
     const queryClient = useQueryClient();
     const [arqueoDesglose, setArqueoDesglose] = useState<ArqueoDesglose | null>(null);
+    const [activeStep, setActiveStep] = useState(0);
 
     const form = useForm({
         initialValues: {
@@ -38,6 +38,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             metodo_reposicion: 'cheque' as 'cheque' | 'transferencia' | 'ninguna',
             numero_cheque_reposicion: '',
             banco_reposicion: '',
+            observaciones: caja?.observaciones || '',
         },
         validate: {
             banco_reposicion: (value, values) =>
@@ -48,16 +49,12 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
     });
 
     const metodo = form.values.metodo_reposicion;
-
     const efectivoEsperado = totals.efectivo;
     const arqueoTotal = arqueoDesglose?.total ?? 0;
     const arqueoConcuerda = Math.abs(arqueoTotal - efectivoEsperado) < 0.005;
     const tieneItemsArqueo = (arqueoDesglose?.items.length ?? 0) > 0;
-
-    // Bloqueo estricto para método NINGUNA: el efectivo disponible debe ser $0
     const esCierreDefinitivo = metodo === 'ninguna';
     const requiereDepositoParaCerrar = esCierreDefinitivo && efectivoEsperado > 0.005;
-
     const canSubmit = arqueoConcuerda && tieneItemsArqueo && !readOnly && !requiereDepositoParaCerrar;
 
     const { data: bancos = [] } = useQuery({
@@ -78,8 +75,9 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                 fecha_cierre: dayjs(values.fecha_cierre).toISOString(),
                 reposicion: values.metodo_reposicion === 'ninguna' ? 0 : totals.neto,
                 metodo_reposicion: values.metodo_reposicion,
-                numero_cheque_reposicion: values.metodo_reposicion === 'ninguna' ? null : (values.numero_cheque_reposicion || null),
-                banco_reposicion: values.metodo_reposicion === 'ninguna' ? null : values.banco_reposicion,
+                numero_cheque_reposicion: values.metodo_reposicion === 'cheque' ? values.numero_cheque_reposicion : null,
+                banco_reposicion: values.metodo_reposicion !== 'ninguna' ? values.banco_reposicion : null,
+                observaciones: values.observaciones,
             };
 
             const { error: updateError } = await supabase
@@ -89,16 +87,17 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
 
             if (updateError) throw updateError;
 
-            // Log en bitácora
             await supabase.from('bitacora').insert({
                 accion: 'CIERRE_CAJA',
                 detalle: {
                     caja_id: caja.id,
+                    numero_caja: caja.numero || caja.id,
                     sucursal: caja.sucursal,
                     monto_inicial: caja.monto_inicial,
                     gastos_netos: totals.neto,
                     efectivo_esperado: efectivoEsperado,
                     metodo_reposicion: values.metodo_reposicion,
+                    observaciones: values.observaciones,
                     arqueo_cierre: arqueoDesglose ? {
                         items: arqueoDesglose.items.map(i => ({
                             denominacion: i.denominacion,
@@ -128,6 +127,9 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                 color: 'teal',
                 icon: <IconCheck size={16} />,
             });
+            setActiveStep(0);
+            form.reset();
+            setArqueoDesglose(null);
             onSuccess();
         },
         onError: (error: any) => {
@@ -142,15 +144,22 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
 
     if (!caja) return null;
 
-    const handleFormSubmit = (values: typeof form.values) => {
-        if (!canSubmit) return;
-        closeCajaMutation.mutate(values);
+    const handleClose = () => {
+        setActiveStep(0);
+        form.reset();
+        setArqueoDesglose(null);
+        close();
     };
+
+    const canGoToStep2 = arqueoConcuerda && tieneItemsArqueo;
+
+    const metodoColor = metodo === 'transferencia' ? 'violet' : metodo === 'ninguna' ? 'red' : 'blue';
+    const metodoLabel = metodo === 'cheque' ? 'Cheque' : metodo === 'transferencia' ? 'Transferencia' : 'Sin Reposición';
 
     return (
         <AppModal
             opened={opened}
-            onClose={close}
+            onClose={handleClose}
             title={
                 <Group gap="xs">
                     {readOnly ? <IconLock size={20} color="gray" /> : <IconLock size={20} color="red" />}
@@ -161,68 +170,95 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             size="xl"
             closeOnClickOutside={false}
         >
-            <form onSubmit={form.onSubmit(handleFormSubmit)}>
+            <form onSubmit={form.onSubmit((values) => { if (canSubmit) closeCajaMutation.mutate(values); })}>
                 {readOnly && (
-                    <Paper withBorder p="sm" bg="blue.0" c="blue.9" className="border-blue-200" mb="md">
+                    <Paper withBorder p="sm" bg="blue.0" c="blue.9" mb="md">
                         <Group gap="xs">
                             <Text size="xs" fw={700}>ℹ️ MODO LECTURA:</Text>
-                            <Text size="xs">Está viendo una simulación de los totales. Los datos no se guardarán.</Text>
+                            <Text size="xs">Está viendo una simulación. Los datos no se guardarán.</Text>
                         </Group>
                     </Paper>
                 )}
-                <Grid gutter="xl">
-                    {/* Columna Izquierda: Arqueo */}
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <Stack gap="md">
-                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Conteo Físico (Arqueo)</Text>
-                            <ArqueoDenominaciones
-                                montoEsperado={efectivoEsperado}
-                                onChange={setArqueoDesglose}
-                            />
-                        </Stack>
-                    </Grid.Col>
 
-                    {/* Columna Derecha: Datos del Cierre */}
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <Stack gap="md">
-                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
-
-                            <Paper withBorder p="md" radius="md" bg="gray.0">
-                                <Stack gap="xs">
-                                    <Group justify="space-between">
-                                        <Text size="sm">Monto Inicial:</Text>
-                                        <Text size="sm" fw={600}>${caja.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                    </Group>
-                                    <Group justify="space-between">
-                                        <Text size="sm" c="red.6">Total Gastos Netos:</Text>
-                                        <Text size="sm" fw={600} c="red.6">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                    </Group>
-                                    <Group justify="space-between">
-                                        <Text size="sm" c="red.6">Depósitos a Banco:</Text>
-                                        <Text size="sm" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                    </Group>
-                                    <Divider />
-                                    <Group justify="space-between">
-                                        <Text size="sm" fw={700}>Efectivo Final Esperado:</Text>
-                                        <Text size="lg" fw={700} c="blue.9">
-                                            ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </Text>
-                                    </Group>
-
-                                    <Paper withBorder p="xs" radius="md" bg="orange.0" className="border-orange-100" mt="xs">
-                                        <Group gap="xs" justify="space-between">
-                                            <Group gap="xs">
-                                                <IconFileInvoice size={14} color="orange" />
-                                                <Text size="xs" fw={700} c="orange.6" tt="uppercase">Retenciones Totales</Text>
+                <Stepper active={activeStep} size="sm" mb="xl" color="teal">
+                    <Stepper.Step label="Arqueo" description="Conteo físico">
+                        {/* ── PASO 1: Resumen + Arqueo (2 columnas) ── */}
+                        <Grid gutter="xl" mt="md">
+                            {/* Columna izquierda: resumen financiero */}
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <Stack gap="md">
+                                    <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
+                                    <Paper withBorder p="md" radius="md" bg="gray.0">
+                                        <Stack gap="xs">
+                                            <Group justify="space-between">
+                                                <Text size="sm">Monto Inicial:</Text>
+                                                <Text size="sm" fw={600}>${caja.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                             </Group>
-                                            <Text size="sm" fw={700} c="orange.9">
-                                                ${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="red.6">Total Gastos Netos:</Text>
+                                                <Text size="sm" fw={600} c="red.6">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="red.6">Depósitos a Banco:</Text>
+                                                <Text size="sm" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                            </Group>
+                                            <Divider />
+                                            <Group justify="space-between">
+                                                <Text size="sm" fw={700}>Efectivo Final Esperado:</Text>
+                                                <Text size="lg" fw={700} c="blue.9">
+                                                    ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </Text>
+                                            </Group>
+                                            <Paper withBorder p="xs" radius="md" bg="orange.0" mt="xs">
+                                                <Group gap="xs" justify="space-between">
+                                                    <Group gap="xs">
+                                                        <IconFileInvoice size={14} color="orange" />
+                                                        <Text size="xs" fw={700} c="orange.6" tt="uppercase">Retenciones Totales</Text>
+                                                    </Group>
+                                                    <Text size="sm" fw={700} c="orange.9">
+                                                        ${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </Text>
+                                                </Group>
+                                            </Paper>
+                                        </Stack>
                                     </Paper>
                                 </Stack>
-                            </Paper>
+                            </Grid.Col>
 
+                            {/* Columna derecha: arqueo de denominaciones */}
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <Stack gap="md">
+                                    <Text size="xs" fw={700} tt="uppercase" c="dimmed">Conteo Físico (Arqueo)</Text>
+                                    <ArqueoDenominaciones
+                                        montoEsperado={efectivoEsperado}
+                                        onChange={setArqueoDesglose}
+                                    />
+                                </Stack>
+                            </Grid.Col>
+                        </Grid>
+
+                        {/* Botones paso 1 */}
+                        <Group justify="space-between" mt="lg">
+                            <Button variant="subtle" color="gray" onClick={handleClose}>Cancelar</Button>
+                            <Button
+                                color="teal"
+                                rightSection={<IconCheck size={16} />}
+                                onClick={() => setActiveStep(1)}
+                                disabled={!canGoToStep2}
+                            >
+                                {!tieneItemsArqueo
+                                    ? 'Ingrese el arqueo para continuar'
+                                    : !arqueoConcuerda
+                                        ? `Diferencia: $${Math.abs(arqueoTotal - efectivoEsperado).toFixed(2)}`
+                                        : 'Siguiente: Reposición'
+                                }
+                            </Button>
+                        </Group>
+                    </Stepper.Step>
+
+                    <Stepper.Step label="Reposición" description="Método de pago">
+                        {/* ── PASO 2: Fecha + Método ── */}
+                        <Stack gap="md" mt="md">
                             <DatePickerInput
                                 label="Fecha de Cierre"
                                 placeholder="Seleccione la fecha"
@@ -230,41 +266,41 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                 required
                                 maxDate={new Date()}
                                 allowDeselect={false}
+                                leftSection={<IconCalendar size={16} stroke={1.5} />}
                                 disabled={readOnly}
                                 {...form.getInputProps('fecha_cierre')}
                             />
 
-                            {/* Método de Reposición */}
                             <Stack gap={4}>
                                 <Text size="sm" fw={500}>Método de Reposición</Text>
                                 <SegmentedControl
-                                    color={metodo === 'transferencia' ? 'violet' : (metodo === 'ninguna' ? 'red' : 'blue')}
+                                    color={metodoColor}
                                     data={[
                                         {
                                             value: 'cheque',
                                             label: (
-                                                <Group gap={6} justify="center" py={2}>
-                                                    <IconBuildingBank size={15} />
-                                                    <span>Cheque</span>
-                                                </Group>
+                                                <Stack gap={2} align="center" py={4}>
+                                                    <IconBuildingBank size={18} />
+                                                    <Text size="xs" fw={600}>Cheque</Text>
+                                                </Stack>
                                             )
                                         },
                                         {
                                             value: 'transferencia',
                                             label: (
-                                                <Group gap={6} justify="center" py={2}>
-                                                    <IconTransfer size={15} />
-                                                    <span>Transfer</span>
-                                                </Group>
+                                                <Stack gap={2} align="center" py={4}>
+                                                    <IconTransfer size={18} />
+                                                    <Text size="xs" fw={600}>Transfer</Text>
+                                                </Stack>
                                             )
                                         },
                                         {
                                             value: 'ninguna',
                                             label: (
-                                                <Group gap={6} justify="center" py={2}>
-                                                    <IconCircleOff size={15} />
-                                                    <span>Ninguna</span>
-                                                </Group>
+                                                <Stack gap={2} align="center" py={4}>
+                                                    <IconCircleOff size={18} />
+                                                    <Text size="xs" fw={600}>Ninguna</Text>
+                                                </Stack>
                                             )
                                         },
                                     ]}
@@ -285,6 +321,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                         data={bancos}
                                         required
                                         searchable
+                                        leftSection={<IconCreditCard size={16} stroke={1.5} />}
                                         disabled={readOnly}
                                         {...form.getInputProps('banco_reposicion')}
                                     />
@@ -300,12 +337,12 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                 <Stack gap="xs">
                                     {requiereDepositoParaCerrar ? (
                                         <Alert variant="light" color="red" title="Cierre Definitivo Bloqueado" icon={<IconAlertCircle size={16} />}>
-                                            Para un cierre definitivo (Sin Reposición), **todo el efectivo disponible debe ser depositado** primero.
+                                            Todo el efectivo debe ser depositado antes de cerrar sin reposición.
                                             <Text mt="xs" fw={700} size="sm">Saldo pendiente: ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                         </Alert>
                                     ) : (
                                         <Alert variant="light" color="blue" icon={<IconAlertCircle size={16} />}>
-                                            Al seleccionar **Ninguna**, esta caja se cerrará definitivamente sin generar una nueva reposición de efectivo.
+                                            Esta caja se cerrará definitivamente sin generar reposición de efectivo.
                                         </Alert>
                                     )}
                                 </Stack>
@@ -314,31 +351,91 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                             <Text size="xs" c="dimmed" fs="italic">
                                 {metodo === 'ninguna'
                                     ? '* Esta caja no recibirá reposición de efectivo tras el cierre.'
-                                    : `* Se emitirá una reposición por ${metodo === 'cheque' ? 'cheque' : 'transferencia'} por el total neto de gastos ($${totals.neto.toFixed(2)}).`
+                                    : `* Se emitirá una reposición por ${metodo === 'cheque' ? 'cheque' : 'transferencia'} por $${totals.neto.toFixed(2)}.`
                                 }
                             </Text>
+
+                            {/* Botones paso 2 */}
+                            <Group justify="space-between" mt="sm">
+                                <Button variant="subtle" color="gray" onClick={() => setActiveStep(0)}>← Volver</Button>
+                                <Button
+                                    color="teal"
+                                    rightSection={<IconCheck size={16} />}
+                                    onClick={() => {
+                                        const result = form.validate();
+                                        if (!result.hasErrors) setActiveStep(2);
+                                    }}
+                                    disabled={requiereDepositoParaCerrar}
+                                >
+                                    Siguiente: Confirmación
+                                </Button>
+                            </Group>
                         </Stack>
-                    </Grid.Col>
-                </Grid>
+                    </Stepper.Step>
 
-                <Divider my="md" />
+                    <Stepper.Step label="Confirmación" description="Revisar y cerrar">
+                        {/* ── PASO 3: Observaciones + Confirmación ── */}
+                        <Stack gap="md" mt="md">
+                            {/* Resumen compacto */}
+                            <Paper withBorder p="md" radius="md" bg="teal.0">
+                                <Text size="xs" fw={700} tt="uppercase" c="teal.8" mb="xs">Resumen del Cierre</Text>
+                                <Group gap="md" wrap="wrap">
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">Efectivo Final</Text>
+                                        <Text fw={700} c="teal.9">${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Stack>
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">Fecha</Text>
+                                        <Text fw={700}>{dayjs(form.values.fecha_cierre).format('DD/MM/YYYY')}</Text>
+                                    </Stack>
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">Reposición</Text>
+                                        <Badge variant="light" color={metodoColor}>{metodoLabel}</Badge>
+                                    </Stack>
+                                    {metodo !== 'ninguna' && form.values.banco_reposicion && (
+                                        <Stack gap={2}>
+                                            <Text size="xs" c="dimmed">Banco</Text>
+                                            <Text fw={700}>{form.values.banco_reposicion}</Text>
+                                        </Stack>
+                                    )}
+                                    {metodo !== 'ninguna' && form.values.numero_cheque_reposicion && (
+                                        <Stack gap={2}>
+                                            <Text size="xs" c="dimmed">{metodo === 'cheque' ? 'N° Cheque' : 'N° Referencia'}</Text>
+                                            <Text fw={700}>{form.values.numero_cheque_reposicion}</Text>
+                                        </Stack>
+                                    )}
+                                </Group>
+                            </Paper>
 
-                {!canSubmit && tieneItemsArqueo && !requiereDepositoParaCerrar && Math.abs(arqueoTotal - efectivoEsperado) > 0.005 && (
-                    <Text size="xs" c="red" ta="center" mb="sm" fw={500}>
-                        ⚠️ El arqueo fisico debe coincidir exactamente con el efectivo final esperado para poder cerrar la caja.
-                    </Text>
-                )}
+                            <Textarea
+                                label="Observaciones del Cierre (opcional)"
+                                placeholder="Ingrese notas o detalles relevantes del cierre de esta caja..."
+                                minRows={3}
+                                maxRows={5}
+                                leftSection={<IconNotes size={18} stroke={1.5} />}
+                                leftSectionProps={{ style: { alignItems: 'flex-start', paddingTop: '8px' } }}
+                                disabled={readOnly}
+                                {...form.getInputProps('observaciones')}
+                            />
 
-                <AppActionButtons
-                    onCancel={close}
-                    loading={closeCajaMutation.isPending}
-                    showSubmit={!readOnly}
-                    submitLabel={
-                        requiereDepositoParaCerrar
-                            ? 'Deposite Efectivo para Cerrar'
-                            : (canSubmit ? '✓ Confirmar e Imprimir' : 'Cerrar Caja (Contar Efectivo)')
-                    }
-                />
+                            {/* Botones paso 3 */}
+                            <Group justify="space-between" mt="sm">
+                                <Button variant="subtle" color="gray" onClick={() => setActiveStep(1)}>← Volver</Button>
+                                {!readOnly && (
+                                    <Button
+                                        type="submit"
+                                        color="red"
+                                        loading={closeCajaMutation.isPending}
+                                        disabled={!canSubmit}
+                                        leftSection={<IconLock size={16} />}
+                                    >
+                                        Confirmar y Cerrar Caja
+                                    </Button>
+                                )}
+                            </Group>
+                        </Stack>
+                    </Stepper.Step>
+                </Stepper>
             </form>
         </AppModal>
     );

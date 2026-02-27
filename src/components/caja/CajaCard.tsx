@@ -75,6 +75,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                 accion: 'ELIMINAR_CAJA',
                 detalle: {
                     caja_id: caja.id,
+                    numero_caja: caja.numero || caja.id,
                     sucursal: caja.sucursal,
                     responsable: caja.responsable,
                     fecha_eliminacion: new Date().toISOString()

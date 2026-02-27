@@ -101,6 +101,16 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 </Paper>
             )}
 
+            {/* Observaciones de Cierre */}
+            {caja.observaciones && (
+                <Stack gap={4} mb="xl">
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed">Observaciones de Cierre</Text>
+                    <Paper withBorder p="md" radius="sm" bg="gray.1" style={{ border: '1px solid #ccc' }}>
+                        <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caja.observaciones}</Text>
+                    </Paper>
+                </Stack>
+            )}
+
             {/* Arqueo de Caja */}
             {arqueoData && (
                 <>

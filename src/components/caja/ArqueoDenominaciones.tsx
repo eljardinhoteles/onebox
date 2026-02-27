@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-    Stack, Group, Select, NumberInput, Text, Paper, ActionIcon,
-    Badge, Table, ThemeIcon, Divider
+    Stack, Group, Text, Paper, ActionIcon, Badge, Divider,
+    SimpleGrid, Button, ThemeIcon
 } from '@mantine/core';
-import { IconPlus, IconTrash, IconCoin, IconCash } from '@tabler/icons-react';
+import { IconTrash, IconCoin, IconCash, IconMinus } from '@tabler/icons-react';
 
 interface DenominacionItem {
-    id: string; // El 'value' de DENOMINACIONES
+    id: string;
     denominacion: number;
     cantidad: number;
 }
@@ -22,180 +22,190 @@ interface ArqueoDenominacionesProps {
 }
 
 const DENOMINACIONES = [
-    { value: '100', label: '💵 $100.00 — Billete' },
-    { value: '50', label: '💵 $50.00 — Billete' },
-    { value: '20', label: '💵 $20.00 — Billete' },
-    { value: '10', label: '💵 $10.00 — Billete' },
-    { value: '5', label: '💵 $5.00 — Billete' },
-    { value: '1_b', label: '💵 $1.00 — Billete' },
-    { value: '1_m', label: '🪙 $1.00 — Moneda' },
-    { value: '0.5', label: '🪙 $0.50 — Moneda' },
-    { value: '0.25', label: '🪙 $0.25 — Moneda' },
-    { value: '0.1', label: '🪙 $0.10 — Moneda' },
-    { value: '0.05', label: '🪙 $0.05 — Moneda' },
-    { value: '0.01', label: '🪙 $0.01 — Moneda' },
+    { value: '100', denominacion: 100, label: '$100', tipo: 'billete' },
+    { value: '50', denominacion: 50, label: '$50', tipo: 'billete' },
+    { value: '20', denominacion: 20, label: '$20', tipo: 'billete' },
+    { value: '10', denominacion: 10, label: '$10', tipo: 'billete' },
+    { value: '5', denominacion: 5, label: '$5', tipo: 'billete' },
+    { value: '1_b', denominacion: 1, label: '$1', tipo: 'billete' },
+    { value: '1_m', denominacion: 1, label: '$1', tipo: 'moneda' },
+    { value: '0.5', denominacion: 0.5, label: '50¢', tipo: 'moneda' },
+    { value: '0.25', denominacion: 0.25, label: '25¢', tipo: 'moneda' },
+    { value: '0.1', denominacion: 0.1, label: '10¢', tipo: 'moneda' },
+    { value: '0.05', denominacion: 0.05, label: '5¢', tipo: 'moneda' },
+    { value: '0.01', denominacion: 0.01, label: '1¢', tipo: 'moneda' },
 ];
 
 export function ArqueoDenominaciones({ montoEsperado, onChange }: ArqueoDenominacionesProps) {
-    const [items, setItems] = useState<DenominacionItem[]>([]);
-    const [selectedDenom, setSelectedDenom] = useState<string | null>(null);
+    const [counts, setCounts] = useState<Record<string, number>>({});
 
-    const total = items.reduce((sum, item) => sum + (item.denominacion * item.cantidad), 0);
-    // Round to avoid floating point issues
+    // Calculate totals
+    const items: DenominacionItem[] = DENOMINACIONES
+        .filter(d => (counts[d.value] || 0) > 0)
+        .map(d => ({ id: d.value, denominacion: d.denominacion, cantidad: counts[d.value] }));
+
+    const total = DENOMINACIONES.reduce((sum, d) => {
+        return sum + d.denominacion * (counts[d.value] || 0);
+    }, 0);
     const totalRounded = Math.round(total * 100) / 100;
     const diferencia = Math.round((totalRounded - montoEsperado) * 100) / 100;
-    const coincide = diferencia === 0 && montoEsperado > 0;
+    const coincide = diferencia === 0 && montoEsperado > 0 && items.length > 0;
 
-    const usedDenomIds = new Set(items.map(i => i.id));
-    const availableDenoms = DENOMINACIONES.filter(d => !usedDenomIds.has(d.value));
-
-    const handleAdd = () => {
-        if (!selectedDenom) return;
-        const denomConfig = DENOMINACIONES.find(d => d.value === selectedDenom);
-        if (!denomConfig) return;
-
-        const denomValue = parseFloat(denomConfig.value);
-        const newItems = [...items, { id: denomConfig.value, denominacion: denomValue, cantidad: 0 }];
-        // Sort by denomination descending
-        newItems.sort((a, b) => b.denominacion - a.denominacion);
-        setItems(newItems);
-        setSelectedDenom(null);
-
-        const newTotal = newItems.reduce((s, i) => s + (i.denominacion * i.cantidad), 0);
+    const update = (newCounts: Record<string, number>) => {
+        setCounts(newCounts);
+        const newItems: DenominacionItem[] = DENOMINACIONES
+            .filter(d => (newCounts[d.value] || 0) > 0)
+            .map(d => ({ id: d.value, denominacion: d.denominacion, cantidad: newCounts[d.value] }));
+        const newTotal = newItems.reduce((s, i) => s + i.denominacion * i.cantidad, 0);
         onChange({ items: newItems, total: Math.round(newTotal * 100) / 100 });
     };
 
-    const handleCantidadChange = (index: number, cantidad: number) => {
-        const newItems = [...items];
-        newItems[index] = { ...newItems[index], cantidad };
-        setItems(newItems);
-
-        const newTotal = newItems.reduce((s, i) => s + (i.denominacion * i.cantidad), 0);
-        onChange({ items: newItems, total: Math.round(newTotal * 100) / 100 });
+    const increment = (value: string) => {
+        update({ ...counts, [value]: (counts[value] || 0) + 1 });
     };
 
-    const handleRemove = (index: number) => {
-        const newItems = items.filter((_, i) => i !== index);
-        setItems(newItems);
-
-        const newTotal = newItems.reduce((s, i) => s + (i.denominacion * i.cantidad), 0);
-        onChange({ items: newItems, total: Math.round(newTotal * 100) / 100 });
+    const decrement = (value: string) => {
+        const current = counts[value] || 0;
+        if (current <= 0) return;
+        const newCounts = { ...counts, [value]: current - 1 };
+        update(newCounts);
     };
 
-    const isBillete = (denom: number) => denom >= 1;
+    const remove = (value: string) => {
+        const newCounts = { ...counts };
+        delete newCounts[value];
+        update(newCounts);
+    };
+
+    const billetes = DENOMINACIONES.filter(d => d.tipo === 'billete');
+    const monedas = DENOMINACIONES.filter(d => d.tipo === 'moneda');
 
     return (
         <Stack gap="sm">
-            <Group gap="xs" align="flex-end">
-                <Select
-                    label="Agregar Denominación"
-                    placeholder="Seleccione..."
-                    data={availableDenoms || []}
-                    value={selectedDenom}
-                    onChange={setSelectedDenom}
-                    searchable
-                    style={{ flex: 1 }}
-                    nothingFoundMessage="Todas las denominaciones agregadas"
-                />
-                <ActionIcon
-                    variant="filled"
-                    color="blue"
-                    size="lg"
-                    onClick={handleAdd}
-                    disabled={!selectedDenom}
-                    mb={1}
-                >
-                    <IconPlus size={18} />
-                </ActionIcon>
-            </Group>
+            {/* Grid de denominaciones clickeables */}
+            <Stack gap="xs">
+                <Text size="xs" fw={700} tt="uppercase" c="dimmed">Billetes</Text>
+                <SimpleGrid cols={6} spacing={4}>
+                    {billetes.map(d => {
+                        const qty = counts[d.value] || 0;
+                        const active = qty > 0;
+                        return (
+                            <Button
+                                key={d.value}
+                                variant={active ? 'filled' : 'light'}
+                                color={active ? 'green' : 'gray'}
+                                onClick={() => increment(d.value)}
+                                styles={{
+                                    root: {
+                                        height: 'auto',
+                                        padding: '4px 2px',
+                                        position: 'relative',
+                                    }
+                                }}
+                            >
+                                <Stack gap={1} align="center">
+                                    <ThemeIcon variant="transparent" color={active ? 'white' : 'green'} size={14}>
+                                        <IconCash size={10} />
+                                    </ThemeIcon>
+                                    <Text size="xs" fw={700}>{d.label}</Text>
+                                    {active && (
+                                        <Badge size="xs" variant="white" color="green" style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, padding: '0 3px' }}>
+                                            {qty}
+                                        </Badge>
+                                    )}
+                                </Stack>
+                            </Button>
+                        );
+                    })}
+                </SimpleGrid>
+            </Stack>
 
+            <Stack gap="xs">
+                <Text size="xs" fw={700} tt="uppercase" c="dimmed">Monedas</Text>
+                <SimpleGrid cols={6} spacing={4}>
+                    {monedas.map(d => {
+                        const qty = counts[d.value] || 0;
+                        const active = qty > 0;
+                        return (
+                            <Button
+                                key={d.value}
+                                variant={active ? 'filled' : 'light'}
+                                color={active ? 'yellow.7' : 'gray'}
+                                onClick={() => increment(d.value)}
+                                styles={{
+                                    root: {
+                                        height: 'auto',
+                                        padding: '4px 2px',
+                                        position: 'relative',
+                                    }
+                                }}
+                            >
+                                <Stack gap={1} align="center">
+                                    <ThemeIcon variant="transparent" color={active ? 'white' : 'yellow'} size={14}>
+                                        <IconCoin size={10} />
+                                    </ThemeIcon>
+                                    <Text size="xs" fw={700}>{d.label}</Text>
+                                    {active && (
+                                        <Badge size="xs" variant="white" color="yellow" style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, padding: '0 3px' }}>
+                                            {qty}
+                                        </Badge>
+                                    )}
+                                </Stack>
+                            </Button>
+                        );
+                    })}
+                </SimpleGrid>
+            </Stack>
+
+            {/* Resumen de lo seleccionado */}
             {items.length > 0 && (
                 <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
-                    <Table striped highlightOnHover verticalSpacing="xs" horizontalSpacing="sm">
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Denominación</Table.Th>
-                                <Table.Th style={{ width: 120 }}>Cantidad</Table.Th>
-                                <Table.Th style={{ textAlign: 'right' }}>Subtotal</Table.Th>
-                                <Table.Th style={{ width: 40 }}></Table.Th>
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {items.map((item, idx) => (
-                                <Table.Tr key={item.id}>
-                                    <Table.Td>
-                                        <Group gap="xs">
-                                            <ThemeIcon
-                                                variant="light"
-                                                color={isBillete(item.denominacion) ? 'green' : 'yellow'}
-                                                size="sm"
-                                                radius="xl"
-                                            >
-                                                {isBillete(item.denominacion)
-                                                    ? <IconCash size={14} />
-                                                    : <IconCoin size={14} />}
-                                            </ThemeIcon>
-                                            <Text size="sm" fw={500}>
-                                                ${item.denominacion.toFixed(2)}
-                                            </Text>
-                                        </Group>
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <NumberInput
-                                            size="xs"
-                                            min={0}
-                                            value={item.cantidad}
-                                            onChange={(val) => handleCantidadChange(idx, Number(val) || 0)}
-                                            hideControls={false}
-                                            styles={{ input: { textAlign: 'center', fontWeight: 600 } }}
-                                        />
-                                    </Table.Td>
-                                    <Table.Td style={{ textAlign: 'right' }}>
-                                        <Text size="sm" fw={600} className="font-mono">
-                                            ${(item.denominacion * item.cantidad).toFixed(2)}
-                                        </Text>
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="red"
-                                            size="sm"
-                                            onClick={() => handleRemove(idx)}
-                                        >
-                                            <IconTrash size={14} />
+                    <Stack gap={0}>
+                        {items.map(item => {
+                            const isBillete = item.denominacion >= 1 && DENOMINACIONES.find(d => d.value === item.id)?.tipo === 'billete';
+                            return (
+                                <Group key={item.id} justify="space-between" px="sm" py={6} style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
+                                    <Group gap="xs">
+                                        <ThemeIcon variant="light" color={isBillete ? 'green' : 'yellow'} size="sm" radius="xl">
+                                            {isBillete ? <IconCash size={12} /> : <IconCoin size={12} />}
+                                        </ThemeIcon>
+                                        <Text size="sm" fw={600}>${item.denominacion.toFixed(2)}</Text>
+                                    </Group>
+                                    <Group gap={4}>
+                                        <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => decrement(item.id)}>
+                                            <IconMinus size={12} />
                                         </ActionIcon>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                        </Table.Tbody>
-                    </Table>
-
+                                        <Text size="sm" fw={700} w={24} ta="center">{item.cantidad}</Text>
+                                        <ActionIcon size="xs" variant="subtle" color="red" onClick={() => remove(item.id)}>
+                                            <IconTrash size={12} />
+                                        </ActionIcon>
+                                    </Group>
+                                    <Text size="sm" fw={600} w={70} ta="right">
+                                        ${(item.denominacion * item.cantidad).toFixed(2)}
+                                    </Text>
+                                </Group>
+                            );
+                        })}
+                    </Stack>
                     <Divider />
-
                     <Group justify="space-between" p="sm" px="md">
                         <Text size="sm" fw={700}>Total Arqueo:</Text>
-                        <Text size="lg" fw={700} className="font-mono">
-                            ${totalRounded.toFixed(2)}
-                        </Text>
+                        <Text size="lg" fw={700}>${totalRounded.toFixed(2)}</Text>
                     </Group>
                 </Paper>
             )}
 
+            {/* Estado de verificación */}
             {montoEsperado > 0 && items.length > 0 && (
                 <Paper
                     withBorder
                     p="xs"
                     radius="md"
                     bg={coincide ? 'teal.0' : 'red.0'}
-                    className={coincide ? 'border-teal-200' : 'border-red-200'}
                 >
                     <Group justify="space-between">
                         <Group gap="xs">
-                            <Badge
-                                variant="light"
-                                color={coincide ? 'teal' : 'red'}
-                                size="lg"
-                            >
+                            <Badge variant="light" color={coincide ? 'teal' : 'red'} size="lg">
                                 {coincide ? '✓ Verificado' : '✗ Diferencia'}
                             </Badge>
                             {!coincide && (
@@ -204,18 +214,14 @@ export function ArqueoDenominaciones({ montoEsperado, onChange }: ArqueoDenomina
                                 </Text>
                             )}
                         </Group>
-                        <Text size="xs" c="dimmed" fw={500}>
-                            Esperado: ${montoEsperado.toFixed(2)}
-                        </Text>
+                        <Text size="xs" c="dimmed" fw={500}>Esperado: ${montoEsperado.toFixed(2)}</Text>
                     </Group>
                 </Paper>
             )}
 
             {items.length === 0 && (
-                <Paper p="lg" radius="md" bg="gray.0" ta="center">
-                    <Text size="sm" c="dimmed">
-                        Seleccione las denominaciones que desea contar
-                    </Text>
+                <Paper p="md" radius="md" bg="gray.0" ta="center">
+                    <Text size="sm" c="dimmed">Toca cada denominación para añadirla al conteo</Text>
                 </Paper>
             )}
         </Stack>

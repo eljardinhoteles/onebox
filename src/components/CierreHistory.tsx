@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Text, Badge, ScrollArea, Group, LoadingOverlay, Paper, Title, Avatar } from '@mantine/core';
-import { IconBuildingBank, IconTrash, IconChevronRight, IconChevronDown, IconTransfer, IconCircleOff } from '@tabler/icons-react';
+import { IconBuildingBank, IconTransfer, IconCircleOff } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 

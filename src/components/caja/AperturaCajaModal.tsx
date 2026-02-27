@@ -104,6 +104,7 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
                 accion: 'APERTURA_CAJA',
                 detalle: {
                     caja_id: newCaja.id,
+                    numero_caja: newCaja.numero || newCaja.id,
                     sucursal: newCaja.sucursal,
                     responsable: newCaja.responsable,
                     monto_inicial,
