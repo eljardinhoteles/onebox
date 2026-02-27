@@ -10,7 +10,6 @@ interface CajaHeaderProps {
     onBack?: () => void;
     isLowBalance: boolean;
     percentageRemaining: number;
-    montoInicialNeto: number;
     totalDepositos: number;
     filterState: any;
     setFilterState: (fn: (prev: any) => any) => void;
@@ -28,7 +27,6 @@ export function CajaHeader({
     onBack,
     isLowBalance,
     percentageRemaining,
-    montoInicialNeto,
     totalDepositos,
     filterState,
     setFilterState,
@@ -62,9 +60,9 @@ export function CajaHeader({
             {isLowBalance && (
                 <Alert variant="light" color="orange" title="Saldo de Caja Bajo" icon={<IconAlertTriangle size={18} />} radius="md" mb="md">
                     <Text size="sm">
-                        Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo operativo (${montoInicialNeto.toLocaleString()}).
+                        Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo en caja.
                         <br />
-                        <Text span size="xs" c="dimmed">(Inicial: ${caja?.monto_inicial?.toLocaleString()} - Depósitos: ${totalDepositos.toLocaleString()})</Text>
+                        <Text span size="xs" c="dimmed">Fondo inicial: ${caja?.monto_inicial?.toLocaleString()} · Dep\u00f3sitos realizados: ${totalDepositos.toLocaleString()}</Text>
                     </Text>
                 </Alert>
             )}

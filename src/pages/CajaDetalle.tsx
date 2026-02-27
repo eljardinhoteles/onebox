@@ -183,10 +183,11 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
 
     const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
-    const montoInicialNeto = (caja?.monto_inicial || 0) - totalDepositos;
+    const montoInicial = caja?.monto_inicial || 0;
 
-    const percentageRemaining = montoInicialNeto > 0
-        ? (totals.efectivo / montoInicialNeto) * 100
+    // El porcentaje se calcula vs el monto inicial original (los depósitos ya están descontados en totals.efectivo)
+    const percentageRemaining = montoInicial > 0
+        ? (totals.efectivo / montoInicial) * 100
         : 0;
 
     const isLowBalance = percentageRemaining <= alertThreshold && caja?.estado === 'abierta';
@@ -342,7 +343,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 onBack={onBack}
                 isLowBalance={isLowBalance}
                 percentageRemaining={percentageRemaining}
-                montoInicialNeto={montoInicialNeto}
+
                 totalDepositos={totalDepositos}
                 filterState={filterState}
                 setFilterState={setFilterState}

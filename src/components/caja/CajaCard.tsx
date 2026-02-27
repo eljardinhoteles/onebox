@@ -32,11 +32,11 @@ interface CajaCardProps {
 
 export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaCardProps) {
     const totalDepositos = caja.total_depositos || 0;
-    const montoInicialNeto = caja.monto_inicial - totalDepositos;
+    const montoInicial = caja.monto_inicial;
 
-    // Avoid division by zero
-    const percentageRemaining = montoInicialNeto > 0
-        ? (caja.saldo_actual / montoInicialNeto) * 100
+    // El saldo_actual ya incluye el descuento de depósitos — se compara vs el monto inicial original
+    const percentageRemaining = montoInicial > 0
+        ? (caja.saldo_actual / montoInicial) * 100
         : 0;
 
     const isLowBalance = percentageRemaining <= alertThreshold && caja.estado === 'abierta';
@@ -194,7 +194,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                             </Text>
                         </Stack>
                         <Stack gap={0} align="flex-end">
-                            <Text size="xs" c="dimmed" fw={600}>${montoInicialNeto.toLocaleString(undefined, { minimumFractionDigits: 2 })} Neto</Text>
+                            <Text size="xs" c="dimmed" fw={600}>${montoInicial.toLocaleString(undefined, { minimumFractionDigits: 2 })} Inicial</Text>
                             {isLowBalance && (
                                 <Badge color="orange" variant="dot" size="xs">Saldo Bajo</Badge>
                             )}

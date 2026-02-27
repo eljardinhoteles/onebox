@@ -42,7 +42,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     {showBreakdown ? <IconChevronUp size={12} stroke={3} className="text-blue-500" /> : <IconChevronDown size={12} stroke={3} className="text-gray-400" />}
                                 </Group>
                                 <Text size="xl" fw={700}>
-                                    ${((caja?.monto_inicial || 0) - (totals.totalDepositos || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    ${(caja?.monto_inicial || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </Text>
                             </Stack>
                             <ThemeIcon variant="light" size="lg" radius="md" color="blue">
@@ -62,7 +62,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     <Text size="xs" fw={600}>${caja?.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Group>
                                 <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Depósitos:</Text>
+                                    <Text size="xs" c="dimmed">Depósitos a Banco:</Text>
                                     <Text size="xs" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Group>
                             </Stack>
