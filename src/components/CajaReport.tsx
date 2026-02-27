@@ -28,6 +28,7 @@ interface Transaction {
         total_fuente: number;
         total_iva: number;
         total_retenido: number;
+        recaudada?: boolean;
     } | null;
 }
 
@@ -86,6 +87,12 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                             <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
                             <Group justify="space-between"><Text size="sm" fw={700}>Monto Inicial:</Text><Text size="sm">${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             <Group justify="space-between"><Text size="sm" fw={700}>Total Gastos (Neto):</Text><Text size="sm">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            {totals.totalRetPendiente > 0 && (
+                                <Group justify="space-between" align="center">
+                                    <Text size="sm" fw={700} c="red.7">Faltante por Ret. Pendientes:</Text>
+                                    <Text size="sm" c="red.7">-${totals.totalRetPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                </Group>
+                            )}
                             {totalDepositos > 0 && (
                                 <Group justify="space-between"><Text size="sm" fw={700}>Depósitos a Banco:</Text><Text size="sm">-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             )}
@@ -241,7 +248,16 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                                     <Text size="sm">${(t.retencion?.total_iva || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Table.Td>
                                 <Table.Td ta="right">
-                                    <Text size="sm" c="red.8">-${retencionTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    {retencionTotal > 0 ? (
+                                        <Stack gap={0} align="flex-end">
+                                            <Text size="sm" c="red.8">-${retencionTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                            <Text size="xs" fw={600} c={t.retencion?.recaudada ? 'teal.7' : 'orange.7'} style={{ fontSize: 9 }}>
+                                                {t.retencion?.recaudada ? '(Recaudada)' : '(Pendiente)'}
+                                            </Text>
+                                        </Stack>
+                                    ) : (
+                                        <Text size="sm" c="red.8">-$0.00</Text>
+                                    )}
                                 </Table.Td>
                                 <Table.Td ta="right">
                                     <Text fw={700} size="sm">${netoGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
