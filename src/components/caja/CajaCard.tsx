@@ -206,16 +206,9 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                     </Group>
 
                     <Tooltip
-                        label={
-                            <Stack gap={0}>
-                                <Text size="xs">{percentageRemaining.toFixed(1)}% del efectivo neto disponible</Text>
-                                <Text size="xs" c="dimmed">Inicial: ${caja.monto_inicial.toFixed(2)}</Text>
-                                <Text size="xs" c="dimmed">Depósitos: -${totalDepositos.toFixed(2)}</Text>
-                            </Stack>
-                        }
+                        label={<Text size="xs" fw={700}>{percentageRemaining.toFixed(1)}%</Text>}
                         withArrow
                         radius="md"
-                        multiline
                     >
                         <Paper w="100%" h={6} radius="xl" bg="gray.1" style={{ overflow: 'hidden' }}>
                             <div

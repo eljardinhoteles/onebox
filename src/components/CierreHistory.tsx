@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Text, Badge, ScrollArea, Group, LoadingOverlay, Paper, Title, Avatar } from '@mantine/core';
-import { IconBuildingBank, IconTransfer } from '@tabler/icons-react';
+import { IconBuildingBank, IconTrash, IconChevronRight, IconChevronDown, IconTransfer, IconCircleOff } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
 
@@ -71,6 +71,8 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
                             {history.map((item) => {
                                 const metodo = item.metodo_reposicion || 'cheque';
                                 const esTransferencia = metodo === 'transferencia';
+                                const esNinguna = metodo === 'ninguna';
+
                                 return (
                                     <Table.Tr key={item.id}>
                                         <Table.Td>{dayjs(item.fecha_cierre).format('DD/MM/YYYY HH:mm')}</Table.Td>
@@ -84,21 +86,21 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
                                         </Table.Td>
                                         <Table.Td ta="right">${item.monto_inicial?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                                         <Table.Td ta="right">
-                                            <Text fw={700} c="red.6">
-                                                -${item.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <Text fw={700} c={esNinguna ? 'dimmed' : 'red.6'}>
+                                                {esNinguna ? '$0.00' : `-$${item.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                                             </Text>
                                         </Table.Td>
                                         <Table.Td>
                                             <Badge
                                                 variant="light"
-                                                color={esTransferencia ? 'violet' : 'blue'}
+                                                color={esNinguna ? 'gray' : (esTransferencia ? 'violet' : 'blue')}
                                                 size="sm"
-                                                leftSection={esTransferencia
-                                                    ? <IconTransfer size={11} />
-                                                    : <IconBuildingBank size={11} />
+                                                leftSection={esNinguna
+                                                    ? <IconCircleOff size={11} />
+                                                    : (esTransferencia ? <IconTransfer size={11} /> : <IconBuildingBank size={11} />)
                                                 }
                                             >
-                                                {esTransferencia ? 'Transferencia' : 'Cheque'}
+                                                {esNinguna ? 'Ninguna' : (esTransferencia ? 'Transfer' : 'Cheque')}
                                             </Badge>
                                         </Table.Td>
                                         <Table.Td>
@@ -107,7 +109,7 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
                                                     {item.numero_cheque_reposicion}
                                                 </Badge>
                                             ) : (
-                                                <Text size="xs" c="dimmed">-</Text>
+                                                <Text size="xs" c="dimmed">{esNinguna ? 'Cierre Final' : '-'}</Text>
                                             )}
                                         </Table.Td>
                                         <Table.Td>

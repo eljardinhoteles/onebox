@@ -1,12 +1,12 @@
 import dayjs from 'dayjs';
-import { Paper, Text, Stack, Group, TextInput, Select, Grid, Divider, SegmentedControl } from '@mantine/core';
+import { Paper, Text, Stack, Group, TextInput, Select, Grid, Divider, SegmentedControl, Alert } from '@mantine/core';
 import { AppModal } from '../ui/AppModal';
 import { AppActionButtons } from '../ui/AppActionButtons';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
-import { IconCheck, IconX, IconLock, IconFileInvoice, IconBuildingBank, IconTransfer } from '@tabler/icons-react';
+import { IconCheck, IconX, IconLock, IconFileInvoice, IconBuildingBank, IconTransfer, IconCircleOff, IconAlertCircle } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ArqueoDenominaciones, type ArqueoDesglose } from './ArqueoDenominaciones';
@@ -35,12 +35,13 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
     const form = useForm({
         initialValues: {
             fecha_cierre: new Date(),
-            metodo_reposicion: 'cheque' as 'cheque' | 'transferencia',
+            metodo_reposicion: 'cheque' as 'cheque' | 'transferencia' | 'ninguna',
             numero_cheque_reposicion: '',
             banco_reposicion: '',
         },
         validate: {
-            banco_reposicion: (value) => (value ? null : 'Requerido para el cierre'),
+            banco_reposicion: (value, values) =>
+                values.metodo_reposicion !== 'ninguna' && !value ? 'Requerido para la reposición' : null,
             numero_cheque_reposicion: (value, values) =>
                 values.metodo_reposicion === 'cheque' && !value ? 'Requerido para el cierre con cheque' : null,
         },
@@ -52,7 +53,12 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
     const arqueoTotal = arqueoDesglose?.total ?? 0;
     const arqueoConcuerda = Math.abs(arqueoTotal - efectivoEsperado) < 0.005;
     const tieneItemsArqueo = (arqueoDesglose?.items.length ?? 0) > 0;
-    const canSubmit = arqueoConcuerda && tieneItemsArqueo && !readOnly;
+
+    // Bloqueo estricto para método NINGUNA: el efectivo disponible debe ser $0
+    const esCierreDefinitivo = metodo === 'ninguna';
+    const requiereDepositoParaCerrar = esCierreDefinitivo && efectivoEsperado > 0.005;
+
+    const canSubmit = arqueoConcuerda && tieneItemsArqueo && !readOnly && !requiereDepositoParaCerrar;
 
     const { data: bancos = [] } = useQuery({
         queryKey: ['bancos'],
@@ -70,10 +76,10 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             const payload = {
                 estado: 'cerrada',
                 fecha_cierre: dayjs(values.fecha_cierre).toISOString(),
-                reposicion: totals.neto,
+                reposicion: values.metodo_reposicion === 'ninguna' ? 0 : totals.neto,
                 metodo_reposicion: values.metodo_reposicion,
-                numero_cheque_reposicion: values.numero_cheque_reposicion || null,
-                banco_reposicion: values.banco_reposicion,
+                numero_cheque_reposicion: values.metodo_reposicion === 'ninguna' ? null : (values.numero_cheque_reposicion || null),
+                banco_reposicion: values.metodo_reposicion === 'ninguna' ? null : values.banco_reposicion,
             };
 
             const { error: updateError } = await supabase
@@ -103,7 +109,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                     } : null,
                     numero_cheque: values.metodo_reposicion === 'cheque' ? values.numero_cheque_reposicion : null,
                     numero_referencia: values.metodo_reposicion === 'transferencia' ? values.numero_cheque_reposicion : null,
-                    banco: values.banco_reposicion,
+                    banco: values.metodo_reposicion !== 'ninguna' ? values.banco_reposicion : null,
                     fecha_accion_cierre: new Date().toISOString()
                 },
                 user_id: user?.id,
@@ -232,7 +238,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                             <Stack gap={4}>
                                 <Text size="sm" fw={500}>Método de Reposición</Text>
                                 <SegmentedControl
-                                    color={metodo === 'transferencia' ? 'violet' : 'blue'}
+                                    color={metodo === 'transferencia' ? 'violet' : (metodo === 'ninguna' ? 'red' : 'blue')}
                                     data={[
                                         {
                                             value: 'cheque',
@@ -248,7 +254,16 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                             label: (
                                                 <Group gap={6} justify="center" py={2}>
                                                     <IconTransfer size={15} />
-                                                    <span>Transferencia</span>
+                                                    <span>Transfer</span>
+                                                </Group>
+                                            )
+                                        },
+                                        {
+                                            value: 'ninguna',
+                                            label: (
+                                                <Group gap={6} justify="center" py={2}>
+                                                    <IconCircleOff size={15} />
+                                                    <span>Ninguna</span>
                                                 </Group>
                                             )
                                         },
@@ -262,27 +277,45 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                 />
                             </Stack>
 
-                            <Group grow>
-                                <Select
-                                    label="Banco"
-                                    placeholder="Seleccione banco"
-                                    data={bancos}
-                                    required
-                                    searchable
-                                    disabled={readOnly}
-                                    {...form.getInputProps('banco_reposicion')}
-                                />
-                                <TextInput
-                                    label={metodo === 'cheque' ? 'Número de Cheque' : 'N° de Referencia'}
-                                    placeholder={metodo === 'cheque' ? 'Ej: CH-123456' : 'Ej: REF-789012'}
-                                    required={metodo === 'cheque'}
-                                    disabled={readOnly}
-                                    {...form.getInputProps('numero_cheque_reposicion')}
-                                />
-                            </Group>
+                            {metodo !== 'ninguna' ? (
+                                <Group grow>
+                                    <Select
+                                        label="Banco"
+                                        placeholder="Seleccione banco"
+                                        data={bancos}
+                                        required
+                                        searchable
+                                        disabled={readOnly}
+                                        {...form.getInputProps('banco_reposicion')}
+                                    />
+                                    <TextInput
+                                        label={metodo === 'cheque' ? 'Número de Cheque' : 'N° de Referencia'}
+                                        placeholder={metodo === 'cheque' ? 'Ej: CH-123456' : 'Ej: REF-789012'}
+                                        required={metodo === 'cheque'}
+                                        disabled={readOnly}
+                                        {...form.getInputProps('numero_cheque_reposicion')}
+                                    />
+                                </Group>
+                            ) : (
+                                <Stack gap="xs">
+                                    {requiereDepositoParaCerrar ? (
+                                        <Alert variant="light" color="red" title="Cierre Definitivo Bloqueado" icon={<IconAlertCircle size={16} />}>
+                                            Para un cierre definitivo (Sin Reposición), **todo el efectivo disponible debe ser depositado** primero.
+                                            <Text mt="xs" fw={700} size="sm">Saldo pendiente: ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                        </Alert>
+                                    ) : (
+                                        <Alert variant="light" color="blue" icon={<IconAlertCircle size={16} />}>
+                                            Al seleccionar **Ninguna**, esta caja se cerrará definitivamente sin generar una nueva reposición de efectivo.
+                                        </Alert>
+                                    )}
+                                </Stack>
+                            )}
 
                             <Text size="xs" c="dimmed" fs="italic">
-                                * Se emitirá una reposición por {metodo === 'cheque' ? 'cheque' : 'transferencia'} por el total neto de gastos (${totals.neto.toFixed(2)}).
+                                {metodo === 'ninguna'
+                                    ? '* Esta caja no recibirá reposición de efectivo tras el cierre.'
+                                    : `* Se emitirá una reposición por ${metodo === 'cheque' ? 'cheque' : 'transferencia'} por el total neto de gastos ($${totals.neto.toFixed(2)}).`
+                                }
                             </Text>
                         </Stack>
                     </Grid.Col>
@@ -290,7 +323,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
 
                 <Divider my="md" />
 
-                {!canSubmit && tieneItemsArqueo && Math.abs(arqueoTotal - efectivoEsperado) > 0.005 && (
+                {!canSubmit && tieneItemsArqueo && !requiereDepositoParaCerrar && Math.abs(arqueoTotal - efectivoEsperado) > 0.005 && (
                     <Text size="xs" c="red" ta="center" mb="sm" fw={500}>
                         ⚠️ El arqueo fisico debe coincidir exactamente con el efectivo final esperado para poder cerrar la caja.
                     </Text>
@@ -300,7 +333,11 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                     onCancel={close}
                     loading={closeCajaMutation.isPending}
                     showSubmit={!readOnly}
-                    submitLabel={canSubmit ? '✓ Confirmar e Imprimir' : 'Cerrar Caja (Contar Efectivo)'}
+                    submitLabel={
+                        requiereDepositoParaCerrar
+                            ? 'Deposite Efectivo para Cerrar'
+                            : (canSubmit ? '✓ Confirmar e Imprimir' : 'Cerrar Caja (Contar Efectivo)')
+                    }
                 />
             </form>
         </AppModal>
