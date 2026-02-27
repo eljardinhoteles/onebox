@@ -7,6 +7,8 @@ interface CajaSummaryCardsProps {
     totals: {
         facturado: number;
         totalRet: number;
+        totalRetRecaudada?: number;
+        totalRetPendiente?: number;
         fuente: number;
         iva: number;
         neto: number;
@@ -61,10 +63,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     <Text size="xs" c="dimmed">Reposición:</Text>
                                     <Text size="xs" fw={600}>${caja?.reposicion?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Group>
-                                <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Depósitos a Banco:</Text>
-                                    <Text size="xs" fw={600} c="red.6">-${(totals.totalDepositos || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                </Group>
+
                             </Stack>
                         </Collapse>
 
@@ -134,9 +133,11 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                 <IconFileInvoice size={20} stroke={1.5} />
                             </ThemeIcon>
                         </Group>
-                        <Group gap="xs" mt="xs">
-                            <Text size="xs" c="orange.8" fw={600}>F: ${totals.fuente.toFixed(2)}</Text>
-                            <Text size="xs" c="orange.8" fw={600}>I: ${totals.iva.toFixed(2)}</Text>
+                        <Group gap="xs" mt="xs" wrap="wrap">
+                            <Text size="xs" c="teal.7" fw={600}>✓ ${(totals.totalRetRecaudada || 0).toFixed(2)} recaudadas</Text>
+                            {(totals.totalRetPendiente || 0) > 0 && (
+                                <Text size="xs" c="red.7" fw={700}>⚠ ${(totals.totalRetPendiente || 0).toFixed(2)} faltante</Text>
+                            )}
                         </Group>
                     </Paper>
                 </Tooltip>

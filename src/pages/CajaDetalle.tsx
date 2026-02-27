@@ -127,7 +127,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     id, tipo_documento, fecha_factura, numero_factura, total_factura,
                     parent_id, es_justificacion, has_manual_novedad,
                     proveedor:proveedores (nombre, ruc),
-                    retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido),
+                    retencion:retenciones (id, numero_retencion, total_fuente, total_iva, total_retenido, recaudada),
                     items:transaccion_items!transaccion_items_transaccion_id_fkey (nombre, cantidad),
                     banco:bancos (nombre)
                 `)

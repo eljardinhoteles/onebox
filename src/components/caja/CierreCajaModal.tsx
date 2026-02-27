@@ -17,6 +17,8 @@ interface CierreCajaModalProps {
     totals: {
         facturado: number;
         totalRet: number;
+        totalRetRecaudada?: number;
+        totalRetPendiente?: number;
         fuente: number;
         iva: number;
         neto: number;
@@ -209,6 +211,15 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                                     ${efectivoEsperado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </Text>
                                             </Group>
+                                            {(totals.totalRetPendiente || 0) > 0 && (
+                                                <Paper withBorder p="xs" radius="md" bg="red.0" mt="xs">
+                                                    <Group gap="xs" justify="space-between">
+                                                        <Text size="xs" fw={700} c="red.7" tt="uppercase">⚠ Retenciones Pendientes</Text>
+                                                        <Text size="sm" fw={700} c="red.7">-${(totals.totalRetPendiente || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                                    </Group>
+                                                    <Text size="xs" c="red.6" mt={2}>Retenciones no recaudadas = faltante de efectivo. Recáudalas antes del cierre.</Text>
+                                                </Paper>
+                                            )}
                                             <Paper withBorder p="xs" radius="md" bg="orange.0" mt="xs">
                                                 <Group gap="xs" justify="space-between">
                                                     <Group gap="xs">
@@ -436,7 +447,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                         </Stack>
                     </Stepper.Step>
                 </Stepper>
-            </form>
-        </AppModal>
+            </form >
+        </AppModal >
     );
 }
