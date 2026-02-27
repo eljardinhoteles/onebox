@@ -30,6 +30,7 @@ interface Caja {
     saldo_actual: number;
     total_gastos: number;
     total_depositos: number;
+    total_retenido_recaudado: number;
     numero?: number;
 }
 
@@ -116,13 +117,19 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                         const gastosTrans = cTrans.filter(t => t.tipo_documento !== 'deposito');
                         const total_gastos = gastosTrans.reduce((sum, t) => sum + t.total_factura, 0);
 
+                        // Calculamos las retenciones recaudadas manualmente asumiendo 0 por ahora 
+                        // en el fallback (ya que requeriría hacer un join de la tabla retenciones aquí)
+                        // Esto rara vez se dispara, pero evitamos un crash
+                        const total_retenido_recaudado = 0;
+
                         // Simplified calculations for fallback
-                        const saldo_actual = c.monto_inicial - total_gastos - total_depositos;
+                        const saldo_actual = c.monto_inicial - (total_gastos - total_retenido_recaudado) - total_depositos;
 
                         return {
                             ...c,
                             total_gastos,
                             total_depositos,
+                            total_retenido_recaudado,
                             saldo_actual
                         };
                     });
