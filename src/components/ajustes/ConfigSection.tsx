@@ -1,6 +1,7 @@
 import { Paper, Stack, Title, Text, Group, NumberInput, Switch, Divider, TextInput, Select } from '@mantine/core';
 
 interface ConfigSectionProps {
+    role: string | null;
     localConfigs: {
         alertPercentage: number;
         reservePercentage: number;
@@ -17,6 +18,7 @@ interface ConfigSectionProps {
 }
 
 export function ConfigSection({
+    role,
     localConfigs,
     handleConfigSave,
     setAlertPercentage,
@@ -25,6 +27,8 @@ export function ConfigSection({
     setCierreMensualObligatorio,
     setDiaCierreMensual
 }: ConfigSectionProps) {
+    const isOwnerOrAdmin = role === 'owner' || role === 'admin';
+
     return (
         <Paper withBorder p="xl" radius="lg">
             <Stack gap="xl">
@@ -69,6 +73,7 @@ export function ConfigSection({
                             min={0}
                             max={100}
                             w={100}
+                            disabled={!isOwnerOrAdmin}
                         />
                     </Group>
 
@@ -115,6 +120,7 @@ export function ConfigSection({
                                     w={110}
                                     size="xs"
                                     radius="md"
+                                    disabled={!isOwnerOrAdmin}
                                 />
                             )}
                             <Switch
@@ -124,6 +130,7 @@ export function ConfigSection({
                                     setCierreMensualObligatorio(checked);
                                     handleConfigSave('cierre_mensual_obligatorio', checked.toString());
                                 }}
+                                disabled={!isOwnerOrAdmin}
                             />
                         </Group>
                     </Group>

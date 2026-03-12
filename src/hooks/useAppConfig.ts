@@ -1,34 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
 
 export function useAppConfig() {
-    const [configs, setConfigs] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(true);
-    const { empresa } = useEmpresa();
+    const { empresa, configs: contextConfigs, refresh: refreshEmpresa } = useEmpresa();
+    const [localConfigs, setLocalConfigs] = useState<Record<string, string>>({});
 
-    const fetchConfigs = useCallback(async () => {
-        if (!empresa) return;
-        setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('configuracion')
-                .select('clave, valor')
-                .eq('empresa_id', empresa.id);
-
-            if (error) throw error;
-
-            const configMap: Record<string, string> = {};
-            data?.forEach(item => {
-                configMap[item.clave] = item.valor;
-            });
-            setConfigs(configMap);
-        } catch (error) {
-            console.error('Error fetching app config:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [empresa]);
+    // Sincronizar con el contexto cuando cambie
+    useEffect(() => {
+        setLocalConfigs(contextConfigs);
+    }, [contextConfigs]);
 
     const updateConfig = async (clave: string, valor: string) => {
         if (!empresa) return { success: false, error: 'No empresa selected' };
@@ -42,7 +23,9 @@ export function useAppConfig() {
 
             if (error) throw error;
 
-            setConfigs(prev => ({ ...prev, [clave]: valor }));
+            setLocalConfigs(prev => ({ ...prev, [clave]: valor }));
+            // Opcionalmente refrescar el contexto global para asegurar consistencia
+            refreshEmpresa();
             return { success: true };
         } catch (error) {
             console.error('Error updating app config:', error);
@@ -50,9 +33,10 @@ export function useAppConfig() {
         }
     };
 
-    useEffect(() => {
-        fetchConfigs();
-    }, [fetchConfigs]);
-
-    return { configs, loading, updateConfig, refresh: fetchConfigs };
+    return { 
+        configs: localConfigs, 
+        loading: false, // Ahora es instantáneo desde el contexto 
+        updateConfig, 
+        refresh: refreshEmpresa 
+    };
 }

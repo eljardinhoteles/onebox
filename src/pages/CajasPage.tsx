@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu, Button } from '@mantine/core';
+import { AppLoader } from '../components/ui/AppLoader';
 import { IconChevronDown, IconMapPin } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { CajaCard } from '../components/caja/CajaCard';
@@ -38,22 +39,21 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     const queryClient = useQueryClient();
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
-    const [filter, setFilter] = useState('abiertas');
-    const [filterSucursal, setFilterSucursal] = useState<string | null>(null);
-
-    // PERSISTENCIA: Cargar filtros desde la URL al montar
-    useEffect(() => {
+    const [filter, setFilter] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         const urlFilter = params.get('estado');
-        const urlSucursal = params.get('sucursal');
+        return (urlFilter && ['abiertas', 'cerradas'].includes(urlFilter)) ? urlFilter : 'abiertas';
+    });
+    const [filterSucursal, setFilterSucursal] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('sucursal');
+    });
+    const [limit, setLimit] = useState(12);
 
-        if (urlFilter && ['abiertas', 'cerradas'].includes(urlFilter)) {
-            setFilter(urlFilter);
-        }
-        if (urlSucursal) {
-            setFilterSucursal(urlSucursal);
-        }
-    }, []);
+    // Reset limit on filter change
+    useEffect(() => {
+        setLimit(12);
+    }, [filter, filterSucursal]);
 
     // PERSISTENCIA: Sincronizar filtros con la URL
     useEffect(() => {
@@ -75,26 +75,43 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         window.history.replaceState(null, '', newUrl);
     }, [filter, filterSucursal]);
 
-    const { empresa } = useEmpresa();
+    const { empresa, loading: empresaLoading, isReadOnly } = useEmpresa();
 
     const { data: cajas = [], isLoading: fetching } = useQuery({
-        queryKey: ['cajas', empresa?.id],
+        queryKey: ['cajas', empresa?.id, filter, filterSucursal, limit],
+        placeholderData: keepPreviousData,
+        staleTime: 1000 * 60, // 1 minuto de datos "frescos"
+        gcTime: 1000 * 60 * 5, // Mantener en memoria 5 minutos
         queryFn: async () => {
             if (!empresa) return [];
             try {
-                const { data, error } = await supabase
+                let query = supabase
                     .from('v_cajas_con_saldo')
                     .select('*')
                     .eq('empresa_id', empresa.id)
-                    .order('id', { ascending: false });
+                    .eq('estado', filter === 'abiertas' ? 'abierta' : 'cerrada')
+                    .order('id', { ascending: false })
+                    .limit(limit);
+                
+                if (filterSucursal) {
+                    query = query.eq('sucursal', filterSucursal);
+                }
+
+                const { data, error } = await query;
 
                 if (error) {
                     console.warn('Fallback a tabla base + cálculo manual:', error);
-                    const { data: baseData, error: baseError } = await supabase
+                    let baseQuery = supabase
                         .from('cajas')
                         .select('*')
                         .eq('empresa_id', empresa.id)
-                        .order('id', { ascending: false });
+                        .eq('estado', filter === 'abiertas' ? 'abierta' : 'cerrada')
+                        .order('id', { ascending: false })
+                        .limit(limit);
+
+                    if (filterSucursal) baseQuery = baseQuery.eq('sucursal', filterSucursal);
+
+                    const { data: baseData, error: baseError } = await baseQuery;
 
                     if (baseError) throw baseError;
 
@@ -104,34 +121,14 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                         .select('caja_id, tipo_documento, total_factura')
                         .in('caja_id', (baseData || []).map(c => c.id));
 
-
-                    // Map retentions if needed, but for now we just need totals
-
                     return (baseData || []).map(c => {
                         const cTrans = transData?.filter(t => t.caja_id === c.id) || [];
-
-                        const total_depositos = cTrans
-                            .filter(t => t.tipo_documento === 'deposito')
-                            .reduce((sum, t) => sum + t.total_factura, 0);
-
-                        const gastosTrans = cTrans.filter(t => t.tipo_documento !== 'deposito');
-                        const total_gastos = gastosTrans.reduce((sum, t) => sum + t.total_factura, 0);
-
-                        // Calculamos las retenciones recaudadas manualmente asumiendo 0 por ahora 
-                        // en el fallback (ya que requeriría hacer un join de la tabla retenciones aquí)
-                        // Esto rara vez se dispara, pero evitamos un crash
+                        const total_depositos = cTrans.filter(t => t.tipo_documento === 'deposito').reduce((sum, t) => sum + t.total_factura, 0);
+                        const total_gastos = cTrans.filter(t => t.tipo_documento !== 'deposito').reduce((sum, t) => sum + t.total_factura, 0);
                         const total_retenido_recaudado = 0;
-
-                        // Simplified calculations for fallback
                         const saldo_actual = c.monto_inicial - (total_gastos - total_retenido_recaudado) - total_depositos;
 
-                        return {
-                            ...c,
-                            total_gastos,
-                            total_depositos,
-                            total_retenido_recaudado,
-                            saldo_actual
-                        };
+                        return { ...c, total_gastos, total_depositos, total_retenido_recaudado, saldo_actual };
                     });
                 }
                 return data || [];
@@ -139,32 +136,24 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                 console.error('Error in cajas query:', error);
                 throw error;
             }
-        }
+        },
+        enabled: !!empresa
     });
 
-    const cajasFiltradasPorSucursal = useMemo(() =>
-        filterSucursal ? cajas.filter((c: Caja) => c.sucursal === filterSucursal) : cajas
-        , [cajas, filterSucursal]);
-
-    const activasCount = useMemo(() =>
-        cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'abierta').length
-        , [cajasFiltradasPorSucursal]);
-
-    const cerradasCount = useMemo(() =>
-        cajasFiltradasPorSucursal.filter((c: Caja) => c.estado === 'cerrada').length
-        , [cajasFiltradasPorSucursal]);
-
-    const filteredCajas = useMemo(() =>
-        cajas.filter((c: Caja) => {
-            const matchesEstado = filter === 'abiertas' ? c.estado === 'abierta' : c.estado === 'cerrada';
-            const matchesSucursal = !filterSucursal || c.sucursal === filterSucursal;
-            return matchesEstado && matchesSucursal;
-        })
-        , [cajas, filter, filterSucursal]);
-
-    const sucursalesUnicas = useMemo(() =>
-        Array.from(new Set(cajas.map((c: Caja) => c.sucursal))).sort()
-        , [cajas]);
+    const { data: sucursalesList = [] } = useQuery({
+        queryKey: ['sucursales_names', empresa?.id],
+        queryFn: async () => {
+            if (!empresa) return [];
+            const { data } = await supabase
+                .from('sucursales')
+                .select('nombre')
+                .eq('empresa_id', empresa.id)
+                .order('nombre');
+            
+            return (data || []).map(s => s.nombre);
+        },
+        enabled: !!empresa
+    });
 
     return (
         <Stack gap="lg">
@@ -179,12 +168,22 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                                         ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
                                         : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
                                     }
+                                    {!fetching && cajas.length > 0 && (
+                                        <Text span fz="md" c="dimmed" ml="xs" fw={500}>
+                                            ({cajas.length})
+                                        </Text>
+                                    )}
                                 </Title>
                                 <Title order={2} size="h5" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} hiddenFrom="sm">
                                     {filterSucursal
                                         ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
                                         : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
                                     }
+                                    {!fetching && cajas.length > 0 && (
+                                        <Text span fz="sm" c="dimmed" ml="xs" fw={500}>
+                                            ({cajas.length})
+                                        </Text>
+                                    )}
                                 </Title>
                             </Group>
                             <IconChevronDown
@@ -205,7 +204,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                             Todas
                         </Menu.Item>
                         <Menu.Divider />
-                        {sucursalesUnicas.map(suc => (
+                        {sucursalesList.map((suc: string) => (
                             <Menu.Item
                                 key={suc}
                                 leftSection={<IconMapPin size={16} />}
@@ -225,29 +224,48 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     size="sm"
                     color="blue"
                     data={[
-                        { value: 'abiertas', label: `Abiertas ${activasCount}` },
-                        { value: 'cerradas', label: `Cerradas ${cerradasCount}` },
+                        { value: 'abiertas', label: 'Abiertas' },
+                        { value: 'cerradas', label: 'Cerradas' },
                     ]}
                 />
             </Group>
-            {fetching ? (
-                <Text ta="center" py="xl" c="dimmed">Cargando cajas...</Text>
-            ) : filteredCajas.length === 0 ? (
-                <Paper p="xl" withBorder radius="md" ta="center">
-                    <Text c="dimmed">No hay cajas {filter === 'abiertas' ? 'abiertas' : 'cerradas'}</Text>
-                </Paper>
+            {((fetching || empresaLoading) && cajas.length === 0) ? (
+                <AppLoader py={100} size="xl" message="Cargando tus cajas..." />
             ) : (
-                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                    {filteredCajas.map((caja: Caja) => (
-                        <CajaCard
-                            key={caja.id}
-                            caja={caja}
-                            alertThreshold={alertThreshold}
-                            onSelectCaja={onSelectCaja}
-                            onDelete={() => queryClient.invalidateQueries({ queryKey: ['cajas'] })}
-                        />
-                    ))}
-                </SimpleGrid>
+                <div style={{ position: 'relative' }}>
+                    {fetching && cajas.length > 0 && <AppLoader variant="bar" />}
+                    {cajas.length === 0 ? (
+                        <Paper p="xl" withBorder radius="md" ta="center">
+                            <Text c="dimmed">No hay cajas {filter === 'abiertas' ? 'abiertas' : 'cerradas'}</Text>
+                        </Paper>
+                    ) : (
+                        <Stack gap="xl" align="center">
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" w="100%">
+                                {cajas.map((caja: Caja) => (
+                                    <CajaCard
+                                        key={caja.id}
+                                        caja={caja}
+                                        alertThreshold={alertThreshold}
+                                        onSelectCaja={onSelectCaja}
+                                        onDelete={() => queryClient.invalidateQueries({ queryKey: ['cajas'] })}
+                                        isReadOnly={isReadOnly}
+                                    />
+                                ))}
+                            </SimpleGrid>
+                            
+                            {cajas.length >= limit && (
+                                <Button 
+                                    variant="subtle" 
+                                    color="gray" 
+                                    onClick={() => setLimit(prev => prev + 12)}
+                                    loading={fetching}
+                                >
+                                    Cargar más cajas
+                                </Button>
+                            )}
+                        </Stack>
+                    )}
+                </div>
             )}
 
             <AperturaCajaModal opened={opened} close={close} />

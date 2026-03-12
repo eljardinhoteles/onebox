@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useSubscription, type Subscription } from '../hooks/useSubscription';
 
 export type EmpresaRole = 'owner' | 'admin' | 'operador';
 
@@ -7,6 +8,10 @@ export interface Empresa {
     id: string;
     nombre: string;
     ruc: string | null;
+    direccion?: string | null;
+    email?: string | null;
+    contacto_nombre?: string | null;
+    ciudad?: string | null;
     created_at: string;
 }
 
@@ -21,7 +26,13 @@ interface EmpresaContextType {
     role: EmpresaRole | null;
     perfil: Perfil | null;
     loading: boolean;
+    isSuperAdmin: boolean;
+    subscription: Subscription | null;
+    isReadOnly: boolean;
+    subscriptionLoading: boolean;
+    refreshSubscription: () => Promise<void>;
     /** Refresca la empresa (útil después de crear o unirse a una). */
+    configs: Record<string, string>;
     refresh: () => Promise<void>;
 }
 
@@ -30,6 +41,12 @@ const EmpresaContext = createContext<EmpresaContextType>({
     role: null,
     perfil: null,
     loading: true,
+    configs: {},
+    isSuperAdmin: false,
+    subscription: null,
+    isReadOnly: false,
+    subscriptionLoading: true,
+    refreshSubscription: async () => { },
     refresh: async () => { },
 });
 
@@ -38,6 +55,10 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     const [role, setRole] = useState<EmpresaRole | null>(null);
     const [perfil, setPerfil] = useState<Perfil | null>(null);
     const [loading, setLoading] = useState(true);
+    const [configs, setConfigs] = useState<Record<string, string>>({});
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+    const { subscription, loading: subscriptionLoading, isReadOnly, refresh: refreshSubscription } = useSubscription(empresa?.id);
 
     // Ref para acceder al estado actual dentro de closures sin dependencias
     const empresaLoadedRef = useRef(false);
@@ -63,53 +84,62 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // Obtener perfil siempre que haya usuario
-            const { data: perfilData } = await supabase
+            // PETICIÓN ÚNICA: Obtenemos perfil SIEMPRE, y si tiene empresa, también membresía/configuración
+            const { data: profileData, error: profileError } = await supabase
                 .from('perfiles')
-                .select('*')
+                .select(`
+                    *,
+                    membresia:empresa_usuarios (
+                        role,
+                        empresa_id,
+                        empresas (
+                            *,
+                            configuracion ( clave, valor )
+                        )
+                    )
+                `)
                 .eq('id', user.id)
                 .maybeSingle();
 
-            if (perfilData) {
-                setPerfil(perfilData);
-            }
+            if (profileError) throw profileError;
 
-            // Obtener la empresa y el rol del usuario
-            const { data: membership, error: memberError } = await supabase
-                .from('empresa_usuarios')
-                .select('empresa_id, role')
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-            if (memberError) {
-                console.error('Error fetching empresa membership:', memberError);
+            if (!profileData) {
+                // Si no hay perfil, algo está mal o es un usuario nuevo en proceso
                 setEmpresa(null);
                 setRole(null);
                 setLoading(false);
                 return;
             }
 
-            if (!membership) {
-                setEmpresa(null);
-                setRole(null);
-                setLoading(false);
-                return;
-            }
+            // 1. Establecer Perfil y Estado de SuperAdmin (Independiente de si tiene empresa)
+            setPerfil({
+                id: profileData.id,
+                nombre: profileData.nombre,
+                apellido: profileData.apellido
+            });
+            setIsSuperAdmin(profileData.is_superadmin === true);
 
-            // Obtener datos de la empresa
-            const { data: empresaData, error: empresaError } = await supabase
-                .from('empresas')
-                .select('*')
-                .eq('id', membership.empresa_id)
-                .single();
+            // 2. Procesar Membresía y Empresa (si existen)
+            const membershipRaw = profileData.membresia;
+            const membership = Array.isArray(membershipRaw) ? membershipRaw[0] : membershipRaw;
 
-            if (empresaError) {
-                console.error('Error fetching empresa:', empresaError);
-                setEmpresa(null);
-                setRole(null);
+            if (membership) {
+                const empresaObj = Array.isArray(membership.empresas) ? membership.empresas[0] : membership.empresas;
+                if (empresaObj) {
+                    setEmpresa(empresaObj);
+                    setRole(membership.role as EmpresaRole);
+
+                    // Procesar Configuración
+                    const configMap: Record<string, string> = {};
+                    const configsRaw = (empresaObj as any).configuracion as any[];
+                    configsRaw?.forEach(item => {
+                        configMap[item.clave] = item.valor;
+                    });
+                    setConfigs(configMap);
+                }
             } else {
-                setEmpresa(empresaData);
-                setRole(membership.role as EmpresaRole);
+                setEmpresa(null);
+                setRole(null);
             }
         } catch (err) {
             console.error('Error in EmpresaProvider:', err);
@@ -138,7 +168,11 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <EmpresaContext.Provider value={{ empresa, role, perfil, loading, refresh: fetchEmpresa }}>
+        <EmpresaContext.Provider value={{
+            empresa, role, perfil, loading, configs, isSuperAdmin,
+            subscription, isReadOnly, subscriptionLoading, refreshSubscription,
+            refresh: fetchEmpresa
+        }}>
             {children}
         </EmpresaContext.Provider>
     );

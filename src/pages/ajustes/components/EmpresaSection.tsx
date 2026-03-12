@@ -1,5 +1,5 @@
-import { Stack, Card, Group, Avatar, Text, ActionIcon, TextInput, Button, Badge, CopyButton, Tooltip } from '@mantine/core';
-import { IconBuilding, IconEdit, IconDeviceFloppy, IconUserPlus, IconCheck, IconCopy } from '@tabler/icons-react';
+import { Stack, Card, Group, Avatar, Text, ActionIcon, TextInput, Button, Badge, CopyButton, Tooltip, Alert, Grid } from '@mantine/core';
+import { IconBuilding, IconEdit, IconDeviceFloppy, IconUserPlus, IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
@@ -47,6 +47,10 @@ export function EmpresaSection({
     const [editingEmpresa, setEditingEmpresa] = useState(false);
     const [empresaNombre, setEmpresaNombre] = useState(empresa.nombre);
     const [empresaRuc, setEmpresaRuc] = useState(empresa.ruc || '');
+    const [empresaDireccion, setEmpresaDireccion] = useState(empresa.direccion || '');
+    const [empresaEmail, setEmpresaEmail] = useState(empresa.email || '');
+    const [empresaContacto, setEmpresaContacto] = useState(empresa.contacto_nombre || '');
+    const [empresaCiudad, setEmpresaCiudad] = useState(empresa.ciudad || '');
     const [savingEmpresa, setSavingEmpresa] = useState(false);
 
     const handleSaveEmpresa = async () => {
@@ -54,6 +58,10 @@ export function EmpresaSection({
         const { error } = await supabase.from('empresas').update({
             nombre: empresaNombre,
             ruc: empresaRuc || null,
+            direccion: empresaDireccion || null,
+            email: empresaEmail || null,
+            contacto_nombre: empresaContacto || null,
+            ciudad: empresaCiudad || null,
         }).eq('id', empresa.id);
 
         setSavingEmpresa(false);
@@ -92,9 +100,30 @@ export function EmpresaSection({
                     {editingEmpresa && (
                         <Card withBorder radius="md" p="md" bg="gray.0">
                             <Stack gap="sm">
-                                <TextInput label="Nombre" value={empresaNombre} onChange={(e) => setEmpresaNombre(e.currentTarget.value)} radius="md" />
-                                <TextInput label="RUC" value={empresaRuc} onChange={(e) => setEmpresaRuc(e.currentTarget.value)} radius="md" />
-                                <Group justify="flex-end">
+                                <Alert icon={<IconInfoCircle size={16}/>} title="Aviso Importante" color="blue" variant="light" radius="md">
+                                    <Text size="sm">Si requiere <b>Factura Electrónica</b> por su suscripción, llene estos datos de acuerdo con su información legal. La factura será emitida con estos detalles.</Text>
+                                </Alert>
+                                <Grid>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="Razón Social / Nombre" value={empresaNombre} onChange={(e) => setEmpresaNombre(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="RUC / Identificación" value={empresaRuc} onChange={(e) => setEmpresaRuc(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="Correo Electrónico de Facturación" type="email" value={empresaEmail} onChange={(e) => setEmpresaEmail(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="Nombre de Contacto" value={empresaContacto} onChange={(e) => setEmpresaContacto(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="Dirección Legal" value={empresaDireccion} onChange={(e) => setEmpresaDireccion(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                        <TextInput label="Ciudad" value={empresaCiudad} onChange={(e) => setEmpresaCiudad(e.currentTarget.value)} radius="md" />
+                                    </Grid.Col>
+                                </Grid>
+                                <Group justify="flex-end" mt="md">
                                     <Button variant="subtle" color="gray" onClick={() => setEditingEmpresa(false)}>Cancelar</Button>
                                     <Button
                                         loading={savingEmpresa}
@@ -108,10 +137,22 @@ export function EmpresaSection({
                         </Card>
                     )}
 
-                    <Group gap="xl" mt="xs">
+                    <Group gap="xl" mt="xs" align="flex-start" wrap="wrap">
                         <Stack gap={2}>
-                            <Text size="xs" c="dimmed" fw={600}>RUC</Text>
+                            <Text size="xs" c="dimmed" fw={600}>RUC / Identificación</Text>
                             <Text size="sm" fw={500}>{empresa.ruc || 'No registrado'}</Text>
+                        </Stack>
+                        <Stack gap={2}>
+                            <Text size="xs" c="dimmed" fw={600}>Email de Facturación</Text>
+                            <Text size="sm" fw={500}>{empresa.email || 'No registrado'}</Text>
+                        </Stack>
+                        <Stack gap={2}>
+                            <Text size="xs" c="dimmed" fw={600}>Ciudad</Text>
+                            <Text size="sm" fw={500}>{empresa.ciudad || 'No registrado'}</Text>
+                        </Stack>
+                        <Stack gap={2}>
+                            <Text size="xs" c="dimmed" fw={600}>Dirección</Text>
+                            <Text size="sm" fw={500}>{empresa.direccion || 'No registrado'}</Text>
                         </Stack>
                         <Stack gap={2}>
                             <Text size="xs" c="dimmed" fw={600}>Tu Rol</Text>

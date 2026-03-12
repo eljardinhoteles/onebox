@@ -20,6 +20,7 @@ interface CajaHeaderProps {
     handlePrint: () => void;
     isError?: boolean;
     error?: any;
+    isReadOnly?: boolean;
 }
 
 export function CajaHeader({
@@ -36,7 +37,8 @@ export function CajaHeader({
     openDeposito,
     handlePrint,
     isError,
-    error
+    error,
+    isReadOnly
 }: CajaHeaderProps) {
     const { configs, loading: configLoading } = useAppConfig();
     const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
@@ -104,7 +106,7 @@ export function CajaHeader({
                 </Group>
 
                 <Group>
-                    {caja?.estado === 'abierta' && (
+                    {caja?.estado === 'abierta' && !isReadOnly && (
                         <>
                             <Tooltip label="Legalizar Gastos [L]" withArrow radius="md"><Button variant="outline" color="orange" leftSection={<IconReceipt size={16} />} onClick={openLegalization}>Legalizar</Button></Tooltip>
                             <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>Cerrar Caja</Button>

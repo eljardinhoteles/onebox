@@ -1,4 +1,4 @@
-import { Card, Group, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper, Box } from '@mantine/core';
+import { Card, Group, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper, Box, ThemeIcon } from '@mantine/core';
 import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
@@ -28,9 +28,10 @@ interface CajaCardProps {
     alertThreshold: number;
     onSelectCaja: (id: number) => void;
     onDelete?: () => void;
+    isReadOnly?: boolean;
 }
 
-export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaCardProps) {
+export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadOnly }: CajaCardProps) {
     const totalDepositos = caja.total_depositos || 0;
     const montoInicial = caja.monto_inicial;
 
@@ -127,37 +128,43 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
             >
                 <Group justify="space-between" align="center" mb="md" wrap="nowrap">
                     <Group align="center" gap="sm">
-                        <Tooltip
-                            label={showDelete ? "Click para eliminar permanentemente" : "Opciones de caja"}
-                            position="top"
-                            withArrow
-                            radius="md"
-                            openDelay={500}
-                        >
-                            <ActionIcon
-                                variant="light"
-                                size={42}
-                                radius="xl"
-                                className={`transition-all duration-200 ${showDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-blue-600 hover:bg-blue-50'}`}
-                                color={showDelete ? 'red' : (caja.estado === 'abierta' ? 'blue' : 'gray')}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!showDelete) {
-                                        setShowDelete(true);
-                                    } else {
-                                        initiateDelete();
-                                    }
-                                }}
-                                onMouseLeave={() => setShowDelete(false)}
+                        {(!isReadOnly) ? (
+                            <Tooltip
+                                label={showDelete ? "Click para eliminar permanentemente" : "Opciones de caja"}
+                                position="top"
+                                withArrow
+                                radius="md"
+                                openDelay={500}
                             >
-                                <Box className={`transition-transform duration-200 ${showDelete ? 'scale-0 absolute' : 'scale-100'}`}>
-                                    <IconBuildingStore size={22} stroke={1.5} />
-                                </Box>
-                                <Box className={`transition-transform duration-200 ${showDelete ? 'scale-100' : 'scale-0 absolute'}`}>
-                                    <IconTrash size={22} stroke={1.5} />
-                                </Box>
-                            </ActionIcon>
-                        </Tooltip>
+                                <ActionIcon
+                                    variant="light"
+                                    size={42}
+                                    radius="xl"
+                                    className={`transition-all duration-200 ${showDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-blue-600 hover:bg-blue-50'}`}
+                                    color={showDelete ? 'red' : (caja.estado === 'abierta' ? 'blue' : 'gray')}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!showDelete) {
+                                            setShowDelete(true);
+                                        } else {
+                                            initiateDelete();
+                                        }
+                                    }}
+                                    onMouseLeave={() => setShowDelete(false)}
+                                >
+                                    <Box className={`transition-transform duration-200 ${showDelete ? 'scale-0 absolute' : 'scale-100'}`}>
+                                        <IconBuildingStore size={22} stroke={1.5} />
+                                    </Box>
+                                    <Box className={`transition-transform duration-200 ${showDelete ? 'scale-100' : 'scale-0 absolute'}`}>
+                                        <IconTrash size={22} stroke={1.5} />
+                                    </Box>
+                                </ActionIcon>
+                            </Tooltip>
+                        ) : (
+                            <ThemeIcon size={42} radius="xl" color="gray" variant="light">
+                                <IconBuildingStore size={22} stroke={1.5} />
+                            </ThemeIcon>
+                        )}
                         <div>
                             <Text size="lg" fw={700} c="dark.9" lineClamp={1} style={{ lineHeight: 1.1 }}>{caja.sucursal}</Text>
                             <Text size="xs" c="dimmed" fw={600} mt={2}>CAJA #{caja.numero ?? caja.id}</Text>
@@ -238,14 +245,14 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
 
                 <Button
                     variant="light"
-                    color={caja.estado === 'abierta' ? 'blue' : 'gray'}
+                    color={caja.estado === 'abierta' && !isReadOnly ? 'blue' : 'gray'}
                     fullWidth
-                    leftSection={caja.estado === 'abierta' ? undefined : <IconLock size={16} />}
+                    leftSection={caja.estado === 'abierta' && !isReadOnly ? undefined : <IconLock size={16} />}
                     onClick={() => {
-                        if (caja.estado === 'cerrada') {
+                        if (caja.estado === 'cerrada' || isReadOnly) {
                             notifications.show({
                                 title: 'Caja Bloqueada',
-                                message: 'Accediendo en modo solo lectura. No se pueden realizar cambios.',
+                                message: 'Accediendo en modo solo lectura debido al estado de la caja o tu suscripción. No se pueden realizar cambios.',
                                 color: 'gray',
                                 icon: <IconLock size={16} />,
                             });
@@ -253,7 +260,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete }: CajaC
                         onSelectCaja(caja.numero ?? caja.id);
                     }}
                 >
-                    {caja.estado === 'abierta' ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}
+                    {caja.estado === 'abierta' && !isReadOnly ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}
                 </Button>
             </Card >
 

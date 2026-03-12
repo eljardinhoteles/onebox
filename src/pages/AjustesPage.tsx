@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select, NumberInput } from '@mantine/core';
-import { IconCheck, IconPlus, IconCalendar, IconArrowLeft } from '@tabler/icons-react';
+import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select, NumberInput, Grid, Alert } from '@mantine/core';
+import { IconCheck, IconPlus, IconCalendar, IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
 import { DatePickerInput } from '@mantine/dates';
 import { AjustesDashboard } from './ajustes/components/AjustesDashboard';
 import { useNotifications } from '../context/NotificationContext';
@@ -11,6 +11,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { AppDrawer } from '../components/ui/AppDrawer';
+import { useQueryClient, useQuery, keepPreviousData } from '@tanstack/react-query';
 
 // Extracted Components
 import { AjustesHeader } from '../components/ajustes/AjustesHeader';
@@ -39,17 +40,14 @@ export function AjustesPage() {
     const { empresa, role, refresh: refreshEmpresa } = useEmpresa();
     const { configs, updateConfig } = useAppConfig();
     const { openNotifications } = useNotifications();
+    const queryClient = useQueryClient();
 
     const [state, setState] = useState({
         user: null as any,
         activeTab: null as string | null,
         perfilForm: { nombre: '', apellido: '' },
         data: {
-            items: [] as any[],
-            logs: [] as any[],
-            miembros: [] as any[],
-            fetching: false,
-            editingId: null as string | null
+            fetching: false
         },
         localConfigs: {
             alertPercentage: 15,
@@ -58,12 +56,13 @@ export function AjustesPage() {
             cierreMensualObligatorio: true,
             diaCierreMensual: '28'
         },
-        empresaForm: { nombre: '', ruc: '' },
-        auditRange: [null, null] as [Date | null, Date | null]
+        empresaForm: { nombre: '', ruc: '', direccion: '', email: '', contacto_nombre: '', ciudad: '' },
+        auditRange: [null, null] as [Date | null, Date | null],
+        fetchingManual: false,
+        editingId: null as string | null
     });
 
-    const { user, activeTab, perfilForm, data: dataState, localConfigs, empresaForm, auditRange } = state;
-    const { items, logs, miembros, fetching, editingId } = dataState;
+    const { user, activeTab, perfilForm, localConfigs, empresaForm, auditRange, fetchingManual, editingId } = state;
 
     const setActiveTab = (tab: string | null) => setState(prev => ({ ...prev, activeTab: tab }));
 
@@ -88,7 +87,17 @@ export function AjustesPage() {
 
     useEffect(() => {
         if (empresa) {
-            setState(prev => ({ ...prev, empresaForm: { nombre: empresa.nombre || '', ruc: empresa.ruc || '' } }));
+            setState(prev => ({ 
+                ...prev, 
+                empresaForm: { 
+                    nombre: empresa.nombre || '', 
+                    ruc: empresa.ruc || '',
+                    direccion: empresa.direccion || '',
+                    email: empresa.email || '',
+                    contacto_nombre: empresa.contacto_nombre || '',
+                    ciudad: empresa.ciudad || ''
+                } 
+            }));
         }
     }, [empresa]);
 
@@ -105,64 +114,88 @@ export function AjustesPage() {
         }));
     }, [configs.porcentaje_alerta_caja, configs.porcentaje_reserva_caja, configs.formato_factura_automatico, configs.cierre_mensual_obligatorio, configs.dia_cierre_mensual]);
 
+    // PERSISTENCIA: Cargar sección desde la URL al montar
     useEffect(() => {
-        if (!activeTab || !empresa) return;
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get('seccion');
+        if (section) {
+            setState(prev => ({ ...prev, activeTab: section }));
+        }
+    }, []);
 
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+    // PERSISTENCIA: Sincronizar sección con la URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTab) {
+            params.set('seccion', activeTab);
+        } else {
+            params.delete('seccion');
+        }
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+    }, [activeTab]);
 
-        const fetchData = async () => {
-            try {
-                if (activeTab === 'empresa') {
-                    const { data } = await supabase.from('empresa_usuarios').select('*, perfiles:user_id(*)').eq('empresa_id', empresa.id);
-                    if (data) {
-                        const membersWithProfiles = data.map((m: any) => ({
-                            ...m,
-                            perfiles: Array.isArray(m.perfiles) ? m.perfiles[0] : m.perfiles
-                        }));
-                        setState(prev => ({ ...prev, data: { ...prev.data, miembros: membersWithProfiles, fetching: false } }));
-                    } else {
-                        setState(prev => ({ ...prev, data: { ...prev.data, miembros: [], fetching: false } }));
-                    }
-                } else if (activeTab === 'auditoria') {
-                    let query = supabase.from('bitacora').select('*').eq('empresa_id', empresa.id).order('created_at', { ascending: false });
+    // --- QUERIES (Sustituyendo el useEffect de carga manual) ---
+    
+    // Miembros
+    const { data: miembros = [], isFetching: fetchingMiembros } = useQuery({
+        queryKey: ['settings_miembros', empresa?.id],
+        queryFn: async () => {
+            if (!empresa) return [];
+            const { data } = await supabase.from('empresa_usuarios').select('*, perfiles:user_id(*)').eq('empresa_id', empresa.id);
+            return (data || []).map((m: any) => ({
+                ...m,
+                perfiles: Array.isArray(m.perfiles) ? m.perfiles[0] : m.perfiles
+            }));
+        },
+        enabled: activeTab === 'empresa' && !!empresa,
+        placeholderData: keepPreviousData
+    });
 
-                    if (auditRange[0]) {
-                        query = query.gte('created_at', dayjs(auditRange[0]).startOf('day').toISOString());
-                    }
-                    if (auditRange[1]) {
-                        query = query.lte('created_at', dayjs(auditRange[1]).endOf('day').toISOString());
-                    }
+    // Auditoría
+    const { data: logs = [], isFetching: fetchingLogs } = useQuery({
+        queryKey: ['settings_auditoria', empresa?.id, auditRange],
+        queryFn: async () => {
+            if (!empresa) return [];
+            let query = supabase.from('bitacora').select('*').eq('empresa_id', empresa.id).order('created_at', { ascending: false });
+            if (auditRange[0]) query = query.gte('created_at', dayjs(auditRange[0]).startOf('day').toISOString());
+            if (auditRange[1]) query = query.lte('created_at', dayjs(auditRange[1]).endOf('day').toISOString());
+            const { data } = await query.limit(200);
+            return data || [];
+        },
+        enabled: activeTab === 'auditoria' && !!empresa,
+        placeholderData: keepPreviousData
+    });
 
-                    const { data } = await query.limit(200);
-                    setState(prev => ({ ...prev, data: { ...prev.data, logs: data || [], fetching: false } }));
-                } else if (['sucursales', 'bancos', 'regimenes', 'productos'].includes(activeTab || '')) {
-                    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
-                    const table = tableMap[activeTab];
-                    const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa.id).order('nombre');
-                    if (activeTab === 'sucursales' && data) {
-                        const { data: cajas } = await supabase.from('cajas').select('sucursal, estado').eq('empresa_id', empresa.id);
-                        const sucursalesWithInfo = data.map(s => ({
-                            ...s,
-                            has_active_caja: cajas?.some(c => c.sucursal === s.nombre && c.estado === 'abierta')
-                        }));
-                        setState(prev => ({ ...prev, data: { ...prev.data, items: sucursalesWithInfo, fetching: false } }));
-                    } else {
-                        setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
-                    }
-                } else {
-                    setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
-                }
-            } catch (error) {
-                setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+    // CRUD Items (Sucursales, Bancos, etc)
+    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
+    const isCrudTab = activeTab ? !!tableMap[activeTab] : false;
+    
+    const { data: items = [], isFetching: fetchingItems } = useQuery({
+        queryKey: ['settings_items', activeTab, empresa?.id],
+        queryFn: async () => {
+            if (!empresa || !activeTab || !tableMap[activeTab]) return [];
+            const table = tableMap[activeTab];
+            const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa.id).order('nombre');
+            
+            if (activeTab === 'sucursales' && data) {
+                const { data: cajas } = await supabase.from('cajas').select('sucursal, estado').eq('empresa_id', empresa.id);
+                return data.map(s => ({
+                    ...s,
+                    has_active_caja: cajas?.some(c => c.sucursal === s.nombre && c.estado === 'abierta')
+                }));
             }
-        };
+            return data || [];
+        },
+        enabled: isCrudTab && !!empresa,
+        placeholderData: keepPreviousData
+    });
 
-        fetchData();
-    }, [activeTab, empresa, auditRange]);
+    const isFetchingGeneral = fetchingMiembros || fetchingLogs || fetchingItems;
 
     const handleSaveEmpresa = async () => {
         if (!empresa?.id || role !== 'owner') return;
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        setState(prev => ({ ...prev, fetchingManual: true }));
         const { error } = await supabase.from('empresas').update(empresaForm).eq('id', empresa.id);
         if (!error) {
             notifications.show({ title: 'Empresa actualizada', message: 'Los datos han sido guardados', color: 'teal' });
@@ -170,13 +203,13 @@ export function AjustesPage() {
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+        setState(prev => ({ ...prev, fetchingManual: false }));
     };
 
     const handleToggleMemberStatus = async (memberId: string, currentStatus: boolean) => {
         if (!empresa?.id || (role !== 'owner' && role !== 'admin')) return;
 
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        setState(prev => ({ ...prev, fetchingManual: true }));
         const { error } = await supabase
             .from('empresa_usuarios')
             .update({ activo: !currentStatus })
@@ -188,26 +221,16 @@ export function AjustesPage() {
                 message: `Usuario ${!currentStatus ? 'activado' : 'desactivado'} correctamente`,
                 color: 'teal'
             });
-            // Refrescar datos (pestaña miembros)
-            const { data } = await supabase.from('empresa_usuarios').select('*, perfiles:user_id(*)').eq('empresa_id', empresa.id);
-            if (data) {
-                const membersWithProfiles = data.map((m: any) => ({
-                    ...m,
-                    perfiles: Array.isArray(m.perfiles) ? m.perfiles[0] : m.perfiles
-                }));
-                setState(prev => ({ ...prev, data: { ...prev.data, miembros: membersWithProfiles, fetching: false } }));
-            } else {
-                setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
-            }
+            queryClient.invalidateQueries({ queryKey: ['settings_miembros'] });
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
-            setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
         }
+        setState(prev => ({ ...prev, fetchingManual: false }));
     };
 
     const handleSaveProfile = async () => {
         if (!user) return;
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        setState(prev => ({ ...prev, fetchingManual: true }));
         const { error } = await supabase.from('perfiles').upsert({ id: user.id, ...perfilForm });
         if (!error) {
             notifications.show({ title: 'Perfil actualizado', message: 'Tus datos han sido guardados', color: 'teal' });
@@ -215,7 +238,7 @@ export function AjustesPage() {
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
+        setState(prev => ({ ...prev, fetchingManual: false }));
     };
 
     const handleConfigSave = async (key: string, value: string) => {
@@ -225,7 +248,7 @@ export function AjustesPage() {
 
     const handleCrudSave = async (values: any) => {
         if (!empresa?.id || !activeTab) return;
-        setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
+        setState(prev => ({ ...prev, fetchingManual: true }));
         const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
         const table = tableMap[activeTab!];
 
@@ -246,33 +269,31 @@ export function AjustesPage() {
         const { error } = editingId
             ? await supabase.from(table).update(filteredValues).eq('id', editingId)
             : await supabase.from(table).insert([{ ...filteredValues, empresa_id: empresa?.id }]);
+        
         if (!error) {
             notifications.show({ title: 'Guardado', message: 'Elemento guardado correctamente', color: 'teal' });
+            queryClient.invalidateQueries({ queryKey: ['settings_items', activeTab] });
             closeCrud();
-            // Refrescar datos
-            setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
-            const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa?.id).order('nombre');
-            setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
-            setState(prev => ({ ...prev, data: { ...prev.data, fetching: false } }));
         }
+        setState(prev => ({ ...prev, fetchingManual: false }));
     };
 
     const handleDelete = async (id: string) => {
         if (!activeTab) return;
         const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
         const table = tableMap[activeTab!];
+        
+        setState(prev => ({ ...prev, fetchingManual: true }));
         const { error } = await supabase.from(table).delete().eq('id', id);
         if (!error) {
             notifications.show({ title: 'Eliminado', message: 'Elemento eliminado', color: 'teal' });
-            // Refrescar datos
-            setState(prev => ({ ...prev, data: { ...prev.data, fetching: true } }));
-            const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa?.id).order('nombre');
-            setState(prev => ({ ...prev, data: { ...prev.data, items: data || [], fetching: false } }));
+            queryClient.invalidateQueries({ queryKey: ['settings_items', activeTab] });
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
+        setState(prev => ({ ...prev, fetchingManual: false }));
     };
 
     return (
@@ -315,7 +336,7 @@ export function AjustesPage() {
                         </Group>
 
                         <Box style={{ position: 'relative' }}>
-                            <LoadingOverlay visible={fetching} overlayProps={{ blur: 1 }} />
+                            <LoadingOverlay visible={isFetchingGeneral || fetchingManual} overlayProps={{ blur: 1 }} />
 
                             {activeTab === 'empresa' && (
                                 <Stack gap="xl">
@@ -332,18 +353,59 @@ export function AjustesPage() {
                                             </Text>
 
                                             <Stack gap="sm">
-                                                <ConfigSection.Input
-                                                    label="Razón Social"
-                                                    value={empresaForm.nombre}
-                                                    onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, nombre: v } }))}
-                                                    readOnly={role !== 'owner'}
-                                                />
-                                                <ConfigSection.Input
-                                                    label="RUC"
-                                                    value={empresaForm.ruc}
-                                                    onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ruc: v } }))}
-                                                    readOnly={role !== 'owner'}
-                                                />
+                                                <Alert icon={<IconInfoCircle size={16}/>} title="Aviso Importante" color="blue" variant="light" radius="md">
+                                                    <Text size="sm">Si requiere <b>Factura Electrónica</b> por su suscripción, llene estos datos de acuerdo con su información legal. La factura será emitida con estos detalles.</Text>
+                                                </Alert>
+                                                <Grid>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="Razón Social / Nombre"
+                                                            value={empresaForm.nombre}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, nombre: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="RUC / Identificación"
+                                                            value={empresaForm.ruc}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ruc: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="Correo Electrónico de Facturación"
+                                                            value={empresaForm.email}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, email: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="Nombre de Contacto"
+                                                            value={empresaForm.contacto_nombre}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, contacto_nombre: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="Dirección Legal"
+                                                            value={empresaForm.direccion}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, direccion: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                                                        <ConfigSection.Input
+                                                            label="Ciudad"
+                                                            value={empresaForm.ciudad}
+                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ciudad: v } }))}
+                                                            readOnly={role !== 'owner'}
+                                                        />
+                                                    </Grid.Col>
+                                                </Grid>
                                             </Stack>
 
                                             {role === 'owner' && (
@@ -433,6 +495,7 @@ export function AjustesPage() {
 
                             {activeTab === 'configs' && (
                                 <ConfigSection
+                                    role={role}
                                     localConfigs={localConfigs}
                                     handleConfigSave={handleConfigSave}
                                     setAlertPercentage={(v: number) => setState(p => ({ ...p, localConfigs: { ...p.localConfigs, alertPercentage: v } }))}
@@ -448,9 +511,9 @@ export function AjustesPage() {
                                     title="Gestión de Sucursales"
                                     type="sucursales"
                                     items={items}
-                                    onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues(i); openCrud(); }}
+                                    onEdit={(i: any) => { setState(p => ({ ...p, editingId: i.id })); form.setValues(i); openCrud(); }}
                                     onDelete={handleDelete}
-                                    onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                    onAdd={() => { setState(p => ({ ...p, editingId: null })); form.reset(); openCrud(); }}
                                 />
                             )}
 
@@ -465,9 +528,9 @@ export function AjustesPage() {
                                         title="Mis Cuentas Bancarias"
                                         type="bancos"
                                         items={items}
-                                        onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues(i); openCrud(); }}
+                                        onEdit={(i: any) => { setState(p => ({ ...p, editingId: i.id })); form.setValues(i); openCrud(); }}
                                         onDelete={handleDelete}
-                                        onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                        onAdd={() => { setState(p => ({ ...p, editingId: null })); form.reset(); openCrud(); }}
                                     />
                                 </Stack>
                             )}
@@ -488,9 +551,9 @@ export function AjustesPage() {
                                     title="Productos Recurrentes"
                                     type="productos"
                                     items={items}
-                                    onEdit={(i: any) => { setState(p => ({ ...p, data: { ...p.data, editingId: i.id } })); form.setValues({ ...form.values, nombre: i.nombre, valor_unitario: i.valor_unitario }); openCrud(); }}
+                                    onEdit={(i: any) => { setState(p => ({ ...p, editingId: i.id })); form.setValues({ ...form.values, nombre: i.nombre, valor_unitario: i.valor_unitario }); openCrud(); }}
                                     onDelete={handleDelete}
-                                    onAdd={() => { setState(p => ({ ...p, data: { ...p.data, editingId: null } })); form.reset(); openCrud(); }}
+                                    onAdd={() => { setState(p => ({ ...p, editingId: null })); form.reset(); openCrud(); }}
                                 />
                             )}
 
@@ -675,9 +738,8 @@ export function AjustesPage() {
                     empresaId={empresa.id}
                     userId={user.id}
                     onSuccess={() => {
-                        // Refrescar lista de miembros
-                        setActiveTab(null);
-                        setTimeout(() => setActiveTab('empresa'), 10);
+                        queryClient.invalidateQueries({ queryKey: ['settings_miembros'] });
+                        closeInvite();
                     }}
                 />
             )}

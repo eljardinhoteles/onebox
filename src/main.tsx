@@ -20,7 +20,8 @@ dayjs.extend(timezone)
 dayjs.locale('es')
 dayjs.tz.setDefault('America/Bogota')
 
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queryClient.ts'
 import { EmpresaProvider } from './context/EmpresaContext.tsx'
@@ -29,6 +30,11 @@ import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from 'react-error-boundary'
 import type { FallbackProps } from 'react-error-boundary'
 import { Container, Title, Text, Button, Center, Stack } from '@mantine/core'
+
+const persister = createSyncStoragePersister({
+  storage: window.localStorage,
+  key: 'CAJA_APP_QUERY_CACHE',
+});
 
 export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
@@ -53,7 +59,10 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister }}
+    >
       <MantineProvider theme={theme}>
         <Notifications position="top-right" zIndex={2000} />
         <ModalsProvider>
@@ -69,6 +78,6 @@ createRoot(document.getElementById('root')!).render(
         </ModalsProvider>
       </MantineProvider>
       <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>,
 )

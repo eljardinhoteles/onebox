@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Loader, Title, Pagination, Card, Divider, Menu, PillsInput, Pill } from '@mantine/core';
+import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Title, Pagination, Card, Divider, Menu, PillsInput, Pill } from '@mantine/core';
+import { AppLoader } from '../components/ui/AppLoader';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
 import { IconPencil, IconTrash, IconSearch, IconFilter } from '@tabler/icons-react';
 import { useDisclosure, useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ProveedorFormModal } from '../components/proveedores/ProveedorFormModal';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
+import { ProveedorSkeleton } from '../components/proveedores/ProveedorSkeleton';
 import type { Proveedor } from '../components/proveedores/ProveedorFormModal';
 
 interface ProveedoresPageProps {
@@ -23,9 +26,10 @@ interface MobileCardProps {
     proveedor: Proveedor;
     onEdit: (p: Proveedor) => void;
     onDelete: (id: number) => void;
+    isReadOnly?: boolean;
 }
 
-const MobileCard = ({ proveedor, onEdit, onDelete }: MobileCardProps) => (
+const MobileCard = ({ proveedor, onEdit, onDelete, isReadOnly }: MobileCardProps) => (
     <Card shadow="sm" radius="md" withBorder mb="sm" key={proveedor.id}>
         <Group justify="space-between" mb="xs">
             <Stack gap={0}>
@@ -33,12 +37,16 @@ const MobileCard = ({ proveedor, onEdit, onDelete }: MobileCardProps) => (
                 <Text c="dimmed" size="xs" ff="monospace">{proveedor.ruc}</Text>
             </Stack>
             <Group gap={4}>
-                <ActionIcon variant="light" color="blue" onClick={() => onEdit(proveedor)} radius="md">
-                    <IconPencil size={18} stroke={1.5} />
-                </ActionIcon>
-                <ActionIcon variant="light" color="red" onClick={() => onDelete(proveedor.id)} radius="md">
-                    <IconTrash size={18} stroke={1.5} />
-                </ActionIcon>
+                {!isReadOnly && (
+                    <>
+                        <ActionIcon variant="light" color="blue" onClick={() => onEdit(proveedor)} radius="md">
+                            <IconPencil size={18} stroke={1.5} />
+                        </ActionIcon>
+                        <ActionIcon variant="light" color="red" onClick={() => onDelete(proveedor.id)} radius="md">
+                            <IconTrash size={18} stroke={1.5} />
+                        </ActionIcon>
+                    </>
+                )}
             </Group>
         </Group>
 
@@ -189,19 +197,22 @@ interface ProveedoresTableProps {
     onEdit: (p: Proveedor) => void;
     onDelete: (id: number) => void;
     isMobile: boolean;
+    isReadOnly?: boolean;
 }
 
-function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, isMobile }: ProveedoresTableProps) {
+function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, isMobile, isReadOnly }: ProveedoresTableProps) {
+    const showSkeleton = fetching; 
+
     if (isMobile) {
         return (
-            <Stack gap="sm">
-                {fetching ? (
-                    <Stack align="center" py="xl">
-                        <Loader size="sm" />
-                        <Text c="dimmed" size="sm">Cargando...</Text>
+            <Stack gap="sm" style={{ position: 'relative' }}>
+                {showSkeleton && allProveedores.length > 0 && <AppLoader variant="bar" />}
+                {showSkeleton && allProveedores.length === 0 ? (
+                    <Stack gap="sm">
+                        {Array(5).fill(0).map((_, i) => <ProveedorSkeleton key={i} />)}
                     </Stack>
                 ) : allProveedores.length > 0 ? (
-                    allProveedores.map(p => <MobileCard key={p.id} proveedor={p} onEdit={onEdit} onDelete={onDelete} />)
+                    allProveedores.map(p => <MobileCard key={p.id} proveedor={p} onEdit={onEdit} onDelete={onDelete} isReadOnly={isReadOnly} />)
                 ) : (
                     <Text c="dimmed" ta="center" py="xl">
                         {search ? 'Sin resultados.' : 'Sin proveedores.'}
@@ -238,23 +249,28 @@ function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, 
             </Table.Td>
             <Table.Td>
                 <Group gap={4} justify="flex-end">
-                    <Tooltip label="Editar" radius="md">
-                        <ActionIcon variant="subtle" color="blue" onClick={() => onEdit(proveedor)} radius="md">
-                            <IconPencil size={18} stroke={1.5} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Eliminar" radius="md">
-                        <ActionIcon variant="subtle" color="red" onClick={() => onDelete(proveedor.id)} radius="md">
-                            <IconTrash size={18} stroke={1.5} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {!isReadOnly && (
+                        <>
+                            <Tooltip label="Editar" radius="md">
+                                <ActionIcon variant="subtle" color="blue" onClick={() => onEdit(proveedor)} radius="md">
+                                    <IconPencil size={18} stroke={1.5} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Eliminar" radius="md">
+                                <ActionIcon variant="subtle" color="red" onClick={() => onDelete(proveedor.id)} radius="md">
+                                    <IconTrash size={18} stroke={1.5} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
+                    )}
                 </Group>
             </Table.Td>
         </Table.Tr>
     ));
 
     return (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1" style={{ position: 'relative' }}>
+            {showSkeleton && allProveedores.length > 0 && <AppLoader variant="bar" />}
             <Table verticalSpacing="sm" highlightOnHover>
                 <Table.Thead bg="white" style={{ zIndex: 5, position: 'sticky', top: 0 }}>
                     <Table.Tr>
@@ -266,13 +282,10 @@ function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, 
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                    {fetching ? (
+                    {showSkeleton && allProveedores.length === 0 ? (
                         <Table.Tr>
-                            <Table.Td colSpan={5}>
-                                <Stack align="center" py="xl" gap="xs">
-                                    <Loader size="sm" />
-                                    <Text c="dimmed" size="sm">Cargando proveedores...</Text>
-                                </Stack>
+                            <Table.Td colSpan={5} p={0}>
+                                <TableSkeleton rows={10} cols={5} />
                             </Table.Td>
                         </Table.Tr>
                     ) : rows.length > 0 ? (
@@ -295,7 +308,7 @@ function ProveedoresTable({ allProveedores, fetching, search, onEdit, onDelete, 
 }
 
 export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
-    const { empresa } = useEmpresa();
+    const { empresa, loading: empresaLoading, isReadOnly } = useEmpresa();
     const queryClient = useQueryClient();
     const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
     const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
@@ -315,6 +328,7 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
     // Consulta de Proveedores (Paginada)
     const { data: proveedoresData, isLoading: fetching } = useQuery({
         queryKey: ['proveedores', debouncedSearch, filterSucursal, filterRegimen, page, empresa?.id],
+        placeholderData: keepPreviousData,
         queryFn: async () => {
             if (!empresa) return { data: [], count: 0 };
             const from = (page - 1) * PAGE_SIZE;
@@ -453,11 +467,12 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                 <Stack gap="md" className="flex-1">
                     <ProveedoresTable
                         allProveedores={allProveedores}
-                        fetching={fetching}
+                        fetching={fetching || empresaLoading}
                         search={search}
                         onEdit={openEditDrawer}
                         onDelete={handleDelete}
                         isMobile={!!isMobile}
+                        isReadOnly={isReadOnly}
                     />
                 </Stack>
 

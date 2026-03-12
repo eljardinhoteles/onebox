@@ -1,9 +1,12 @@
-import { Paper, UnstyledButton, Text, ActionIcon } from '@mantine/core';
+import { Paper, UnstyledButton, Text, ActionIcon, Tooltip } from '@mantine/core';
 import {
     IconReceipt2,
     IconUsers,
     IconSettings,
     IconPlus,
+    IconBrandWhatsapp,
+    IconTransfer,
+    IconUserPlus
 } from '@tabler/icons-react';
 import { NotificationCenter } from './NotificationCenter';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -21,6 +24,29 @@ interface NavbarProps {
 export function Navbar({ onAdd }: NavbarProps) {
     const location = useLocation();
     const navigate = useNavigate();
+    
+    const isAjustes = location.pathname.startsWith('/ajustes');
+
+    let actionLabel = "Nueva Acción Rápida";
+    let ActionIconComponent = IconPlus;
+    let actionColor = "teal";
+    let actionShadowRGB = "18, 184, 134";
+
+    if (location.pathname === '/cajas' || location.pathname === '/cajas/') {
+        actionLabel = "Crear Caja";
+        actionColor = "cyan";
+        actionShadowRGB = "21, 170, 191"; // Celeste (Mantine cyan)
+    } else if (location.pathname.startsWith('/cajas/')) {
+        actionLabel = "Nueva Transacción";
+        ActionIconComponent = IconTransfer;
+    } else if (location.pathname.startsWith('/proveedores')) {
+        actionLabel = "Nuevo Proveedor";
+        ActionIconComponent = IconUserPlus;
+    }
+
+    const handleWhatsappSoporte = () => {
+        window.open('https://wa.me/593999999999?text=Hola,%20necesito%20soporte%20con%20Mi%20Caja%20Chica', '_blank');
+    };
 
     return (
         <div
@@ -101,30 +127,56 @@ export function Navbar({ onAdd }: NavbarProps) {
                 </div>
             </Paper>
 
-            {/* FAB - Botón flotante de creación rápida */}
-            {onAdd && (
-                <ActionIcon
-                    size={48}
-                    radius={24}
-                    variant="filled"
-                    color="teal"
-                    onClick={onAdd}
-                    style={{
-                        boxShadow: '0 4px 14px rgba(18, 184, 134, 0.4)',
-                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.08)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(18, 184, 134, 0.5)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.boxShadow = '0 4px 14px rgba(18, 184, 134, 0.4)';
-                    }}
-                >
-                    <IconPlus size={22} stroke={2.5} />
-                </ActionIcon>
-            )}
+            {/* FAB - Botón flotante de creación rápida / Soporte */}
+            {isAjustes ? (
+                <Tooltip label="¿Necesitas ayuda? Escríbenos" position="top" withArrow color="green.7">
+                    <ActionIcon
+                        size={48}
+                        radius={24}
+                        variant="filled"
+                        color="green"
+                        onClick={handleWhatsappSoporte}
+                        style={{
+                            boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)',
+                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 4px 14px rgba(34, 197, 94, 0.4)';
+                        }}
+                    >
+                        <IconBrandWhatsapp size={26} stroke={2} />
+                    </ActionIcon>
+                </Tooltip>
+            ) : onAdd ? (
+                <Tooltip label={actionLabel} position="top" withArrow color={`${actionColor}.7`}>
+                    <ActionIcon
+                        size={48}
+                        radius={24}
+                        variant="filled"
+                        color={actionColor}
+                        onClick={onAdd}
+                        style={{
+                            boxShadow: `0 4px 14px rgba(${actionShadowRGB}, 0.4)`,
+                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.boxShadow = `0 6px 20px rgba(${actionShadowRGB}, 0.5)`;
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = `0 4px 14px rgba(${actionShadowRGB}, 0.4)`;
+                        }}
+                    >
+                        <ActionIconComponent size={22} stroke={2.5} />
+                    </ActionIcon>
+                </Tooltip>
+            ) : null}
         </div>
     );
 }

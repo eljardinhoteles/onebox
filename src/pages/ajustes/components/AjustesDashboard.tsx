@@ -1,6 +1,8 @@
 import { SimpleGrid } from '@mantine/core';
-import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory, IconUserCircle, IconInfoCircle, IconPackage } from '@tabler/icons-react';
+import { IconBuilding, IconBuildingStore, IconBuildingBank, IconListDetails, IconSettings, IconBell, IconHistory, IconUserCircle, IconInfoCircle, IconPackage, IconShieldCheck } from '@tabler/icons-react';
 import { MenuCard } from './MenuCard';
+import { useEmpresa } from '../../../context/EmpresaContext';
+import { useNavigate } from 'react-router-dom';
 
 interface AjustesDashboardProps {
     onNavigate: (tab: string) => void;
@@ -8,6 +10,9 @@ interface AjustesDashboardProps {
 }
 
 export function AjustesDashboard({ onNavigate, onOpenNotifications }: AjustesDashboardProps) {
+    const { isSuperAdmin } = useEmpresa();
+    const navigate = useNavigate();
+
     return (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
             <MenuCard
@@ -76,6 +81,14 @@ export function AjustesDashboard({ onNavigate, onOpenNotifications }: AjustesDas
                 description="Versión y estado del plan."
                 onClick={() => onNavigate('about')}
             />
+            {isSuperAdmin && (
+                <MenuCard
+                    icon={<IconShieldCheck size={32} color="var(--mantine-color-red-6)" />}
+                    title="Panel Admin"
+                    description="Gestión de suscripciones y plataforma."
+                    onClick={() => navigate('/admin')}
+                />
+            )}
         </SimpleGrid>
     );
 }

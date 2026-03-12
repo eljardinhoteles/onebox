@@ -1,0 +1,171 @@
+/* LandingPage.css */
+
+.landing-wrapper {
+    min-height: 100vh;
+    background: white;
+    overflow-x: hidden;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Floating Header */
+.floating-header-container {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    width: calc(100% - 3rem);
+    max-width: 900px;
+}
+
+.floating-header {
+    background-color: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+/* Hero Section */
+.hero-section {
+    padding-top: 120px;
+    padding-bottom: 96px;
+    background: linear-gradient(180deg, #e5f4ff 0%, #ffffff 100%);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-blob-right {
+    position: absolute;
+    top: -5%;
+    right: -4%;
+    width: 480px;
+    height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(39, 132, 255, 0.13) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.hero-blob-left {
+    position: absolute;
+    bottom: -8%;
+    left: -4%;
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(18, 184, 134, 0.11) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.hero-title {
+    font-size: clamp(2rem, 5vw, 3.75rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--mantine-color-blue-9);
+    margin-bottom: 1.25rem;
+}
+
+.hero-title-gradient {
+    background: linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-teal-6) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-cta-button {
+    box-shadow: 0 4px 14px rgba(39, 132, 255, 0.35);
+}
+
+/* Feature Panels */
+.feature-panel {
+    overflow: hidden;
+    background-color: white;
+}
+
+.feature-img-placeholder {
+    aspect-ratio: 16/9;
+    background: linear-gradient(135deg, var(--mantine-color-gray-0) 0%, var(--mantine-color-gray-1) 100%);
+    border: 2px dashed var(--mantine-color-gray-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Accountant Section */
+.accountant-section {
+    background: linear-gradient(180deg, white 0%, #f8fafc 100%);
+}
+
+.accountant-paper {
+    background: white;
+    border: 1px solid var(--mantine-color-gray-2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.accountant-bg-icon {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    opacity: 0.03;
+    transform: rotate(15deg);
+}
+
+.report-preview-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12);
+}
+
+.report-preview-footer {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+}
+
+/* Pricing Section */
+.pricing-section {
+    background: linear-gradient(180deg, #e5f4ff 0%, white 100%);
+}
+
+.trial-banner {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-color: var(--mantine-color-blue-2);
+}
+
+.trial-button {
+    box-shadow: 0 4px 12px rgba(39, 132, 255, 0.3);
+}
+
+.pricing-card-annual {
+    background: linear-gradient(135deg, var(--mantine-color-blue-8) 0%, var(--mantine-color-blue-6) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.pricing-bubble {
+    position: absolute;
+    bottom: -50px;
+    right: -50px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+}
+
+/* Utils */
+.text-dimmed-white {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.text-dimmed-white-low {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.text-dimmed-white-high {
+    color: rgba(255, 255, 255, 0.75);
+}

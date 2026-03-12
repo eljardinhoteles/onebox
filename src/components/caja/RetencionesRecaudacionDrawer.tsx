@@ -1,4 +1,5 @@
 import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge } from '@mantine/core';
+import { AppLoader } from '../ui/AppLoader';
 import { IconPrinter, IconX } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
@@ -187,7 +188,7 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
                         </Table.Thead>
                         <Table.Tbody>
                             {isLoading ? (
-                                <Table.Tr><Table.Td colSpan={4} ta="center" py="xl"><Text c="dimmed">Cargando retenciones...</Text></Table.Td></Table.Tr>
+                                <Table.Tr><Table.Td colSpan={4}><AppLoader size="sm" message="Cargando retenciones..." /></Table.Td></Table.Tr>
                             ) : retenciones.length === 0 ? (
                                 <Table.Tr><Table.Td colSpan={4} ta="center" py="xl"><Text c="dimmed">No hay retenciones en esta caja</Text></Table.Td></Table.Tr>
                             ) : (

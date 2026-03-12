@@ -148,7 +148,17 @@ export function OnboardingPage() {
                 .single();
             if (sucError) throw sucError;
 
-            // 4. Crear Caja (Opcional)
+            // 4. Crear suscripción trial (14 días)
+            const trialEnd = new Date();
+            trialEnd.setDate(trialEnd.getDate() + 14);
+            await supabase.from('suscripciones').insert({
+                empresa_id: empresa.id,
+                plan: 'trial',
+                estado: 'trial',
+                fecha_fin: trialEnd.toISOString(),
+            });
+
+            // 5. Crear Caja (Opcional)
             if (form.values.caja_abrir) {
                 const { error: cajaError } = await supabase
                     .from('cajas')
@@ -193,7 +203,7 @@ export function OnboardingPage() {
 
                     <Stack gap="xl">
                         <Box ta="center">
-                            <Title order={2}>Bienvenido a Caja2026</Title>
+                            <Title order={2}>Bienvenido a Mi Caja Chica</Title>
                             <Text c="dimmed" size="sm">Comencemos configurando tu espacio de trabajo.</Text>
                         </Box>
 

@@ -1,8 +1,9 @@
 import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, ThemeIcon } from '@mantine/core';
+import { AppLoader } from '../ui/AppLoader';
+import { TableSkeleton } from '../ui/TableSkeleton';
 import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
-import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
 import type { Transaction } from '../../hooks/useCajaCalculations';
 
 interface TransactionTableProps {
@@ -16,9 +17,10 @@ interface TransactionTableProps {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     onSort?: (key: string) => void;
+    isReadOnly?: boolean;
 }
 
-const MotionTr = motion.create(Table.Tr);
+
 
 export function TransactionTable({
     transactions,
@@ -30,16 +32,13 @@ export function TransactionTable({
     onNovedades,
     sortBy,
     sortOrder,
-    onSort
+    onSort,
+    isReadOnly
 }: TransactionTableProps) {
 
-    const rows = transactions.map((t, index) => (
-        <MotionTr
+    const rows = transactions.map((t) => (
+        <Table.Tr
             key={t.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2, delay: index * 0.03 }}
         >
             <Table.Td>
                 <Text size="sm">{dayjs(t.fecha_factura).format('DD/MM/YYYY')}</Text>
@@ -144,7 +143,7 @@ export function TransactionTable({
                         variant="subtle"
                         color="orange"
                         onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
-                        disabled={t.tipo_documento === 'sin_factura' || t.tipo_documento === 'deposito'}
+                        disabled={t.tipo_documento === 'sin_factura' || t.tipo_documento === 'deposito' || isReadOnly}
                         title="Comprobante de Retención"
                     >
                         {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={16} /> : <IconFileInvoice size={16} />}
@@ -160,16 +159,17 @@ export function TransactionTable({
                     <ActionIcon
                         variant="subtle"
                         color="blue"
-                        onClick={(e) => { e.stopPropagation(); onEdit(t.id); }}
-                        disabled={t.tipo_documento === 'deposito'}
+                        onClick={(e) => { e.stopPropagation(); if(!isReadOnly) onEdit(t.id); }}
+                        disabled={t.tipo_documento === 'deposito' || isReadOnly}
                         style={t.tipo_documento === 'deposito' ? { opacity: 0.5 } : undefined}
+                        title={isReadOnly ? 'Solo lectura' : ''}
                     >
-                        {cajaEstado !== 'abierta' || (t.retencion && t.retencion.total_retenido > 0) ?
+                        {cajaEstado !== 'abierta' || isReadOnly || (t.retencion && t.retencion.total_retenido > 0) ?
                             <IconEye size={16} /> :
                             <IconEdit size={16} />
                         }
                     </ActionIcon>
-                    {cajaEstado === 'abierta' && (
+                    {cajaEstado === 'abierta' && !isReadOnly && (
                         <ActionIcon
                             variant="subtle"
                             color="red"
@@ -192,12 +192,12 @@ export function TransactionTable({
                     )}
                 </Group>
             </Table.Td>
-        </MotionTr>
+        </Table.Tr>
     ));
 
     return (
-        <LazyMotion features={domAnimation}>
-            <ScrollArea h={600} type="auto" offsetScrollbars>
+        <ScrollArea h={600} type="auto" offsetScrollbars style={{ position: 'relative' }}>
+            {loading && transactions.length > 0 && <AppLoader variant="bar" />}
                 <Table stickyHeader verticalSpacing="xs" highlightOnHover>
                     <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                         <Table.Tr>
@@ -221,22 +221,21 @@ export function TransactionTable({
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                        <AnimatePresence mode="popLayout">
-                            {!loading && rows.length > 0 ? rows : (
-                                <Table.Tr>
-                                    <Table.Td colSpan={8}>
-                                        {loading ? (
-                                            <Text ta="center" py="xl" c="dimmed">Cargando transacciones...</Text>
-                                        ) : (
-                                            <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
-                                        )}
-                                    </Table.Td>
-                                </Table.Tr>
-                            )}
-                        </AnimatePresence>
+                        {loading && transactions.length === 0 ? (
+                            <Table.Tr>
+                                <Table.Td colSpan={8} p={0}>
+                                    <TableSkeleton rows={10} cols={8} />
+                                </Table.Td>
+                            </Table.Tr>
+                        ) : transactions.length > 0 ? rows : (
+                            <Table.Tr>
+                                <Table.Td colSpan={8}>
+                                    <Text ta="center" py="xl" c="dimmed">No hay transacciones registradas</Text>
+                                </Table.Td>
+                            </Table.Tr>
+                        )}
                     </Table.Tbody>
                 </Table>
             </ScrollArea>
-        </LazyMotion>
     );
 }

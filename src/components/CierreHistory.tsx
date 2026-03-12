@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Text, Badge, ScrollArea, Group, LoadingOverlay, Paper, Title, Avatar } from '@mantine/core';
+import { Table, Text, Badge, ScrollArea, Group, Paper, Title, Avatar } from '@mantine/core';
+import { AppLoader } from './ui/AppLoader';
 import { IconBuildingBank, IconTransfer, IconCircleOff } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import dayjs from 'dayjs';
@@ -52,7 +53,7 @@ export function CierreHistory({ empresaId }: CierreHistoryProps) {
             </Group>
 
             <div style={{ position: 'relative', minHeight: '200px' }}>
-                <LoadingOverlay visible={loading} overlayProps={{ blur: 1, radius: 'md' }} />
+                {loading && <AppLoader py={80} message="Cargando historial..." />}
 
                 <ScrollArea h={500}>
                     <Table striped highlightOnHover verticalSpacing="sm">

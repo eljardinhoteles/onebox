@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { Paper, Text, Stack, Group, Button, Tooltip, ActionIcon } from '@mantine/core';
+import { AppLoader } from '../components/ui/AppLoader';
 import { supabase } from '../lib/supabaseClient';
+import { useEmpresa } from '../context/EmpresaContext';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { AppDrawer } from '../components/ui/AppDrawer';
@@ -13,7 +15,7 @@ import {
     IconPlus,
     IconPrinter, IconAlertTriangle, IconEye
 } from '@tabler/icons-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
@@ -28,6 +30,8 @@ import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesReca
 import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
 import { DepositoBancoModal } from '../components/caja/DepositoBancoModal';
 import { CajaHeader } from '../components/caja/CajaHeader';
+import { Skeleton } from '@mantine/core';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -44,6 +48,7 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {
+    const { isReadOnly, loading: empresaLoading } = useEmpresa();
     const queryClient = useQueryClient();
     const { configs } = useAppConfig();
     const alertThreshold = parseInt(configs.porcentaje_alerta_caja || '15');
@@ -87,8 +92,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     // Atajos contextuales
     useHotkeys([
-        ['n', () => { if (caja?.estado === 'abierta') handleCreate(); }],
-        ['l', () => { if (caja?.estado === 'abierta') openLegalization(); }],
+        ['n', () => { if (caja?.estado === 'abierta' && !isReadOnly) handleCreate(); }],
+        ['l', () => { if (caja?.estado === 'abierta' && !isReadOnly) openLegalization(); }],
         ['p', () => handlePrint()],
     ]);
 
@@ -107,7 +112,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     useEffect(() => {
         if (!setOnAdd) return;
 
-        if (caja?.estado === 'abierta') {
+        if (caja?.estado === 'abierta' && !isReadOnly) {
             setOnAdd(() => handleCreate);
         } else {
             setOnAdd(undefined);
@@ -120,6 +125,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
+        placeholderData: keepPreviousData,
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('transacciones')
@@ -245,8 +251,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
         if (caja?.estado === 'abierta') {
             setHeaderActions(
-                isMonthlyCloseBlocking ? (
-                    <Tooltip label="Cierre mensual bloqueado" withArrow position="bottom">
+                (isMonthlyCloseBlocking || isReadOnly) ? (
+                    <Tooltip label={isReadOnly ? "Modo de solo lectura" : "Cierre mensual bloqueado"} withArrow position="bottom">
                         <ActionIcon variant="filled" color="gray" size="lg" radius="md" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
                             <IconPlus size={18} />
                         </ActionIcon>
@@ -334,7 +340,33 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         openClosingModal(false);
     };
 
-    if (!caja && loadingTrans) return <Text p="xl" ta="center">Cargando...</Text>;
+    // Si no hay caja y estamos cargando, mostramos la estructura con skeletons
+    if (!caja && (loadingTrans || empresaLoading)) {
+        return (
+            <Stack gap="md">
+                <Paper withBorder p="xl" radius="lg" bg="white">
+                    <Group justify="space-between">
+                        <Skeleton height={30} width={200} radius="xl" />
+                        <Group gap="xs">
+                            <Skeleton height={40} width={40} radius="md" />
+                            <Skeleton height={40} width={120} radius="md" />
+                        </Group>
+                    </Group>
+                </Paper>
+                <Group grow>
+                    <Skeleton height={140} radius="lg" />
+                    <Skeleton height={140} radius="lg" />
+                    <Skeleton height={140} radius="lg" />
+                    <Skeleton height={140} radius="lg" />
+                </Group>
+                <Paper withBorder p="md" radius="lg">
+                    <TableSkeleton rows={15} cols={8} />
+                </Paper>
+            </Stack>
+        );
+    }
+
+    if (!caja) return <AppLoader py={100} message="No se encontró la información de la caja..." />;
 
     return (
         <Stack gap="md">
@@ -354,6 +386,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 handlePrint={handlePrint}
                 isError={isError}
                 error={error}
+                isReadOnly={isReadOnly}
             />
 
             <CajaSummaryCards caja={caja} totals={totals} onOpenRetencionesControl={openRetencionesControl} onOpenArqueoControl={openArqueoControl} />
@@ -370,6 +403,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     sortBy={filterState.sortBy}
                     sortOrder={filterState.sortOrder}
                     onSort={handleSort}
+                    isReadOnly={isReadOnly}
                 />
 
                 {(!filterState.query && !filterState.tipo) ? null : (
