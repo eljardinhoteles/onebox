@@ -142,20 +142,7 @@ export function AboutSection() {
             {/* Estado actual */}
             <Paper withBorder p="xl" radius="lg">
                 <Stack gap="xl">
-                    <Group justify="space-between" align="flex-start">
-                        <Group>
-                            <img src={LogoIcon} alt="Mi Caja Chica Logo" style={{ width: 48, height: 48, objectFit: 'contain' }} />
-                            <Stack gap={0}>
-                                <Title order={3}>Mi Caja Chica</Title>
-                                <Text size="sm" c="dimmed">Sistema Integral de Gestión de Cajas</Text>
-                            </Stack>
-                        </Group>
-                        <Badge size="lg" variant="light" color="blue">v1.5.40 stable</Badge>
-                    </Group>
-
-                    <Divider />
-
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl" mt="sm">
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
                         <Card withBorder radius="md" p="md" bg="gray.0">
                             <Stack gap="xs">
                                 <Text fw={700} size="xs" c="dimmed" tt="uppercase">Tu Suscripción Actual</Text>

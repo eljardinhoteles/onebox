@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useSubscription, type Subscription } from '../hooks/useSubscription';
+import type { Subscription } from '../hooks/useSubscription';
+import dayjs from 'dayjs';
 
 export type EmpresaRole = 'owner' | 'admin' | 'operador';
 
@@ -58,7 +59,8 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     const [configs, setConfigs] = useState<Record<string, string>>({});
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-    const { subscription, loading: subscriptionLoading, isReadOnly, refresh: refreshSubscription } = useSubscription(empresa?.id);
+    // Eliminamos el hook useSubscription ya que ahora traemos todo unificado en fetchEmpresa
+
 
     // Ref para acceder al estado actual dentro de closures sin dependencias
     const empresaLoadedRef = useRef(false);
@@ -68,10 +70,14 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
         else empresaLoadedRef.current = false;
     }, [empresa]);
 
+    const [subscription, setSubscription] = useState<Subscription | null>(null);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+
     const fetchEmpresa = async () => {
         // Solo mostrar loading si no tenemos datos cargados previamente
         if (!empresaLoadedRef.current) {
             setLoading(true);
+            setSubscriptionLoading(true);
         }
 
         try {
@@ -80,11 +86,13 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 setEmpresa(null);
                 setRole(null);
                 setPerfil(null);
+                setSubscription(null);
                 setLoading(false);
+                setSubscriptionLoading(false);
                 return;
             }
 
-            // PETICIÓN ÚNICA: Obtenemos perfil SIEMPRE, y si tiene empresa, también membresía/configuración
+            // PETICIÓN ÚNICA: Perfil, membresía, empresa, configuración Y suscripción en un solo viaje
             const { data: profileData, error: profileError } = await supabase
                 .from('perfiles')
                 .select(`
@@ -94,7 +102,8 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                         empresa_id,
                         empresas (
                             *,
-                            configuracion ( clave, valor )
+                            configuracion ( clave, valor ),
+                            suscripciones (*)
                         )
                     )
                 `)
@@ -104,14 +113,15 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
             if (profileError) throw profileError;
 
             if (!profileData) {
-                // Si no hay perfil, algo está mal o es un usuario nuevo en proceso
                 setEmpresa(null);
                 setRole(null);
+                setSubscription(null);
                 setLoading(false);
+                setSubscriptionLoading(false);
                 return;
             }
 
-            // 1. Establecer Perfil y Estado de SuperAdmin (Independiente de si tiene empresa)
+            // 1. Perfil y SuperAdmin
             setPerfil({
                 id: profileData.id,
                 nombre: profileData.nombre,
@@ -119,7 +129,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
             });
             setIsSuperAdmin(profileData.is_superadmin === true);
 
-            // 2. Procesar Membresía y Empresa (si existen)
+            // 2. Membresía, Empresa y Suscripción
             const membershipRaw = profileData.membresia;
             const membership = Array.isArray(membershipRaw) ? membershipRaw[0] : membershipRaw;
 
@@ -129,17 +139,21 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                     setEmpresa(empresaObj);
                     setRole(membership.role as EmpresaRole);
 
-                    // Procesar Configuración
+                    // Configuración
                     const configMap: Record<string, string> = {};
                     const configsRaw = (empresaObj as any).configuracion as any[];
-                    configsRaw?.forEach(item => {
-                        configMap[item.clave] = item.valor;
-                    });
+                    configsRaw?.forEach(item => { configMap[item.clave] = item.valor; });
                     setConfigs(configMap);
+
+                    // Suscripción (unificada)
+                    const subRaw = (empresaObj as any).suscripciones;
+                    const sub = Array.isArray(subRaw) ? subRaw[0] : subRaw;
+                    setSubscription(sub || null);
                 }
             } else {
                 setEmpresa(null);
                 setRole(null);
+                setSubscription(null);
             }
         } catch (err) {
             console.error('Error in EmpresaProvider:', err);
@@ -166,6 +180,17 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // Lógica derivada de suscripción (antes estaba en el hook)
+    const now = dayjs();
+    const sub = subscription;
+    const fechaFin = sub ? dayjs(sub.fecha_fin) : now;
+    const isExpired = sub ? now.isAfter(fechaFin) && sub.estado !== 'activa' : false;
+    const isReadOnly = isExpired || (sub?.estado === 'vencida');
+
+    const refreshSubscription = async () => {
+        await fetchEmpresa();
+    };
 
     return (
         <EmpresaContext.Provider value={{

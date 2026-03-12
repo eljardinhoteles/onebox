@@ -154,6 +154,12 @@ export default function App() {
   }, [empresa?.id]);
 
   if (isLanding) {
+    // Redirigir si ya tiene sesión activa
+    if (session) {
+      if (isSuperAdmin && !empresa) return <Navigate to="/admin" replace />;
+      return <Navigate to="/cajas" replace />;
+    }
+
     return (
       <MotionConfig reducedMotion="never">
         <Suspense fallback={<AppLoader fullScreen message="Cargando..." />}>
