@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Title, Pagination, Card, Divider, Menu, PillsInput, Pill } from '@mantine/core';
+import { Paper, Text, Stack, Group, Table, ActionIcon, Badge, ScrollArea, Tooltip, Title, Pagination, Divider, Menu, PillsInput, Pill } from '@mantine/core';
 import { AppLoader } from '../components/ui/AppLoader';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -30,51 +30,54 @@ interface MobileCardProps {
 }
 
 const MobileCard = ({ proveedor, onEdit, onDelete, isReadOnly }: MobileCardProps) => (
-    <Card shadow="sm" radius="md" withBorder mb="sm" key={proveedor.id}>
-        <Group justify="space-between" mb="xs">
-            <Stack gap={0}>
-                <Text fw={700} size="md">{proveedor.nombre}</Text>
-                <Text c="dimmed" size="xs" ff="monospace">{proveedor.ruc}</Text>
-            </Stack>
-            <Group gap={4}>
+    <Paper shadow="xs" radius="lg" withBorder p="md" mb="sm" key={proveedor.id} bg="white">
+        <Stack gap="xs">
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+                <Stack gap={2} style={{ flex: 1 }}>
+                    <Text fw={700} size="sm" style={{ lineHeight: 1.2 }}>{proveedor.nombre}</Text>
+                    <Text c="dimmed" size="xs" ff="monospace" style={{ letterSpacing: '0.5px' }}>{proveedor.ruc}</Text>
+                </Stack>
                 {!isReadOnly && (
-                    <>
-                        <ActionIcon variant="light" color="blue" onClick={() => onEdit(proveedor)} radius="md">
-                            <IconPencil size={18} stroke={1.5} />
+                    <Group gap={8} wrap="nowrap">
+                        <ActionIcon variant="light" color="blue" onClick={() => onEdit(proveedor)} radius="md" size="lg">
+                            <IconPencil size={20} stroke={1.5} />
                         </ActionIcon>
-                        <ActionIcon variant="light" color="red" onClick={() => onDelete(proveedor.id)} radius="md">
-                            <IconTrash size={18} stroke={1.5} />
+                        <ActionIcon variant="light" color="red" onClick={() => onDelete(proveedor.id)} radius="md" size="lg">
+                            <IconTrash size={20} stroke={1.5} />
                         </ActionIcon>
-                    </>
+                    </Group>
                 )}
             </Group>
-        </Group>
 
-        <Divider mb="xs" />
+            <Divider variant="dashed" />
 
-        <Stack gap="xs">
-            <Group gap="xs">
-                <Text size="sm" c="dimmed" fw={500} w={80}>Teléfono:</Text>
-                <Text size="sm">{proveedor.telefono || 'No registrado'}</Text>
+            <Group grow gap="xs">
+                <Stack gap={2}>
+                    <Text size="xs" c="dimmed" fw={500}>Teléfono</Text>
+                    <Text size="sm" fw={500}>{proveedor.telefono || '-'}</Text>
+                </Stack>
+                <Stack gap={2}>
+                    <Text size="xs" c="dimmed" fw={500}>Régimen</Text>
+                    <Badge variant="dot" color="blue" size="sm" styles={{ label: { textTransform: 'none' } }}>
+                        {proveedor.regimen || 'No especificado'}
+                    </Badge>
+                </Stack>
             </Group>
-            <Group gap="xs">
-                <Text size="sm" c="dimmed" fw={500} w={80}>Régimen:</Text>
-                <Badge variant="dot" color="blue" size="sm">{proveedor.regimen || 'No especificado'}</Badge>
-            </Group>
-            <Stack gap={4}>
-                <Text size="sm" c="dimmed" fw={500}>Sucursales:</Text>
-                <Group gap={4}>
-                    {proveedor.sucursales && proveedor.sucursales.length > 0 ? (
-                        proveedor.sucursales.map((s: string) => (
-                            <Badge key={s} size="xs" variant="outline" radius="sm">{s}</Badge>
-                        ))
-                    ) : (
-                        <Text size="xs" c="dimmed">Todas las sucursales</Text>
-                    )}
-                </Group>
-            </Stack>
+
+            {proveedor.sucursales && proveedor.sucursales.length > 0 && (
+                <Stack gap={4}>
+                    <Text size="xs" c="dimmed" fw={500}>Sucursales habilitadas</Text>
+                    <Group gap={4}>
+                        {proveedor.sucursales.map((s: string) => (
+                            <Badge key={s} size="xs" variant="outline" radius="sm" color="gray">
+                                {s}
+                            </Badge>
+                        ))}
+                    </Group>
+                </Stack>
+            )}
         </Stack>
-    </Card>
+    </Paper>
 );
 
 interface ProveedoresHeaderProps {
@@ -91,100 +94,112 @@ function ProveedoresHeader({ totalCount, queryState, setQueryState, sucursalesLi
     const updateQuery = (updates: any) => setQueryState((prev: any) => ({ ...prev, ...updates, page: 1 }));
 
     return (
-        <Stack gap="md">
-            <Group justify="space-between" align="center" wrap="wrap">
-                <Title order={2} fw={700}>
-                    {totalCount} Proveedores
-                </Title>
-                <Group gap="xs" style={{ flex: 1, minWidth: isMobile ? '100%' : '400px' }}>
-                    <PillsInput
-                        radius="md"
-                        style={{ flex: 1 }}
-                        leftSection={<IconSearch size={16} />}
-                        rightSection={
-                            <Menu position="bottom-end" shadow="sm" width={220} withArrow transitionProps={{ transition: 'pop-top-right' }}>
-                                <Menu.Target>
-                                    <ActionIcon variant="subtle" color={(filterSucursal || filterRegimen) ? 'blue' : 'gray'} radius="md">
-                                        <IconFilter size={18} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Label>Filtrar por Sucursal</Menu.Label>
-                                    {sucursalesList.map((s: string) => (
-                                        <Menu.Item
-                                            key={s}
-                                            onClick={() => updateQuery({ filterSucursal: s })}
-                                            bg={filterSucursal === s ? 'blue.0' : undefined}
-                                            c={filterSucursal === s ? 'blue.7' : undefined}
-                                        >
-                                            {s}
-                                        </Menu.Item>
-                                    ))}
-                                    {filterSucursal && (
-                                        <Menu.Item color="red" onClick={() => updateQuery({ filterSucursal: null })}>
-                                            Limpiar Sucursal
-                                        </Menu.Item>
-                                    )}
+        <Stack gap={isMobile ? "sm" : "md"}>
+            <Group justify="space-between" align="center">
+                <Stack gap={0}>
+                    <Title order={2} size={isMobile ? "h3" : "h2"} fw={800} style={{ letterSpacing: '-0.5px' }}>
+                        {totalCount} Proveedores
+                    </Title>
+                    <Text size="xs" c="dimmed">Gestiona tus contactos y proveedores autorizados.</Text>
+                </Stack>
+            </Group>
 
-                                    <Menu.Divider />
-                                    <Menu.Label>Filtrar por Régimen</Menu.Label>
-                                    {regimenes.map((r: string) => (
-                                        <Menu.Item
-                                            key={r}
-                                            onClick={() => updateQuery({ filterRegimen: r })}
-                                            bg={filterRegimen === r ? 'blue.0' : undefined}
-                                            c={filterRegimen === r ? 'blue.7' : undefined}
-                                        >
-                                            {r}
-                                        </Menu.Item>
-                                    ))}
-                                    {filterRegimen && (
-                                        <Menu.Item color="red" onClick={() => updateQuery({ filterRegimen: null })}>
-                                            Limpiar Régimen
-                                        </Menu.Item>
-                                    )}
+            <Group gap="sm" wrap={isMobile ? "wrap" : "nowrap"}>
+                <PillsInput
+                    radius="md"
+                    style={{ flex: 1, minWidth: isMobile ? '100%' : '300px' }}
+                    leftSection={<IconSearch size={18} stroke={1.5} />}
+                    rightSection={
+                        <Menu position="bottom-end" shadow="md" width={240} withArrow offset={10}>
+                            <Menu.Target>
+                                <ActionIcon 
+                                    variant={ (filterSucursal || filterRegimen) ? "light" : "subtle" } 
+                                    color={(filterSucursal || filterRegimen) ? 'blue' : 'gray'} 
+                                    radius="md" 
+                                    size="lg"
+                                >
+                                    <IconFilter size={20} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Label>Filtrar por Sucursal</Menu.Label>
+                                {sucursalesList.map((s: string) => (
+                                    <Menu.Item
+                                        key={s}
+                                        onClick={() => updateQuery({ filterSucursal: s })}
+                                        leftSection={filterSucursal === s ? <Badge size="xs" variant="dot" /> : null}
+                                        bg={filterSucursal === s ? 'blue.0' : undefined}
+                                        c={filterSucursal === s ? 'blue.7' : undefined}
+                                    >
+                                        {s}
+                                    </Menu.Item>
+                                ))}
+                                {filterSucursal && (
+                                    <Menu.Item color="red" onClick={() => updateQuery({ filterSucursal: null })}>
+                                        Limpiar Sucursal
+                                    </Menu.Item>
+                                )}
 
-                                    {(filterSucursal || filterRegimen) && (
-                                        <>
-                                            <Menu.Divider />
-                                            <Menu.Item color="red" fw={600} onClick={() => updateQuery({ filterSucursal: null, filterRegimen: null })}>
-                                                Limpiar Todos los Filtros
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                </Menu.Dropdown>
-                            </Menu>
-                        }
-                    >
-                        <Pill.Group>
-                            {filterSucursal && (
-                                <Pill
-                                    withRemoveButton
-                                    onRemove={() => updateQuery({ filterSucursal: null })}
-                                    size="sm"
-                                    color="blue"
-                                >
-                                    Suc: {filterSucursal}
-                                </Pill>
-                            )}
-                            {filterRegimen && (
-                                <Pill
-                                    withRemoveButton
-                                    onRemove={() => updateQuery({ filterRegimen: null })}
-                                    size="sm"
-                                    color="orange"
-                                >
-                                    Reg: {filterRegimen}
-                                </Pill>
-                            )}
-                            <PillsInput.Field
-                                placeholder={(filterSucursal || filterRegimen) ? "" : "Buscar por nombre o RUC..."}
-                                value={search}
-                                onChange={(e) => updateQuery({ search: e.currentTarget.value })}
-                            />
-                        </Pill.Group>
-                    </PillsInput>
-                </Group>
+                                <Menu.Divider />
+                                <Menu.Label>Filtrar por Régimen</Menu.Label>
+                                {regimenes.map((r: string) => (
+                                    <Menu.Item
+                                        key={r}
+                                        onClick={() => updateQuery({ filterRegimen: r })}
+                                        leftSection={filterRegimen === r ? <Badge size="xs" variant="dot" color="orange" /> : null}
+                                        bg={filterRegimen === r ? 'orange.0' : undefined}
+                                        c={filterRegimen === r ? 'orange.7' : undefined}
+                                    >
+                                        {r}
+                                    </Menu.Item>
+                                ))}
+                                {filterRegimen && (
+                                    <Menu.Item color="red" onClick={() => updateQuery({ filterRegimen: null })}>
+                                        Limpiar Régimen
+                                    </Menu.Item>
+                                )}
+
+                                {(filterSucursal || filterRegimen) && (
+                                    <>
+                                        <Menu.Divider />
+                                        <Menu.Item color="red" fw={700} onClick={() => updateQuery({ filterSucursal: null, filterRegimen: null })}>
+                                            Limpiar Todos los Filtros
+                                        </Menu.Item>
+                                    </>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    }
+                >
+                    <Pill.Group>
+                        {filterSucursal && (
+                            <Pill
+                                withRemoveButton
+                                onRemove={() => updateQuery({ filterSucursal: null })}
+                                size="sm"
+                                variant="contrast"
+                            >
+                                Suc: {filterSucursal}
+                            </Pill>
+                        )}
+                        {filterRegimen && (
+                            <Pill
+                                withRemoveButton
+                                onRemove={() => updateQuery({ filterRegimen: null })}
+                                size="sm"
+                                variant="contrast"
+                                color="orange"
+                            >
+                                Reg: {filterRegimen}
+                            </Pill>
+                        )}
+                        <PillsInput.Field
+                            placeholder={isMobile ? "Buscar..." : "Buscar por nombre o RUC..."}
+                            value={search}
+                            onChange={(e) => updateQuery({ search: e.currentTarget.value })}
+                        />
+                    </Pill.Group>
+                </PillsInput>
             </Group>
         </Stack>
     );
@@ -482,8 +497,9 @@ export function ProveedoresPage({ opened, close }: ProveedoresPageProps) {
                             total={totalPages}
                             value={page}
                             onChange={(p) => setQueryState(prev => ({ ...prev, page: p }))}
-                            radius="md"
+                            radius="xl"
                             withEdges
+                            size={isMobile ? "sm" : "md"}
                         />
                     </Group>
                 )}

@@ -1,6 +1,7 @@
-import { Box, Container, Paper, SimpleGrid, Badge, Title, Text, Stack, Group, ThemeIcon, Divider, rem } from '@mantine/core';
+import { Box, Container, Paper, SimpleGrid, Badge, Title, Text, Stack, Group, ThemeIcon, rem, Image } from '@mantine/core';
 import { motion } from 'framer-motion';
 import { IconCalculator, IconCheck, IconReceiptTax, IconListCheck } from '@tabler/icons-react';
+import arqueoCajaImg from '../../../assets/3x/Arqueo de caja.png';
 
 export function AccountantSection() {
     return (
@@ -65,44 +66,17 @@ export function AccountantSection() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.6 }}
                         >
-                            <Paper
-                                p="xl"
-                                radius="lg"
-                                className="report-preview-card"
-                            >
-                                <Stack gap="lg">
-                                    <Group justify="space-between">
-                                        <Text fw={700}>Reporte de Cierre Diario</Text>
-                                        <Badge color="teal" variant="filled">Cuadrado</Badge>
-                                    </Group>
-                                    <Divider opacity={0.1} />
-                                    <SimpleGrid cols={2}>
-                                        <Stack gap={0}>
-                                            <Text size="xs" opacity={0.6}>Saldo Inicial</Text>
-                                            <Text fw={700}>$100.00</Text>
-                                        </Stack>
-                                        <Stack gap={0}>
-                                            <Text size="xs" opacity={0.6}>Saldo Final</Text>
-                                            <Text fw={700}>$45.20</Text>
-                                        </Stack>
-                                    </SimpleGrid>
-                                    <SimpleGrid cols={2}>
-                                        <Stack gap={0}>
-                                            <Text size="xs" opacity={0.6}>Retenciones Rec.</Text>
-                                            <Text fw={700} c="orange.4">$12.50</Text>
-                                        </Stack>
-                                        <Stack gap={0}>
-                                            <Text size="xs" opacity={0.6}>Diferencia</Text>
-                                            <Text fw={700} c="teal.4">$0.00</Text>
-                                        </Stack>
-                                    </SimpleGrid>
-                                    <Paper p="md" radius="md" className="report-preview-footer">
-                                        <Text size="xs" style={{ fontStyle: 'italic', opacity: 0.8 }}>
-                                            "Este reporte fue generado automáticamente. Todos los comprobantes están digitalizados y validados."
-                                        </Text>
-                                    </Paper>
-                                </Stack>
-                            </Paper>
+                                <Image
+                                    src={arqueoCajaImg}
+                                    radius="lg"
+                                    style={{
+                                        boxShadow: '0 24px 64px -16px rgba(0,0,0,0.15)',
+                                        border: '1px solid rgba(0,0,0,0.05)',
+                                        display: 'block',
+                                        width: '100%',
+                                        height: 'auto'
+                                    }}
+                                />
                         </Box>
                     </SimpleGrid>
                 </Paper>

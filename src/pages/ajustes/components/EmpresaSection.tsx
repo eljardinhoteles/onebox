@@ -114,7 +114,7 @@ export function EmpresaSection({
                                         <TextInput label="Correo Electrónico de Facturación" type="email" value={empresaEmail} onChange={(e) => setEmpresaEmail(e.currentTarget.value)} radius="md" />
                                     </Grid.Col>
                                     <Grid.Col span={{ base: 12, sm: 6 }}>
-                                        <TextInput label="Nombre de Contacto" value={empresaContacto} onChange={(e) => setEmpresaContacto(e.currentTarget.value)} radius="md" />
+                                        <TextInput label="Número de Contacto" placeholder="Ej: +593 ... o 098..." value={empresaContacto} onChange={(e) => setEmpresaContacto(e.currentTarget.value)} radius="md" />
                                     </Grid.Col>
                                     <Grid.Col span={{ base: 12, sm: 6 }}>
                                         <TextInput label="Dirección Legal" value={empresaDireccion} onChange={(e) => setEmpresaDireccion(e.currentTarget.value)} radius="md" />
@@ -153,6 +153,10 @@ export function EmpresaSection({
                         <Stack gap={2}>
                             <Text size="xs" c="dimmed" fw={600}>Dirección</Text>
                             <Text size="sm" fw={500}>{empresa.direccion || 'No registrado'}</Text>
+                        </Stack>
+                        <Stack gap={2}>
+                            <Text size="xs" c="dimmed" fw={600}>Contacto</Text>
+                            <Text size="sm" fw={500}>{empresa.contacto_nombre || 'No registrado'}</Text>
                         </Stack>
                         <Stack gap={2}>
                             <Text size="xs" c="dimmed" fw={600}>Tu Rol</Text>

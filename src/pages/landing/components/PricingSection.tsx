@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { FeatureCheck } from './LandingUtils';
-import { usePlanesConfig } from '../../../hooks/usePlanesConfig';
+import { usePlatformConfig } from '../../../hooks/usePlatformConfig';
 
 export function PricingSection() {
     const navigate = useNavigate();
-    const { precios } = usePlanesConfig();
+    const { precios } = usePlatformConfig();
     
     // Calcular el precio mensual del plan anual (ej: 204 / 12 = 17)
     const precioMensualAnual = Math.floor(precios.anual / 12);

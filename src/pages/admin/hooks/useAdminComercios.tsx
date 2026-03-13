@@ -7,11 +7,11 @@ import dayjs from 'dayjs';
 import type { Comercio } from '../types';
 import { Text, Stack, Select, NumberInput, Alert, Button } from '@mantine/core';
 import { IconExternalLink, IconAlertTriangle } from '@tabler/icons-react';
-import { usePlanesConfig } from '../../../hooks/usePlanesConfig';
+import { usePlatformConfig } from '../../../hooks/usePlatformConfig';
 
 export function useAdminComercios() {
     const { isSuperAdmin } = useEmpresa();
-    const { precios } = usePlanesConfig();
+    const { precios } = usePlatformConfig();
     const [comercios, setComercios] = useState<Comercio[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<string>('todos');

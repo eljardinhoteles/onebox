@@ -1,6 +1,6 @@
-
-import { Group, Autocomplete, NumberInput, Checkbox, ActionIcon, Text, Stack } from '@mantine/core';
+import { Group, Autocomplete, NumberInput, Checkbox, ActionIcon, Text, Stack, Paper, Divider } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
+import { useMediaQuery } from '@mantine/hooks';
 
 interface RecurringProduct {
     nombre: string;
@@ -15,6 +15,8 @@ interface TransactionItemListProps {
 }
 
 export function TransactionItemList({ form, readOnly, itemSuggestions, recurringProducts = [] }: TransactionItemListProps) {
+    const isMobile = useMediaQuery('(max-width: 768px)');
+    
     // Combinar sugerencias: primero productos recurrentes, luego históricos sin duplicados
     const recurringNames = new Set(recurringProducts.map(p => p.nombre));
     const combinedSuggestions = [
@@ -31,76 +33,150 @@ export function TransactionItemList({ form, readOnly, itemSuggestions, recurring
         }
     };
 
-    const fields = form.values.items.map((_item: any, index: number) => (
-        <Group key={form.values.items[index].key} align="center" gap="xs">
-            <Autocomplete
-                placeholder="Nombre del producto/servicio"
-                style={{ flex: 1 }}
-                data={combinedSuggestions}
-                {...form.getInputProps(`items.${index}.nombre`)}
-                onChange={(value) => form.setFieldValue(`items.${index}.nombre`, value)}
-                onOptionSubmit={(value) => handleProductSelect(value, index)}
-                comboboxProps={{
-                    shadow: 'md',
-                    withinPortal: true
-                }}
-                readOnly={readOnly}
-                variant={readOnly ? "filled" : "default"}
-                styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-            />
-            <NumberInput
-                placeholder="1"
-                allowNegative={false}
-                min={1}
-                w={70}
-                {...form.getInputProps(`items.${index}.cantidad`)}
-                readOnly={readOnly}
-                variant={readOnly ? "filled" : "default"}
-                styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-            />
-            <NumberInput
-                placeholder="0.00"
-                decimalScale={4}
-                fixedDecimalScale
-                hideControls
-                leftSection="$"
-                w={85}
-                {...form.getInputProps(`items.${index}.valor`)}
-                readOnly={readOnly}
-                variant={readOnly ? "filled" : "default"}
-                styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
-            />
+    const fields = form.values.items.map((_item: any, index: number) => {
+        const itemLayout = isMobile ? (
+            <Paper key={form.values.items[index].key} withBorder p="sm" radius="md" style={{ backgroundColor: '#fff' }}>
+                <Stack gap="xs">
+                    <Autocomplete
+                        label="Producto/Servicio"
+                        placeholder="Nombre del producto/servicio"
+                        data={combinedSuggestions}
+                        {...form.getInputProps(`items.${index}.nombre`)}
+                        onChange={(value) => form.setFieldValue(`items.${index}.nombre`, value)}
+                        onOptionSubmit={(value) => handleProductSelect(value, index)}
+                        comboboxProps={{ shadow: 'md', withinPortal: true }}
+                        readOnly={readOnly}
+                        variant={readOnly ? "filled" : "default"}
+                        styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                    />
+                    
+                    <Group grow gap="xs">
+                        <NumberInput
+                            label="Cantidad"
+                            placeholder="1"
+                            allowNegative={false}
+                            min={1}
+                            {...form.getInputProps(`items.${index}.cantidad`)}
+                            readOnly={readOnly}
+                            variant={readOnly ? "filled" : "default"}
+                        />
+                        <NumberInput
+                            label="P. Unitario"
+                            placeholder="0.00"
+                            decimalScale={4}
+                            fixedDecimalScale
+                            hideControls
+                            leftSection="$"
+                            {...form.getInputProps(`items.${index}.valor`)}
+                            readOnly={readOnly}
+                            variant={readOnly ? "filled" : "default"}
+                        />
+                    </Group>
 
-            <Group justify="flex-end" w={85} px={0}>
-                <Text fw={600} size="sm" c="blue.7">
-                    ${((form.values.items[index].cantidad || 0) * (form.values.items[index].valor || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                </Text>
-            </Group>
+                    <Divider variant="dashed" />
+                    
+                    <Group justify="space-between" align="center">
+                        <Group gap="xl">
+                            <Stack gap={0}>
+                                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Subtotal</Text>
+                                <Text fw={700} size="md" c="blue.7">
+                                    ${((form.values.items[index].cantidad || 0) * (form.values.items[index].valor || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                </Text>
+                            </Stack>
+                            <Checkbox
+                                label="Incluye IVA"
+                                {...form.getInputProps(`items.${index}.con_iva`, { type: 'checkbox' })}
+                                color="blue"
+                                disabled={readOnly}
+                            />
+                        </Group>
 
-            <Group h={36} align="center" px={4} w={40} justify="center">
-                <Checkbox
-                    {...form.getInputProps(`items.${index}.con_iva`, { type: 'checkbox' })}
-                    color="blue"
-                    disabled={readOnly}
+                        {!readOnly && (
+                            <ActionIcon
+                                color="red"
+                                variant="light"
+                                size="lg"
+                                onClick={() => form.removeListItem('items', index)}
+                                disabled={form.values.items.length === 1}
+                            >
+                                <IconTrash size={18} />
+                            </ActionIcon>
+                        )}
+                    </Group>
+                </Stack>
+            </Paper>
+        ) : (
+            <Group key={form.values.items[index].key} align="center" gap="xs">
+                <Autocomplete
+                    placeholder="Nombre del producto/servicio"
+                    style={{ flex: 1 }}
+                    data={combinedSuggestions}
+                    {...form.getInputProps(`items.${index}.nombre`)}
+                    onChange={(value) => form.setFieldValue(`items.${index}.nombre`, value)}
+                    onOptionSubmit={(value) => handleProductSelect(value, index)}
+                    comboboxProps={{
+                        shadow: 'md',
+                        withinPortal: true
+                    }}
+                    readOnly={readOnly}
+                    variant={readOnly ? "filled" : "default"}
+                    styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
                 />
-            </Group>
+                <NumberInput
+                    placeholder="1"
+                    allowNegative={false}
+                    min={1}
+                    w={70}
+                    {...form.getInputProps(`items.${index}.cantidad`)}
+                    readOnly={readOnly}
+                    variant={readOnly ? "filled" : "default"}
+                    styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                />
+                <NumberInput
+                    placeholder="0.00"
+                    decimalScale={4}
+                    fixedDecimalScale
+                    hideControls
+                    leftSection="$"
+                    w={85}
+                    {...form.getInputProps(`items.${index}.valor`)}
+                    readOnly={readOnly}
+                    variant={readOnly ? "filled" : "default"}
+                    styles={readOnly ? { input: { color: 'black', opacity: 1, backgroundColor: '#f8f9fa' } } : {}}
+                />
 
-            {!readOnly && (
-                <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={() => form.removeListItem('items', index)}
-                    disabled={form.values.items.length === 1}
-                >
-                    <IconTrash size={16} />
-                </ActionIcon>
-            )}
-        </Group>
-    ));
+                <Group justify="flex-end" w={85} px={0}>
+                    <Text fw={600} size="sm" c="blue.7">
+                        ${((form.values.items[index].cantidad || 0) * (form.values.items[index].valor || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                    </Text>
+                </Group>
+
+                <Group h={36} align="center" px={4} w={40} justify="center">
+                    <Checkbox
+                        {...form.getInputProps(`items.${index}.con_iva`, { type: 'checkbox' })}
+                        color="blue"
+                        disabled={readOnly}
+                    />
+                </Group>
+
+                {!readOnly && (
+                    <ActionIcon
+                        color="red"
+                        variant="subtle"
+                        onClick={() => form.removeListItem('items', index)}
+                        disabled={form.values.items.length === 1}
+                    >
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                )}
+            </Group>
+        );
+        return itemLayout;
+    });
 
     return (
         <Stack gap="xs">
-            {form.values.items.length > 0 && (
+            {!isMobile && form.values.items.length > 0 && (
                 <Group align="center" gap="xs" px={4} mb={-4}>
                     <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ flex: 1 }}>Producto</Text>
                     <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={70}>Cant.</Text>

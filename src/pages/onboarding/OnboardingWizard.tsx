@@ -10,31 +10,41 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ activeStep, setActiveStep, form }: OnboardingWizardProps) {
     return (
-        <Stepper active={activeStep} onStepClick={setActiveStep} allowNextStepsSelect={false}>
+        <Stepper
+            active={activeStep}
+            onStepClick={setActiveStep}
+            allowNextStepsSelect={false}
+            size="sm"
+        >
             <Stepper.Step
                 label="Empresa"
-                description="Identidad del comercio"
                 icon={<IconBuilding size={18} />}
             >
                 <Stack gap="md" mt="xl">
-                    <Text size="sm" c="dimmed">Ingresa los datos fiscales o comerciales de tu empresa.</Text>
+                    <Text size="sm" c="dimmed">Ingresa los datos del comercio y contacto.</Text>
                     <TextInput
                         label="Nombre de la Empresa"
                         placeholder="Ej: Mi Comercio S.A."
                         required
                         {...form.getInputProps('empresa_nombre')}
                     />
-                    <TextInput
-                        label="RUC / Identificación Fiscal"
-                        placeholder="Ej: 1790000000001"
-                        {...form.getInputProps('empresa_ruc')}
-                    />
+                    <Group grow>
+                        <TextInput
+                            label="RUC / CC"
+                            placeholder="Ej: 179000..."
+                            {...form.getInputProps('empresa_ruc')}
+                        />
+                        <TextInput
+                            label="Número de Contacto"
+                            placeholder="Ej: 0987654321"
+                            {...form.getInputProps('empresa_contacto')}
+                        />
+                    </Group>
                 </Stack>
             </Stepper.Step>
 
             <Stepper.Step
                 label="Sucursal"
-                description="Ubicación física"
                 icon={<IconMapPin size={18} />}
             >
                 <Stack gap="md" mt="xl">
@@ -55,7 +65,6 @@ export function OnboardingWizard({ activeStep, setActiveStep, form }: Onboarding
 
             <Stepper.Step
                 label="Caja Inicial"
-                description="Fondo de efectivo"
                 icon={<IconWallet size={18} />}
             >
                 <Stack gap="md" mt="xl">

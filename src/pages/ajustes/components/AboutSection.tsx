@@ -4,11 +4,11 @@ import {
     SimpleGrid, Button, Card, RingProgress, FileInput,
     Alert, Tooltip
 } from '@mantine/core';
-import { IconInfoCircle, IconUpload, IconCrown, IconCheck, IconClock, IconAlertTriangle, IconLifebuoy, IconBug } from '@tabler/icons-react';
+import { IconInfoCircle, IconUpload, IconCrown, IconCheck, IconClock, IconAlertTriangle, IconLifebuoy, IconBug, IconBrandWhatsapp, IconMail } from '@tabler/icons-react';
 import { useEmpresa } from '../../../context/EmpresaContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
-import { usePlanesConfig } from '../../../hooks/usePlanesConfig';
+import { usePlatformConfig } from '../../../hooks/usePlatformConfig';
 import dayjs from 'dayjs';
 import LogoIcon from '../../../assets/Icon.svg';
 
@@ -24,7 +24,7 @@ export function AboutSection() {
     const [selectedPlan, setSelectedPlan] = useState<'mensual' | 'anual' | null>(null);
     const [upgradeMode, setUpgradeMode] = useState(false);
     
-    const { precios } = usePlanesConfig();
+    const { precios, soporte } = usePlatformConfig();
     const precioMensualAnual = Math.floor(precios.anual / 12);
     const ahorroAnual = (precios.mensual * 12) - precios.anual;
 
@@ -241,6 +241,74 @@ export function AboutSection() {
                                     transition: 'all 0.2s ease',
                                 }}
                             >
+                                              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+                            <Card radius="md" p="xl" withBorder bg="gray.0">
+                                <Group gap="sm" mb="md">
+                                    <IconInfoCircle size={24} color="var(--mantine-color-blue-6)" />
+                                    <Title order={3} size="h4" fw={700}>Detalles del Sistema</Title>
+                                </Group>
+                                <Stack gap="xs">
+                                    <Group justify="space-between">
+                                        <Text size="sm" c="dimmed" fw={500}>Versión</Text>
+                                        <Badge variant="light" color="blue" size="sm">v1.2.5 (Beta)</Badge>
+                                    </Group>
+                                    <Divider my="xs" variant="dashed" />
+                                    <Group justify="space-between">
+                                        <Text size="sm" c="dimmed" fw={500}>Última actualización</Text>
+                                        <Text size="sm" fw={600}>Marzo 2026</Text>
+                                    </Group>
+                                    <Divider my="xs" variant="dashed" />
+                                    <Group justify="space-between">
+                                        <Text size="sm" c="dimmed" fw={500}>Entorno</Text>
+                                        <Badge variant="dot" color="teal" size="sm">Producción</Badge>
+                                    </Group>
+                                </Stack>
+                            </Card>
+
+                            <Card radius="md" p="xl" withBorder bg="violet.0">
+                                <Group gap="sm" mb="md">
+                                    <IconLifebuoy size={24} color="var(--mantine-color-violet-6)" />
+                                    <Title order={3} size="h4" fw={700}>Soporte Técnico</Title>
+                                </Group>
+                                <Stack gap="xs">
+                                    <Text size="sm" c="dimmed" mb="xs">
+                                        Si necesitas ayuda o tienes problemas con la plataforma, contáctanos directamente.
+                                    </Text>
+                                    {soporte?.whatsapp && (
+                                        <Button
+                                            component="a"
+                                            href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            variant="light"
+                                            color="green"
+                                            leftSection={<IconBrandWhatsapp size={18} />}
+                                            fullWidth
+                                            justify="flex-start"
+                                        >
+                                            {soporte.whatsapp}
+                                        </Button>
+                                    )}
+                                    {soporte?.correo && (
+                                        <Button
+                                            component="a"
+                                            href={`mailto:${soporte.correo}`}
+                                            variant="light"
+                                            color="blue"
+                                            leftSection={<IconMail size={18} />}
+                                            fullWidth
+                                            justify="flex-start"
+                                        >
+                                            {soporte.correo}
+                                        </Button>
+                                    )}
+                                    {(!soporte?.whatsapp && !soporte?.correo) && (
+                                        <Text size="sm" fs="italic" c="dimmed">
+                                            Información de soporte no configurada.
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Card>
+                        </SimpleGrid>
                                 <Stack gap="md" align="center">
                                     <Badge variant="light" color="blue" size="lg">Mensual</Badge>
                                     <Group gap={2} align="baseline">

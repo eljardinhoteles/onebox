@@ -1,9 +1,30 @@
-
 import { useState, useEffect } from 'react';
-import { Container, Paper, Title, Text, Stack, Box, Divider, Button, LoadingOverlay, Group } from '@mantine/core';
-import { IconPlus, IconLogout, IconArrowLeft, IconArrowRight, IconCheck } from '@tabler/icons-react';
+import {
+    Container,
+    Title,
+    Text,
+    Stack,
+    Box,
+    Divider,
+    Button,
+    LoadingOverlay,
+    Group,
+    Image,
+    Center,
+    Badge,
+} from '@mantine/core';
+import {
+    IconPlus,
+    IconLogout,
+    IconArrowLeft,
+    IconArrowRight,
+    IconCheck,
+    IconBrandWhatsapp,
+    IconMail,
+} from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
+import { usePlatformConfig } from '../hooks/usePlatformConfig';
 import { notifications } from '@mantine/notifications';
 import { useForm } from '@mantine/form';
 
@@ -11,8 +32,12 @@ import { useForm } from '@mantine/form';
 import { InvitationSection } from './onboarding/InvitationSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
 
+import logo from '../assets/Icon.svg';
+import successImage from '/Users/matttite/.gemini/antigravity/brain/043e6e41-ab48-4f1a-a8fe-ca967dc1edb1/onboarding_success_image_1773439399612.png';
+
 export function OnboardingPage() {
     const { refresh: refreshEmpresa, perfil } = useEmpresa();
+    const { soporte } = usePlatformConfig();
     const [state, setState] = useState({
         invitations: [] as any[],
         loading: true,
@@ -28,6 +53,7 @@ export function OnboardingPage() {
         initialValues: {
             empresa_nombre: '',
             empresa_ruc: '',
+            empresa_contacto: '',
             sucursal_nombre: 'Central',
             sucursal_direccion: '',
             caja_abrir: true,
@@ -120,6 +146,7 @@ export function OnboardingPage() {
                 .insert({
                     nombre: form.values.empresa_nombre,
                     ruc: form.values.empresa_ruc || null,
+                    contacto_nombre: form.values.empresa_contacto || null,
                     created_by: user.id
                 })
                 .select()
@@ -195,85 +222,223 @@ export function OnboardingPage() {
 
     const prevStep = () => setState(prev => ({ ...prev, activeStep: (prev.activeStep > 0 ? prev.activeStep - 1 : prev.activeStep) }));
 
-    if (!showCreateWizard) {
-        return (
-            <Container size="sm" py={100}>
-                <Paper withBorder shadow="md" p={30} radius="md" bg="white" style={{ position: 'relative' }}>
-                    <LoadingOverlay visible={loading || processing} overlayProps={{ blur: 1 }} />
+    const SidePanel = () => (
+        <Box
+            visibleFrom="md"
+            style={{
+                flex: '0 0 35%',
+                position: 'relative',
+                backgroundImage: `linear-gradient(rgba(35, 138, 229, 0.4), rgba(13, 13, 13, 0.9)), url(${successImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+            }}
+        >
+            <Stack
+                h="100%"
+                justify="space-between"
+                p={60}
+                style={{ position: 'relative', zIndex: 10 }}
+            >
+                <Group gap="sm" align="center">
+                    <Image src={logo} w={40} h={40} radius="md" />
+                    <Text fw={700} size="xl" c="white" style={{ letterSpacing: '-0.5px' }}>
+                        Mi Caja Chica
+                    </Text>
+                </Group>
 
-                    <Stack gap="xl">
-                        <Box ta="center">
-                            <Title order={2}>Bienvenido a Mi Caja Chica</Title>
-                            <Text c="dimmed" size="sm">Comencemos configurando tu espacio de trabajo.</Text>
-                        </Box>
-
-                        <InvitationSection invitations={invitations} handleAccept={handleAcceptInvitation} />
-
-                        <Divider label="O también puedes" labelPosition="center" />
-
-                        <Button
-                            variant="light"
-                            size="lg"
-                            leftSection={<IconPlus size={20} />}
-                            onClick={() => setState(prev => ({ ...prev, showCreateWizard: true }))}
-                            radius="md"
-                        >
-                            Crear mi propia Empresa
-                        </Button>
-
-                        <Button variant="subtle" color="red" leftSection={<IconLogout size={16} />} onClick={() => supabase.auth.signOut()}>
-                            Cerrar Sesión
-                        </Button>
+                <Stack gap="xs">
+                    <Badge color="blue.4" variant="filled" size="lg" radius="sm">¡Excelente!</Badge>
+                    <Text fw={800} size="xl" c="white" style={{ fontSize: '2rem', lineHeight: 1.1, letterSpacing: '-1px' }}>
+                        Tu equipo está listo para despegar.
+                    </Text>
+                    <Stack gap={0}>
+                        <Text fw={500} c="gray.3" size="md">
+                            Configura los últimos detalles y toma el control total de tu flujo de efectivo hoy mismo.
+                        </Text>
+                        
+                        {(soporte?.whatsapp || soporte?.correo) && (
+                            <Box mt="xl" pt="sm" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                                <Text fw={700} c="white" size="sm" mb={4}>¿Necesitas ayuda?</Text>
+                                <Group gap="md">
+                                    {soporte.whatsapp && (
+                                        <Button
+                                            component="a"
+                                            href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            variant="subtle"
+                                            color="green.4"
+                                            size="compact-sm"
+                                            leftSection={<IconBrandWhatsapp size={16} />}
+                                            style={{ paddingLeft: 0 }}
+                                        >
+                                            {soporte.whatsapp}
+                                        </Button>
+                                    )}
+                                    {soporte.correo && (
+                                        <Button
+                                            component="a"
+                                            href={`mailto:${soporte.correo}`}
+                                            variant="subtle"
+                                            color="blue.4"
+                                            size="compact-sm"
+                                            leftSection={<IconMail size={16} />}
+                                            style={{ paddingLeft: 0 }}
+                                        >
+                                            {soporte.correo}
+                                        </Button>
+                                    )}
+                                </Group>
+                            </Box>
+                        )}
                     </Stack>
-                </Paper>
-            </Container>
-        );
-    }
+                </Stack>
+            </Stack>
+        </Box>
+    );
 
     return (
-        <Container size="md" py={60}>
-            <Title order={2} ta="center" mb="xl">Configuración de Nueva Empresa</Title>
-            <Paper withBorder shadow="md" p={40} radius="lg" style={{ position: 'relative' }}>
-                <LoadingOverlay visible={processing} overlayProps={{ blur: 1 }} />
+        <Group gap={0} mih="100vh" align="stretch" wrap="nowrap">
+            {/* Panel Izquierdo: Contenido */}
+            <Center p="xl" bg="white" style={{ flex: 1 }}>
+                <Container size={!showCreateWizard ? 420 : 600} w="100%">
+                    <LoadingOverlay visible={loading || processing} overlayProps={{ blur: 1 }} />
 
-                <OnboardingWizard
-                    activeStep={activeStep}
-                    setActiveStep={(step: any) => {
-                        if (typeof step === 'function') {
-                            setState(prev => ({ ...prev, activeStep: step(prev.activeStep) }));
-                        } else {
-                            setState(prev => ({ ...prev, activeStep: step }));
-                        }
-                    }}
-                    form={form}
-                />
+                    {!showCreateWizard ? (
+                        <Stack gap={40}>
+                            <Box>
+                                <Title order={1} fw={800} size="h1" style={{ letterSpacing: '-1px' }}>
+                                    Bienvenido
+                                </Title>
+                                <Text c="dimmed" size="md" fw={500} mt={4}>
+                                    Comencemos configurando su panel de trabajo.
+                                </Text>
+                            </Box>
 
-                <Group justify="space-between" mt="xl">
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        onClick={activeStep === 0 ? () => setState(prev => ({ ...prev, showCreateWizard: false })) : prevStep}
-                        leftSection={activeStep === 0 ? undefined : <IconArrowLeft size={16} />}
-                    >
-                        {activeStep === 0 ? 'Atrás' : 'Anterior'}
-                    </Button>
+                            <InvitationSection invitations={invitations} handleAccept={handleAcceptInvitation} />
 
-                    {activeStep < 3 ? (
-                        <Button onClick={nextStep} rightSection={<IconArrowRight size={16} />}>
-                            Continuar
-                        </Button>
+                            {invitations.length > 0 && (
+                                <Divider label="O también puedes" labelPosition="center" />
+                            )}
+
+                            <Button
+                                variant="light"
+                                size="lg"
+                                leftSection={<IconPlus size={20} />}
+                                onClick={() => setState(prev => ({ ...prev, showCreateWizard: true }))}
+                                radius="md"
+                                style={{ height: 56 }}
+                            >
+                                Crear mi propia Empresa
+                            </Button>
+
+                            <Button
+                                variant="subtle"
+                                color="red"
+                                leftSection={<IconLogout size={16} />}
+                                onClick={() => supabase.auth.signOut()}
+                            >
+                                Cerrar Sesión
+                            </Button>
+                        </Stack>
                     ) : (
-                        <Button
-                            color="teal"
-                            onClick={handleCompleteOnboarding}
-                            leftSection={<IconCheck size={18} />}
-                            loading={processing}
-                        >
-                            Confirmar y Empezar
-                        </Button>
+                        <Stack gap={40}>
+                            <Box>
+                                <Title order={1} fw={800} size="h1" style={{ letterSpacing: '-1px' }}>
+                                    Nueva Empresa
+                                </Title>
+                                <Text c="dimmed" size="md" fw={500} mt={4}>
+                                    Sigue los pasos para configurar tu entorno.
+                                </Text>
+                            </Box>
+
+                            <OnboardingWizard
+                                activeStep={activeStep}
+                                setActiveStep={(step: any) => {
+                                    if (typeof step === 'function') {
+                                        setState(prev => ({ ...prev, activeStep: step(prev.activeStep) }));
+                                    } else {
+                                        setState(prev => ({ ...prev, activeStep: step }));
+                                    }
+                                }}
+                                form={form}
+                            />
+
+                            <Group justify="space-between" mt="xl">
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={activeStep === 0 ? () => setState(prev => ({ ...prev, showCreateWizard: false })) : prevStep}
+                                    leftSection={activeStep === 0 ? undefined : <IconArrowLeft size={16} />}
+                                >
+                                    {activeStep === 0 ? 'Atrás' : 'Anterior'}
+                                </Button>
+
+                                {activeStep < 3 ? (
+                                    <Button
+                                        onClick={nextStep}
+                                        rightSection={<IconArrowRight size={16} />}
+                                        size="md"
+                                        radius="md"
+                                        px="xl"
+                                    >
+                                        Continuar
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        color="teal"
+                                        onClick={handleCompleteOnboarding}
+                                        leftSection={<IconCheck size={18} />}
+                                        loading={processing}
+                                        size="md"
+                                        radius="md"
+                                        px="xl"
+                                    >
+                                        Confirmar y Empezar
+                                    </Button>
+                                )}
+                            </Group>
+                        </Stack>
                     )}
-                </Group>
-            </Paper>
-        </Container>
+
+                    {/* Mobile Support Footer */}
+                    {(soporte?.whatsapp || soporte?.correo) && (
+                        <Box hiddenFrom="md" mt={60} pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+                            <Text fw={600} c="dimmed" size="xs" ta="center" mb={8}>¿Necesitas ayuda con tu registro?</Text>
+                            <Group justify="center" gap="sm">
+                                {soporte.whatsapp && (
+                                    <Button
+                                        component="a"
+                                        href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
+                                        target="_blank"
+                                        variant="subtle"
+                                        color="green.7"
+                                        size="xs"
+                                        radius="xl"
+                                        leftSection={<IconBrandWhatsapp size={14} />}
+                                    >
+                                        WhatsApp
+                                    </Button>
+                                )}
+                                {soporte.correo && (
+                                    <Button
+                                        component="a"
+                                        href={`mailto:${soporte.correo}`}
+                                        variant="subtle"
+                                        color="blue.7"
+                                        size="xs"
+                                        radius="xl"
+                                        leftSection={<IconMail size={14} />}
+                                    >
+                                        Correo
+                                    </Button>
+                                )}
+                            </Group>
+                        </Box>
+                    )}
+                </Container>
+            </Center>
+
+            <SidePanel />
+        </Group>
     );
 }

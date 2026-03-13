@@ -10,7 +10,7 @@ interface AdminConfigModalProps {
 }
 
 export function AdminConfigModal({ opened, onClose }: AdminConfigModalProps) {
-    const [bankConfig, setBankConfig] = useState({ banco_datos: '', precio_mensual: 20, precio_anual: 204 });
+    const [bankConfig, setBankConfig] = useState({ banco_datos: '', precio_mensual: 20, precio_anual: 204, soporte_whatsapp: '', soporte_correo: '' });
     const [savingConfig, setSavingConfig] = useState(false);
 
     useEffect(() => {
@@ -27,7 +27,9 @@ export function AdminConfigModal({ opened, onClose }: AdminConfigModalProps) {
             setBankConfig({ 
                 banco_datos: config.banco_datos || '',
                 precio_mensual: Number(config.precio_mensual) || 20,
-                precio_anual: Number(config.precio_anual) || 204
+                precio_anual: Number(config.precio_anual) || 204,
+                soporte_whatsapp: config.soporte_whatsapp || '',
+                soporte_correo: config.soporte_correo || ''
             });
         }
     };
@@ -73,7 +75,7 @@ export function AdminConfigModal({ opened, onClose }: AdminConfigModalProps) {
                         maxRows={8}
                         autosize
                         value={bankConfig.banco_datos}
-                        onChange={(e) => setBankConfig(prev => ({ ...prev, banco_datos: e.currentTarget.value }))}
+                        onChange={(e) => setBankConfig({ ...bankConfig, banco_datos: e.currentTarget.value })}
                         styles={{ input: { fontFamily: 'monospace', fontSize: 13 } }}
                     />
                 </Paper>
@@ -102,6 +104,34 @@ export function AdminConfigModal({ opened, onClose }: AdminConfigModalProps) {
                             leftSection={<IconCurrencyDollar size={14} />}
                         />
                     </Group>
+                </Paper>
+
+                <Paper withBorder radius="md" p="md" bg="violet.0">
+                    <Group gap="xs" mb="xs">
+                        <IconCurrencyDollar size={16} color="var(--mantine-color-violet-8)" />
+                        <Text fw={700} c="violet.9" size="sm">Soporte Técnico</Text>
+                    </Group>
+                    <Text size="xs" c="violet.8" mb="sm">
+                        Configura el número de WhatsApp y correo de soporte global que verán los usuarios.
+                    </Text>
+                    <Stack gap="sm">
+                        <Textarea
+                            label="WhatsApp"
+                            placeholder="Ej: +593981234567"
+                            value={bankConfig.soporte_whatsapp}
+                            onChange={(e) => setBankConfig({ ...bankConfig, soporte_whatsapp: e.currentTarget.value })}
+                            autosize
+                            minRows={1}
+                        />
+                        <Textarea
+                            label="Correo Electrónico"
+                            placeholder="soporte@tuempresa.com"
+                            value={bankConfig.soporte_correo}
+                            onChange={(e) => setBankConfig({ ...bankConfig, soporte_correo: e.currentTarget.value })}
+                            autosize
+                            minRows={1}
+                        />
+                    </Stack>
                 </Paper>
 
                 <Button

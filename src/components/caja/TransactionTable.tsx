@@ -1,4 +1,5 @@
 import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, ThemeIcon } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { AppLoader } from '../ui/AppLoader';
 import { TableSkeleton } from '../ui/TableSkeleton';
 import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
@@ -35,34 +36,35 @@ export function TransactionTable({
     onSort,
     isReadOnly
 }: TransactionTableProps) {
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const rows = transactions.map((t) => (
         <Table.Tr
             key={t.id}
         >
             <Table.Td>
-                <Text size="sm">{dayjs(t.fecha_factura).format('DD/MM/YYYY')}</Text>
+                <Text size={isMobile ? "xs" : "sm"}>{dayjs(t.fecha_factura).format('DD/MM/YYYY')}</Text>
             </Table.Td>
             <Table.Td>
-                <Group gap="xs">
-                    {t.tipo_documento === 'deposito' && (
+                <Group gap="xs" wrap="nowrap">
+                    {t.tipo_documento === 'deposito' && !isMobile && (
                         <ThemeIcon variant="light" color="teal" size="md" radius="md">
                             <IconBuildingBank size={18} stroke={1.5} />
                         </ThemeIcon>
                     )}
                     <Stack gap={0}>
-                        <Text fw={500} size="sm">
+                        <Text fw={500} size={isMobile ? "xs" : "sm"} lineClamp={1}>
                             {t.tipo_documento === 'deposito'
                                 ? t.banco?.nombre || 'Banco'
                                 : t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto sin detalle'}
                         </Text>
-                        <Text size="xs" c="dimmed">
+                        <Text size="xs" c="dimmed" lineClamp={1}>
                             {t.tipo_documento === 'deposito'
                                 ? 'Depósito Bancario'
                                 : t.proveedor?.ruc || 'Categoría/Producto'}
                         </Text>
                     </Stack>
-                    {t.es_justificacion && (
+                    {t.es_justificacion && !isMobile && (
                         <Badge variant="light" color="blue" size="xs" leftSection={<IconFileDescription size={10} />}>
                             Justificativo
                         </Badge>
@@ -110,7 +112,7 @@ export function TransactionTable({
                             {t.tipo_documento.replace(/_/g, ' ').toUpperCase()}
                         </Badge>
                         {t.numero_factura && t.numero_factura !== 'S/N' && (
-                            <Text size="xs" c="dimmed" fw={500} ml={12}>
+                            <Text size="xs" c="dimmed" fw={500} ml={isMobile ? 0 : 12}>
                                 {t.numero_factura}
                             </Text>
                         )}
@@ -118,43 +120,45 @@ export function TransactionTable({
                 </Tooltip>
             </Table.Td>
             <Table.Td ta="right">
-                <Text fw={700} size="sm" c="red.6">
+                <Text fw={700} size={isMobile ? "xs" : "sm"} c="red.6" style={{ whiteSpace: 'nowrap' }}>
                     -${t.total_factura.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
             </Table.Td>
             <Table.Td ta="right">
-                <Text size="sm" c="orange.7">
+                <Text size={isMobile ? "xs" : "sm"} c="orange.7" style={{ whiteSpace: 'nowrap' }}>
                     -${(t.retencion?.total_fuente || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
             </Table.Td>
             <Table.Td ta="right">
-                <Text size="sm" c="orange.7">
+                <Text size={isMobile ? "xs" : "sm"} c="orange.7" style={{ whiteSpace: 'nowrap' }}>
                     -${(t.retencion?.total_iva || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
             </Table.Td>
             <Table.Td ta="right">
-                <Text fw={700} size="sm">
+                <Text fw={700} size={isMobile ? "xs" : "sm"} style={{ whiteSpace: 'nowrap' }}>
                     ${(t.total_factura - (t.retencion?.total_retenido || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
             </Table.Td>
             <Table.Td>
-                <Group gap={4} justify="flex-end">
+                <Group gap={isMobile ? 2 : 4} justify="flex-end" wrap="nowrap">
                     <ActionIcon
                         variant="subtle"
                         color="orange"
                         onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
                         disabled={t.tipo_documento === 'sin_factura' || t.tipo_documento === 'deposito' || isReadOnly}
                         title="Comprobante de Retención"
+                        size={isMobile ? "lg" : "md"}
                     >
-                        {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={16} /> : <IconFileInvoice size={16} />}
+                        {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={isMobile ? 20 : 16} /> : <IconFileInvoice size={isMobile ? 20 : 16} />}
                     </ActionIcon>
                     <ActionIcon
                         variant="subtle"
                         color="grape"
                         onClick={(e) => { e.stopPropagation(); onNovedades(t); }}
                         title="Novedades y Auditoría"
+                        size={isMobile ? "lg" : "md"}
                     >
-                        {t.has_manual_novedad ? <IconMessage2Filled size={16} /> : <IconMessage2 size={16} />}
+                        {t.has_manual_novedad ? <IconMessage2Filled size={isMobile ? 20 : 16} /> : <IconMessage2 size={isMobile ? 20 : 16} />}
                     </ActionIcon>
                     <ActionIcon
                         variant="subtle"
@@ -163,10 +167,11 @@ export function TransactionTable({
                         disabled={t.tipo_documento === 'deposito' || isReadOnly}
                         style={t.tipo_documento === 'deposito' ? { opacity: 0.5 } : undefined}
                         title={isReadOnly ? 'Solo lectura' : ''}
+                        size={isMobile ? "lg" : "md"}
                     >
                         {cajaEstado !== 'abierta' || isReadOnly || (t.retencion && t.retencion.total_retenido > 0) ?
-                            <IconEye size={16} /> :
-                            <IconEdit size={16} />
+                            <IconEye size={isMobile ? 20 : 16} /> :
+                            <IconEdit size={isMobile ? 20 : 16} />
                         }
                     </ActionIcon>
                     {cajaEstado === 'abierta' && !isReadOnly && (
@@ -186,8 +191,9 @@ export function TransactionTable({
                                 }
                                 onDelete(t);
                             }}
+                            size={isMobile ? "lg" : "md"}
                         >
-                            <IconTrash size={16} />
+                            <IconTrash size={isMobile ? 20 : 16} />
                         </ActionIcon>
                     )}
                 </Group>
@@ -198,33 +204,39 @@ export function TransactionTable({
     return (
         <ScrollArea h={600} type="auto" offsetScrollbars style={{ position: 'relative' }}>
             {loading && transactions.length > 0 && <AppLoader variant="bar" />}
-                <Table stickyHeader verticalSpacing="xs" highlightOnHover>
+                <Table 
+                    stickyHeader 
+                    verticalSpacing={isMobile ? "4px" : "xs"} 
+                    horizontalSpacing={isMobile ? "xs" : "sm"}
+                    highlightOnHover
+                    style={{ minWidth: isMobile ? 800 : '100%' }}
+                >
                     <Table.Thead bg="white" style={{ zIndex: 10, position: 'sticky', top: 0 }}>
                         <Table.Tr>
                             <Table.Th style={{ cursor: 'pointer' }} onClick={() => onSort?.('fecha_factura')}>
                                 <Group gap="xs" wrap="nowrap">
-                                    <Text size="sm" fw={700}>Fecha</Text>
+                                    <Text size="xs" fw={700}>Fecha</Text>
                                     {sortBy === 'fecha_factura' ? (
-                                        sortOrder === 'asc' ? <IconSortAscending size={16} /> : <IconSortDescending size={16} />
+                                        sortOrder === 'asc' ? <IconSortAscending size={14} /> : <IconSortDescending size={14} />
                                     ) : (
-                                        <IconSelector size={16} color="var(--mantine-color-gray-5)" />
+                                        <IconSelector size={14} color="var(--mantine-color-gray-5)" />
                                     )}
                                 </Group>
                             </Table.Th>
-                            <Table.Th>Proveedor</Table.Th>
-                            <Table.Th>Documento</Table.Th>
-                            <Table.Th ta="right">Total</Table.Th>
-                            <Table.Th ta="right">Ret. Fuente</Table.Th>
-                            <Table.Th ta="right">Ret. IVA</Table.Th>
-                            <Table.Th ta="right">Gasto Neto</Table.Th>
-                            <Table.Th ta="right">Acciones</Table.Th>
+                            <Table.Th><Text size="xs" fw={700}>Proveedor</Text></Table.Th>
+                            <Table.Th><Text size="xs" fw={700}>Doc.</Text></Table.Th>
+                            <Table.Th ta="right"><Text size="xs" fw={700}>Total</Text></Table.Th>
+                            <Table.Th ta="right"><Text size="xs" fw={700}>R. Fte</Text></Table.Th>
+                            <Table.Th ta="right"><Text size="xs" fw={700}>R. IVA</Text></Table.Th>
+                            <Table.Th ta="right"><Text size="xs" fw={700}>Neto</Text></Table.Th>
+                            <Table.Th ta="right"><Text size="xs" fw={700}>Acc.</Text></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
                         {loading && transactions.length === 0 ? (
                             <Table.Tr>
                                 <Table.Td colSpan={8} p={0}>
-                                    <TableSkeleton rows={10} cols={8} />
+                                    <TableSkeleton rows={15} cols={8} />
                                 </Table.Td>
                             </Table.Tr>
                         ) : transactions.length > 0 ? rows : (

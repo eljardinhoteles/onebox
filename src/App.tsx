@@ -21,7 +21,7 @@ import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } from '@tabler/icons-react';
 import { useEmpresa } from './context/EmpresaContext';
-import { MotionConfig } from 'framer-motion';
+import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Stack, Paper, Skeleton, Group } from '@mantine/core';
 import { TableSkeleton } from './components/ui/TableSkeleton';
@@ -172,16 +172,49 @@ export default function App() {
     );
   }
 
-  if (!session && !loading) return <AuthPage />;
+  const authToOnboardingTransition = (
+    <AnimatePresence mode="wait">
+      {!session && !loading ? (
+        <motion.div
+          key="auth"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.4 }}
+          style={{ height: '100vh', width: '100%' }}
+        >
+          <AuthPage />
+        </motion.div>
+      ) : !empresaLoading && !empresa && !isSuperAdmin ? (
+        <motion.div
+          key="onboarding"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{ height: '100vh', width: '100%' }}
+        >
+          <OnboardingPage />
+        </motion.div>
+      ) : (loading || (session && empresaLoading)) ? (
+        <motion.div
+          key="loader"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <AppLoader fullScreen size="xl" message="Cargando..." />
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
 
-  // Solo bloqueamos la pantalla si estamos verificando la sesión inicial (Firebase/Supabase Auth)
-  if (loading) {
-    return <AppLoader fullScreen size="xl" message="Cargando..." />;
-  }
-
-  // Deferir Onboarding: Solo mostrarlo si ya terminó de cargar empresa y confirmamos que no hay nada
-  if (!empresaLoading && !empresa && !isSuperAdmin) {
-    return <OnboardingPage />;
+  if (!session || (session && !empresa && !isSuperAdmin)) {
+    return (
+      <MotionConfig reducedMotion="never">
+        {authToOnboardingTransition}
+      </MotionConfig>
+    );
   }
 
   const handleFabAction = () => {

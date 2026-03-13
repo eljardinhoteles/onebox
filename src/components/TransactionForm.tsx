@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabaseClient';
 import { IconCheck, IconX, IconReceipt, IconInfoCircle, IconPrinter, IconRefresh, IconPlus } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ProveedorFormModal } from './proveedores/ProveedorFormModal';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useEmpresa } from '../context/EmpresaContext';
@@ -28,6 +28,7 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, readOnly = false, warningMessage, currentBalance }: TransactionFormProps) {
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const queryClient = useQueryClient();
     const [createProveedorOpened, { open: openCreateProveedor, close: closeCreateProveedor }] = useDisclosure(false);
 
@@ -300,7 +301,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                         {...form.getInputProps('tipo_documento')}
                     />
 
-                    <Group grow>
+                    <Group grow={!isMobile} align="flex-start" gap="md">
                         <DatePickerInput label="Fecha de Emisión" locale="es" required maxDate={new Date()} allowDeselect={false} readOnly={readOnly} variant={readOnly ? "filled" : "default"} {...form.getInputProps('fecha_factura')} />
                         <TextInput
                             label="Número de Documento" required={form.values.tipo_documento !== 'sin_factura'} readOnly={readOnly} maxLength={autoFormatFactura ? 17 : 20} variant={readOnly ? "filled" : "default"}
@@ -319,17 +320,25 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                             {...form.getInputProps('proveedor_id')}
                         />
                         {!readOnly && (
-                            <>
-                                <ActionIcon variant="light" color="green" size="lg" mb={1} onClick={openCreateProveedor} title="Registrar nuevo proveedor"><IconPlus size={18} /></ActionIcon>
-                                <ActionIcon variant="light" color="blue" size="lg" mb={1} onClick={() => queryClient.invalidateQueries({ queryKey: ['proveedores_simple'] })} title="Actualizar lista"><IconRefresh size={18} /></ActionIcon>
-                            </>
+                            <Group gap={5} mb={2}>
+                                <ActionIcon variant="light" color="green" size="lg" onClick={openCreateProveedor} title="Registrar nuevo proveedor"><IconPlus size={18} /></ActionIcon>
+                                <ActionIcon variant="light" color="blue" size="lg" onClick={() => queryClient.invalidateQueries({ queryKey: ['proveedores_simple'] })} title="Actualizar lista"><IconRefresh size={18} /></ActionIcon>
+                            </Group>
                         )}
                     </Group>
 
                     <Divider label={<Group gap="xs"><IconReceipt size={14} />Detalle de Productos</Group>} labelPosition="center" />
                     <TransactionItemList form={form} readOnly={readOnly} itemSuggestions={itemSuggestions} recurringProducts={recurringProducts} />
                     {!readOnly && (
-                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => form.insertListItem('items', { key: Math.random().toString(36).substring(7), nombre: '', cantidad: 1, valor: 0, con_iva: false })} size="xs">Añadir Producto</Button>
+                        <Button 
+                            variant="light" 
+                            leftSection={<IconPlus size={16} />} 
+                            onClick={() => form.insertListItem('items', { key: Math.random().toString(36).substring(7), nombre: '', cantidad: 1, valor: 0, con_iva: false })} 
+                            size={isMobile ? "md" : "xs"}
+                            fullWidth={isMobile}
+                        >
+                            Añadir Producto
+                        </Button>
                     )}
 
                     <TransactionSummary totals={totals} availableBalance={availableBalance} originalTotal={originalTotal} transactionId={transactionId} />

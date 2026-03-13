@@ -20,4 +20,41 @@ export const theme = createTheme({
     },
     fontFamily: 'Inter, sans-serif',
     defaultRadius: 'md',
+    components: {
+        TextInput: {
+            defaultProps: {
+                styles: {
+                    input: { fontSize: '16px' }
+                }
+            }
+        },
+        Select: {
+            defaultProps: {
+                styles: {
+                    input: { fontSize: '16px' }
+                }
+            }
+        },
+        Autocomplete: {
+            defaultProps: {
+                styles: {
+                    input: { fontSize: '16px' }
+                }
+            }
+        },
+        NumberInput: {
+            defaultProps: {
+                styles: {
+                    input: { fontSize: '16px' }
+                }
+            }
+        },
+        DatePickerInput: {
+            defaultProps: {
+                styles: {
+                    input: { fontSize: '16px' }
+                }
+            }
+        }
+    }
 });
