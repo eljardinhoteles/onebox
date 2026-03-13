@@ -23,7 +23,7 @@ import {
     IconLock, IconBuilding,
 } from '@tabler/icons-react';
 import logo from '../assets/Icon.svg';
-import sideImage from '/Users/matttite/.gemini/antigravity/brain/043e6e41-ab48-4f1a-a8fe-ca967dc1edb1/auth_side_image_1773437309653.png';
+import sideImage from '../assets/auth_side_image.png';
 
 export function AuthPage() {
     const [type, setType] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');

@@ -33,7 +33,7 @@ import { InvitationSection } from './onboarding/InvitationSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
 
 import logo from '../assets/Icon.svg';
-import successImage from '/Users/matttite/.gemini/antigravity/brain/043e6e41-ab48-4f1a-a8fe-ca967dc1edb1/onboarding_success_image_1773439399612.png';
+import successImage from '../assets/onboarding_success_image.png';
 
 export function OnboardingPage() {
     const { refresh: refreshEmpresa, perfil } = useEmpresa();
