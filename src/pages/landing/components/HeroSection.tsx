@@ -3,7 +3,9 @@ import { useDisclosure } from '@mantine/hooks';
 import { motion } from 'framer-motion';
 import { IconArrowRight, IconPlayerPlay } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
-import panelCajasImg from '../../../assets/3x/Panel de cajas.png';
+import cajaHero1 from '../../../assets/3x/caja_hero_1.png';
+import cajaHero2 from '../../../assets/3x/caja_hero_2.png';
+import cajaHero3 from '../../../assets/3x/caja_hero_3.png';
 import { FeatureCheck } from './LandingUtils';
 
 export function HeroSection() {
@@ -119,19 +121,51 @@ export function HeroSection() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.7, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
                         >
-                            <Box mb="xl">
-                                <Image 
-                                    src={panelCajasImg} 
-                                    radius="md" 
-                                    style={{ 
-                                        boxShadow: '0 32px 64px -16px rgba(0,0,0,0.15)', 
-                                        border: '1px solid rgba(0,0,0,0.05)',
-                                        display: 'block',
-                                        width: '100%',
-                                        height: 'auto'
-                                    }} 
-                                />
+                            <Box pt={20} pb={40}>
+                                <Box pos="relative" h={{ base: 200, xs: 240, sm: 280, md: 360 }} w="100%" mx="auto">
+                                {/* Izquierda */}
+                                <Box
+                                    component={motion.div}
+                                    initial={{ opacity: 0, x: '-50%', y: 40 }}
+                                    animate={{ opacity: 0.85, x: 'calc(-50% - 32%)', y: 20, rotate: -6, scale: 0.9 }}
+                                    transition={{ duration: 0.8, delay: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                                    pos="absolute"
+                                    left="50%"
+                                    w={{ base: '55%', xs: '45%', sm: '40%', md: 300 }}
+                                    style={{ zIndex: 1 }}
+                                >
+                                    <Image src={cajaHero2} radius="lg" style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }} />
+                                </Box>
+
+                                {/* Derecha */}
+                                <Box
+                                    component={motion.div}
+                                    initial={{ opacity: 0, x: '-50%', y: 40 }}
+                                    animate={{ opacity: 0.85, x: 'calc(-50% + 32%)', y: 20, rotate: 6, scale: 0.9 }}
+                                    transition={{ duration: 0.8, delay: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                                    pos="absolute"
+                                    left="50%"
+                                    w={{ base: '55%', xs: '45%', sm: '40%', md: 300 }}
+                                    style={{ zIndex: 1 }}
+                                >
+                                    <Image src={cajaHero3} radius="lg" style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }} />
+                                </Box>
+
+                                {/* Centro */}
+                                <Box
+                                    component={motion.div}
+                                    initial={{ opacity: 0, x: '-50%', y: 40 }}
+                                    animate={{ opacity: 1, x: '-50%', y: 0, scale: 1 }}
+                                    transition={{ duration: 0.8, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                                    pos="absolute"
+                                    left="50%"
+                                    w={{ base: '65%', xs: '55%', sm: '50%', md: 340 }}
+                                    style={{ zIndex: 2 }}
+                                >
+                                    <Image src={cajaHero1} radius="lg" style={{ boxShadow: '0 32px 64px -16px rgba(0,0,0,0.15)', border: '1px solid rgba(0,0,0,0.05)' }} />
+                                </Box>
                             </Box>
+                        </Box>
                             
                             <Paper
                                 p={{ base: 'md', md: 'xl' }}
