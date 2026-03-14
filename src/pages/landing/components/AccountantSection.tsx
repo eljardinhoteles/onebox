@@ -1,7 +1,7 @@
 import { Box, Container, Paper, SimpleGrid, Badge, Title, Text, Stack, Group, ThemeIcon, rem, Image } from '@mantine/core';
 import { motion } from 'framer-motion';
 import { IconCalculator, IconCheck, IconReceiptTax, IconListCheck } from '@tabler/icons-react';
-import arqueoCajaImg from '../../../assets/3x/Arqueo de caja.png';
+import arqueoCajaImg from '../../../assets/3x/Arqueo_de_caja.png';
 
 export function AccountantSection() {
     return (

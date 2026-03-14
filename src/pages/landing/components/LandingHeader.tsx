@@ -21,14 +21,16 @@ export function LandingHeader() {
                         <Text fw={700} size="sm" c="blue.9">Mi Caja Chica</Text>
                     </Group>
                     <Button
-                        variant="subtle"
-                        color="gray"
+                        variant="default"
                         radius="xl"
-                        fw={600}
-                        size="xs"
+                        fw={500}
+                        size="sm"
+                        c="dimmed"
+                        bg="gray.0"
+                        style={{ border: '1px solid var(--mantine-color-gray-2)' }}
                         onClick={() => navigate('/cajas')}
                     >
-                        Iniciar Sesión
+                        Iniciar sesión
                     </Button>
                 </Group>
             </Paper>

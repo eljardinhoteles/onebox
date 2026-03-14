@@ -111,6 +111,14 @@ export function OnboardingPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
+            // 0. Asegurar que el usuario tenga un perfil para evitar error 500 de foreign key
+            await supabase.from('perfiles').upsert({
+                id: user.id,
+                email: user.email,
+                nombre: user.user_metadata?.nombre || '',
+                apellido: user.user_metadata?.apellido || ''
+            }, { onConflict: 'id' });
+
             const { error: joinError } = await supabase
                 .from('empresa_usuarios')
                 .insert({
@@ -139,6 +147,14 @@ export function OnboardingPage() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // 0. Asegurar que el usuario tenga un perfil para evitar error 500 de foreign key
+            await supabase.from('perfiles').upsert({
+                id: user.id,
+                email: user.email,
+                nombre: user.user_metadata?.nombre || '',
+                apellido: user.user_metadata?.apellido || ''
+            }, { onConflict: 'id' });
 
             // 1. Crear empresa
             const { data: empresa, error: empError } = await supabase

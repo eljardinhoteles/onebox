@@ -3,51 +3,34 @@ import { motion } from 'framer-motion';
 import { IconReceipt2, IconReceiptTax } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
 import { FeatureCheck } from './LandingUtils';
-import registroGastosImg from '../../../assets/3x/Registro de gastos.png';
-import controlRetencionesImg from '../../../assets/3x/Control de retenciones.png';
+import registroGastosImg from '../../../assets/3x/Registro_de_gastos.png';
+import controlRetencionesImg from '../../../assets/3x/Control_de_retenciones.png';
 
 export function ProblemSection() {
     const isMobile = useMediaQuery('(max-width: 768px)');
 
     return (
         <Box py={80} bg="white">
-            <Container size="xl">
-                {/* Título de sección */}
-                <Box ta="center" maw={600} mx="auto" mb={64}>
-                    <Text
-                        size="xs"
-                        tt="uppercase"
-                        fw={700}
-                        c="dimmed"
-                        mb="sm"
-                        style={{ letterSpacing: '0.08em' }}
-                    >
-                        El problema
-                    </Text>
-                    <Title order={2} fw={800} c="dark.9" mb="md">
-                        ¿Sigues controlando la caja chica en Excel?
-                    </Title>
-                    <Text c="dimmed" size="md" lh={1.7}>
-                        Un Excel roto, recibos extraviados, columnas que no cuadran y horas de trabajo
-                        para descubrir un faltante de $5. Existe una forma mejor.
-                    </Text>
-                </Box>
+            <Container size={1340}>
 
-                <Stack gap={80}>
 
-                    {/* Panel 2 — imagen izquierda escritorio, abajo móvil */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-                    >
-                        <Paper
+                <Box pos="relative" pb={{ base: 40, md: 80 }}>
+
+                    {/* Panel 1 — Registro de gastos */}
+                    <Box style={{ position: 'sticky', top: 'calc(50vh - 250px)', zIndex: 1 }}>
+                        <motion.div
+                            initial={{ opacity: 0, y: 40 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: false, margin: "-15% 0px -15% 0px" }}
+                            transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+                        >
+                            <Paper
                             withBorder
                             radius="xl"
                             p={{ base: 'xl', md: 64 }}
                             shadow="md"
                             className="feature-panel"
+                            mih={{ base: 'auto', md: 620 }}
                         >
                             <SimpleGrid cols={{ base: 1, md: 2 }} spacing={64} style={{ alignItems: 'center' }}>
                                 <Stack gap="lg" style={{ order: 1 }}>
@@ -75,27 +58,33 @@ export function ProblemSection() {
                                 <Box style={{ order: isMobile ? 2 : -1 }}>
                                     <Image 
                                         src={registroGastosImg} 
-                                        radius="md" 
-                                        style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.05)' }} 
+                                        radius="xl" 
+                                        style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)', border: '1px solid rgba(0,0,0,0.05)', width: '100%', height: 'auto', scale: 1.05 }} 
                                     />
                                 </Box>
                             </SimpleGrid>
                         </Paper>
-                    </motion.div>
+                        </motion.div>
+                    </Box>
 
-                    {/* Panel 3 — imagen derecha escritorio, abajo móvil */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-                    >
-                        <Paper
+                    {/* Espaciador para generar scroll antes de que llegue el siguiente panel */}
+                    <Box h={{ base: '40vh', md: '55vh' }} />
+
+                    {/* Panel 2 — Control de retenciones */}
+                    <Box style={{ position: 'sticky', top: 'calc(50vh - 250px)', zIndex: 2 }}>
+                        <motion.div
+                            initial={{ opacity: 0, y: 40 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: false, margin: "-15% 0px -15% 0px" }}
+                            transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+                        >
+                            <Paper
                             withBorder
                             radius="xl"
                             p={{ base: 'xl', md: 64 }}
                             shadow="md"
                             className="feature-panel"
+                            mih={{ base: 'auto', md: 620 }}
                         >
                             <SimpleGrid cols={{ base: 1, md: 2 }} spacing={64} style={{ alignItems: 'center' }}>
                                 <Stack gap="lg">
@@ -128,14 +117,18 @@ export function ProblemSection() {
                                 <Box>
                                     <Image 
                                         src={controlRetencionesImg} 
-                                        radius="md" 
-                                        style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.05)' }} 
+                                        radius="xl" 
+                                        style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)', border: '1px solid rgba(0,0,0,0.05)', width: '100%', height: 'auto', scale: 1.05 }} 
                                     />
                                 </Box>
                             </SimpleGrid>
                         </Paper>
-                    </motion.div>
-                </Stack>
+                        </motion.div>
+                    </Box>
+
+                    {/* Espacio extra al final para que la segunda tarjeta también tenga tiempo "pegada" */}
+                    <Box h={{ base: '20vh', md: '30vh' }} />
+                </Box>
             </Container>
         </Box>
     );

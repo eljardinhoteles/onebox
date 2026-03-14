@@ -3,7 +3,7 @@
 .landing-wrapper {
     min-height: 100vh;
     background: white;
-    overflow-x: hidden;
+    overflow-x: clip;
     font-family: 'Inter', sans-serif;
 }
 
