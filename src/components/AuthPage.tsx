@@ -20,8 +20,9 @@ import {
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
 import {
-    IconLock, IconBuilding,
+    IconLock, IconBuilding, IconCrown
 } from '@tabler/icons-react';
+import { motion } from 'framer-motion';
 import logo from '../assets/Icon.svg';
 import sideImage from '../assets/auth_side_image.png';
 
@@ -45,7 +46,15 @@ export function AuthPage() {
         });
 
         const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode');
         const invite = params.get('invite');
+
+        if (mode === 'register') {
+            setType('register');
+        } else if (mode === 'login') {
+            setType('login');
+        }
+
         if (invite) {
             setType('register');
 
@@ -200,6 +209,37 @@ export function AuthPage() {
                     <LoadingOverlay visible={loadingInvite} overlayProps={{ blur: 1 }} />
                     <Stack gap={40}>
                         <Box>
+                            {type === 'register' && (
+                                <Box
+                                    component={motion.div}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    mb="xl"
+                                    p="md"
+                                    bg="blue.0"
+                                    style={{
+                                        borderRadius: '12px',
+                                        border: '1px solid var(--mantine-color-blue-2)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px'
+                                    }}
+                                >
+                                    <Center
+                                        w={40}
+                                        h={40}
+                                        bg="blue.1"
+                                        style={{ borderRadius: '8px', flexShrink: 0 }}
+                                    >
+                                        <IconCrown size={20} color="var(--mantine-color-blue-6)" />
+                                    </Center>
+                                    <Box>
+                                        <Text fw={700} size="sm" c="blue.9">14 Días Gratis • Acceso Total</Text>
+                                        <Text size="xs" c="blue.7">Prueba todas las funciones sin restricciones ni tarjeta de crédito.</Text>
+                                    </Box>
+                                </Box>
+                            )}
+
                             <Title order={1} fw={800} size="h1" style={{ letterSpacing: '-1px' }}>
                                 {getTitle()}
                             </Title>

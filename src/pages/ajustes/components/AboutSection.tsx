@@ -228,7 +228,8 @@ export function AboutSection() {
                             <Text size="sm" c="dimmed">Selecciona un plan para mantener tu acceso completo.</Text>
                         </div>
 
-                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg" mb="xl">
+                            {/* Plan Mensual */}
                             <Card
                                 withBorder
                                 padding="xl"
@@ -241,91 +242,29 @@ export function AboutSection() {
                                     transition: 'all 0.2s ease',
                                 }}
                             >
-                                              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-                            <Card radius="md" p="xl" withBorder bg="gray.0">
-                                <Group gap="sm" mb="md">
-                                    <IconInfoCircle size={24} color="var(--mantine-color-blue-6)" />
-                                    <Title order={3} size="h4" fw={700}>Detalles del Sistema</Title>
-                                </Group>
-                                <Stack gap="xs">
-                                    <Group justify="space-between">
-                                        <Text size="sm" c="dimmed" fw={500}>Versión</Text>
-                                        <Badge variant="light" color="blue" size="sm">v1.2.5 (Beta)</Badge>
-                                    </Group>
-                                    <Divider my="xs" variant="dashed" />
-                                    <Group justify="space-between">
-                                        <Text size="sm" c="dimmed" fw={500}>Última actualización</Text>
-                                        <Text size="sm" fw={600}>Marzo 2026</Text>
-                                    </Group>
-                                    <Divider my="xs" variant="dashed" />
-                                    <Group justify="space-between">
-                                        <Text size="sm" c="dimmed" fw={500}>Entorno</Text>
-                                        <Badge variant="dot" color="teal" size="sm">Producción</Badge>
-                                    </Group>
-                                </Stack>
-                            </Card>
-
-                            <Card radius="md" p="xl" withBorder bg="violet.0">
-                                <Group gap="sm" mb="md">
-                                    <IconLifebuoy size={24} color="var(--mantine-color-violet-6)" />
-                                    <Title order={3} size="h4" fw={700}>Soporte Técnico</Title>
-                                </Group>
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed" mb="xs">
-                                        Si necesitas ayuda o tienes problemas con la plataforma, contáctanos directamente.
-                                    </Text>
-                                    {soporte?.whatsapp && (
-                                        <Button
-                                            component="a"
-                                            href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            variant="light"
-                                            color="green"
-                                            leftSection={<IconBrandWhatsapp size={18} />}
-                                            fullWidth
-                                            justify="flex-start"
-                                        >
-                                            {soporte.whatsapp}
-                                        </Button>
-                                    )}
-                                    {soporte?.correo && (
-                                        <Button
-                                            component="a"
-                                            href={`mailto:${soporte.correo}`}
-                                            variant="light"
-                                            color="blue"
-                                            leftSection={<IconMail size={18} />}
-                                            fullWidth
-                                            justify="flex-start"
-                                        >
-                                            {soporte.correo}
-                                        </Button>
-                                    )}
-                                    {(!soporte?.whatsapp && !soporte?.correo) && (
-                                        <Text size="sm" fs="italic" c="dimmed">
-                                            Información de soporte no configurada.
-                                        </Text>
-                                    )}
-                                </Stack>
-                            </Card>
-                        </SimpleGrid>
                                 <Stack gap="md" align="center">
                                     <Badge variant="light" color="blue" size="lg">Mensual</Badge>
                                     <Group gap={2} align="baseline">
                                         <Text size="xl" fw={900} style={{ fontSize: 42 }}>${precios.mensual}</Text>
                                         <Text size="sm" c="dimmed">/mes</Text>
                                     </Group>
-                                    <Stack gap={4} align="center">
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Hasta 20 usuarios</Text></Group>
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Hasta 20 sucursales</Text></Group>
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Acceso completo</Text></Group>
+                                    <Stack gap={4} align="flex-start" w="100%">
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Hasta <strong>20 Usuarios</strong></Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs"><strong>20 Sucursales</strong> integradas</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Cajas y transacciones ilimitadas</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Reportes ilimitados</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Gestión de proveedores ilimitada</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Actualizaciones del sistema</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Cajas históricas limitadas</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Soporte técnico estándar</Text></Group>
                                     </Stack>
                                     {selectedPlan === 'mensual' && (
-                                        <Badge color="blue" variant="filled" size="sm">Seleccionado</Badge>
+                                        <Badge color="blue" variant="filled" size="sm" mt="md">Seleccionado</Badge>
                                     )}
                                 </Stack>
                             </Card>
 
+                            {/* Plan Anual */}
                             <Card
                                 withBorder
                                 padding="xl"
@@ -343,7 +282,7 @@ export function AboutSection() {
                                     color="teal"
                                     variant="filled"
                                     size="sm"
-                                    style={{ position: 'absolute', top: 8, right: 8 }}
+                                    style={{ position: 'absolute', top: 12, right: 12 }}
                                     leftSection={<IconCrown size={12} />}
                                 >
                                     Ahorra ${ahorroAnual}
@@ -355,13 +294,17 @@ export function AboutSection() {
                                         <Text size="sm" c="dimmed">/mes</Text>
                                     </Group>
                                     <Text size="xs" c="dimmed" fw={600}>${precios.anual} USD / año</Text>
-                                    <Stack gap={4} align="center">
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Hasta 20 usuarios</Text></Group>
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Hasta 20 sucursales</Text></Group>
-                                        <Group gap={4}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Acceso completo</Text></Group>
+                                    <Stack gap={4} align="flex-start" w="100%">
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs"><strong>Todo lo del Plan Mensual</strong></Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs"><strong>Cajas históricas ilimitadas</strong></Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Bitácora de movimientos</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Personalización de reportes</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Acceso a funciones nuevas</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Asesoría en implementación</Text></Group>
+                                        <Group gap={6}><IconCheck size={14} color="var(--mantine-color-teal-6)" /><Text size="xs">Soporte prioritario 24/7</Text></Group>
                                     </Stack>
                                     {selectedPlan === 'anual' && (
-                                        <Badge color="teal" variant="filled" size="sm">Seleccionado</Badge>
+                                        <Badge color="teal" variant="filled" size="sm" mt="md">Seleccionado</Badge>
                                     )}
                                 </Stack>
                             </Card>
@@ -535,35 +478,69 @@ export function AboutSection() {
                 </Paper>
             )}
 
-            {/* Créditos */}
+            {/* Información y Soporte Unificado */}
             <Paper withBorder p="xl" radius="lg">
                 <Stack gap="xl">
                     <Group justify="space-between" align="center" wrap="wrap" gap="md">
                         <Group gap="md">
-                            <img src={LogoIcon} alt="Mi Caja Chica Logo" style={{ width: 40, height: 40, objectFit: 'contain', filter: 'grayscale(100%) opacity(0.5)' }} />
+                            <img src={LogoIcon} alt="Mi Caja Chica Logo" style={{ width: 44, height: 44, objectFit: 'contain' }} />
                             <Stack gap={0}>
-                                <Text fw={800} size="lg">Mi Caja Chica</Text>
-                                <Text size="xs" c="dimmed">Desarrollado con ❤️ por Tere & Matt</Text>
+                                <Text fw={800} size="lg" c="blue.9">Mi Caja Chica</Text>
+                                <Text size="xs" c="dimmed">Sistema de Gestión de Efectivo • Ecuador</Text>
                             </Stack>
                         </Group>
-                        <Stack gap={2} align="flex-end">
-                            <Text size="xs" fw={600} c="dimmed">Versión 1.5.40</Text>
-                            <Text size="xs" c="dimmed">© {new Date().getFullYear()} Todos los derechos reservados.</Text>
+                        <Stack gap={2} align="flex-end" visibleFrom="xs">
+                            <Badge variant="light" color="blue" size="sm">Versión 1.5.40</Badge>
+                            <Text size="xs" c="dimmed">Actualización: Marzo 2026</Text>
                         </Stack>
                     </Group>
 
-                    <Divider />
+                    <Divider variant="dashed" />
 
-                    <Group justify="space-between" align="center" wrap="wrap" gap="md">
-                        <Text fw={600} size="sm" c="dimmed">¿Necesitas ayuda?</Text>
-                        <Group gap="sm">
-                            <Button variant="light" size="xs" radius="md" leftSection={<IconLifebuoy size={14} />}>
+                    <Stack gap="md">
+                        <Text fw={700} size="sm" c="dark.9">Centro de Ayuda y Soporte</Text>
+                        <Group gap="sm" wrap="wrap">
+                            {soporte?.whatsapp && (
+                                <Button
+                                    component="a"
+                                    href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    variant="light"
+                                    color="green"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={<IconBrandWhatsapp size={16} />}
+                                >
+                                    WhatsApp: {soporte.whatsapp}
+                                </Button>
+                            )}
+                            {soporte?.correo && (
+                                <Button
+                                    component="a"
+                                    href={`mailto:${soporte.correo}`}
+                                    variant="light"
+                                    color="blue"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={<IconMail size={16} />}
+                                >
+                                    Email: {soporte.correo}
+                                </Button>
+                            )}
+                            <Button variant="light" color="violet" size="xs" radius="md" leftSection={<IconLifebuoy size={16} />}>
                                 Documentación
                             </Button>
-                            <Button variant="light" color="gray" size="xs" radius="md" leftSection={<IconBug size={14} />}>
+                            <Button variant="light" color="gray" size="xs" radius="md" leftSection={<IconBug size={16} />}>
                                 Reportar Bug
                             </Button>
                         </Group>
+                    </Stack>
+
+                    <Divider variant="dashed" />
+
+                    <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                        <Text size="xs" c="dimmed">Desarrollado con ❤️ por Tere & Matt</Text>
+                        <Text size="xs" c="dimmed">© {new Date().getFullYear()} Todos los derechos reservados.</Text>
                     </Group>
                 </Stack>
             </Paper>

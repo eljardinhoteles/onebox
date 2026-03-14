@@ -70,10 +70,10 @@ export function HeroSection() {
                         fw={700}
                         leftSection={<span style={{ marginRight: 4 }}>🇪🇨</span>}
                     >
-                        Optimizado para Ecuador · Cumplimiento SRI
+                        Optimizado para Ecuador
                     </Badge>
 
-                    <Title order={1} className="hero-title">
+                    <Title order={1} className="hero-title" mb="sm">
                         ¿Sigues controlando la caja chica en{' '}
                         <Text
                             component="span"
@@ -84,11 +84,10 @@ export function HeroSection() {
                         </Text>
                     </Title>
 
-                    <Text size="lg" c="dimmed" maw={740} mx="auto" mb="sm" lh={1.7}>
-                        Un Excel roto, recibos extraviados, columnas que no cuadran y horas de trabajo
-                        para descubrir un faltante de $5. ¿Existe una forma mejor? Sí, integra en tu flujo contable:{' '}
-                        <Text component="span" fw={600} c="blue.6">Mi Caja Chica</Text>, el único sistema de gestión
-                        de efectivo diseñado para el régimen fiscal del Ecuador, desde cualquier sucursal, en tiempo real.
+                    <Text size="lg" c="dimmed" maw={800} mx="auto" mb="sm" lh={1.7}>
+                        Un Excel roto, recibos extraviados y horas de trabajo para descubrir un faltante de $5.
+                        Elimine los <Text component="span" fw={600} c="blue.6">gastos "fantasma"</Text> con visibilidad absoluta en tiempo real.
+                        <Text component="span" fw={600} c="blue.6"> Mi Caja Chica</Text> es la solución diseñada para el régimen fiscal del Ecuador que centraliza el control de su flujo de efectivo.
                     </Text>
 
                     {/* Core Feature Panel (Unificado con el Hero) */}
@@ -205,10 +204,10 @@ export function HeroSection() {
                                 mt={20} // Hacer que esté más pegado a las imágenes (ahora las imágenes son grandes)
                             >
                                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl" mt="xs">
-                                    <HeroFeatureCheck>Vista consolidada de todos las cajas activas</HeroFeatureCheck>
-                                    <HeroFeatureCheck>Apertura formal con saldo base registrado</HeroFeatureCheck>
-                                    <HeroFeatureCheck>Cierre guiado paso a paso, bloqueado contra ediciones</HeroFeatureCheck>
-                                    <HeroFeatureCheck>Control de recaudacion de retenciones</HeroFeatureCheck>
+                                    <HeroFeatureCheck>Visibilidad multi-sucursal en tiempo real</HeroFeatureCheck>
+                                    <HeroFeatureCheck>Auditoría de aperturas y saldos base</HeroFeatureCheck>
+                                    <HeroFeatureCheck>Cierre con validación de saldos</HeroFeatureCheck>
+                                    <HeroFeatureCheck>Gestión automatizada de retenciones SRI</HeroFeatureCheck>
                                 </SimpleGrid>
                             </Paper>
 
@@ -221,7 +220,7 @@ export function HeroSection() {
                                     rightSection={<IconArrowRight size={18} />}
                                     fw={600}
                                     className="hero-cta-button"
-                                    onClick={() => navigate('/cajas')}
+                                    onClick={() => navigate('/cajas?mode=register')}
                                 >
                                     Empezar prueba de 14 días gratis
                                 </Button>

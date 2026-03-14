@@ -1,5 +1,6 @@
 import { Box, Paper, Group, Text, Button } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
+import { IconArrowRight } from '@tabler/icons-react';
 import IconSvg from '../../../assets/Icon.svg';
 
 export function LandingHeader() {
@@ -11,24 +12,23 @@ export function LandingHeader() {
                 component="header"
                 shadow="md"
                 radius="xl"
-                px="lg"
-                py="sm"
+                px="md"
+                py="xs"
                 className="floating-header"
             >
                 <Group justify="space-between">
                     <Group gap="xs">
-                        <img src={IconSvg} alt="Mi Caja Chica" style={{ width: 28, height: 28 }} />
+                        <img src={IconSvg} alt="Mi Caja Chica" style={{ width: 32, height: 32 }} />
                         <Text fw={700} size="sm" c="blue.9">Mi Caja Chica</Text>
                     </Group>
                     <Button
-                        variant="default"
+                        variant="filled"
+                        color="blue"
                         radius="xl"
-                        fw={500}
+                        fw={700}
                         size="sm"
-                        c="dimmed"
-                        bg="gray.0"
-                        style={{ border: '1px solid var(--mantine-color-gray-2)' }}
-                        onClick={() => navigate('/cajas')}
+                        rightSection={<IconArrowRight size={16} />}
+                        onClick={() => navigate('/cajas?mode=login')}
                     >
                         Iniciar sesión
                     </Button>
