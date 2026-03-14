@@ -1,5 +1,5 @@
 
-import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu } from '@mantine/core';
+import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton } from '@mantine/core';
 import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { MonthlyCloseAlert } from '../MonthlyCloseAlert';
@@ -21,6 +21,7 @@ interface CajaHeaderProps {
     isError?: boolean;
     error?: any;
     isReadOnly?: boolean;
+    loading?: boolean;
 }
 
 export function CajaHeader({
@@ -38,7 +39,8 @@ export function CajaHeader({
     handlePrint,
     isError,
     error,
-    isReadOnly
+    isReadOnly,
+    loading
 }: CajaHeaderProps) {
     const { configs, loading: configLoading } = useAppConfig();
     const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
@@ -50,12 +52,21 @@ export function CajaHeader({
                 {onBack && (
                     <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" onClick={onBack}><IconArrowLeft size={20} /></ActionIcon>
                 )}
-                <div>
-                    <Title order={2} fw={700}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
-                    <Text size="sm" c="dimmed">
-                        {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
-                        {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
-                    </Text>
+                <div style={{ flex: 1 }}>
+                    {loading ? (
+                        <Stack gap={4}>
+                            <Skeleton height={28} width={200} radius="md" />
+                            <Skeleton height={16} width={300} radius="xs" />
+                        </Stack>
+                    ) : (
+                        <>
+                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
+                            <Text size="sm" c="dimmed">
+                                {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
+                                {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
+                            </Text>
+                        </>
+                    )}
                 </div>
             </Group>
             {!configLoading && <MonthlyCloseAlert enabled={cierreEnabled} closingDay={closingDay} />}

@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Paper, Text, Stack, Group, Button, Tooltip, ActionIcon } from '@mantine/core';
+import { ActionIcon, Button, Group, Loader, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { AppLoader } from '../components/ui/AppLoader';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { AppDrawer } from '../components/ui/AppDrawer';
-import { TransactionForm } from '../components/TransactionForm';
+// import { TransactionForm } from '../components/TransactionForm'; // Refactored to lazy
 import { RetentionForm } from '../components/RetentionForm';
 import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
@@ -30,8 +30,8 @@ import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesReca
 import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
 import { DepositoBancoModal } from '../components/caja/DepositoBancoModal';
 import { CajaHeader } from '../components/caja/CajaHeader';
-import { Skeleton } from '@mantine/core';
-import { TableSkeleton } from '../components/ui/TableSkeleton';
+
+const TransactionForm = lazy(() => import('../components/TransactionForm').then(m => ({ default: m.TransactionForm })));
 
 interface CajaDetalleProps {
     cajaId: number;
@@ -340,33 +340,9 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         openClosingModal(false);
     };
 
-    // Si no hay caja y estamos cargando, mostramos la estructura con skeletons
-    if (!caja && (loadingTrans || empresaLoading)) {
-        return (
-            <Stack gap="md">
-                <Paper withBorder p="xl" radius="lg" bg="white">
-                    <Group justify="space-between">
-                        <Skeleton height={30} width={200} radius="xl" />
-                        <Group gap="xs">
-                            <Skeleton height={40} width={40} radius="md" />
-                            <Skeleton height={40} width={120} radius="md" />
-                        </Group>
-                    </Group>
-                </Paper>
-                <Group grow>
-                    <Skeleton height={140} radius="lg" />
-                    <Skeleton height={140} radius="lg" />
-                    <Skeleton height={140} radius="lg" />
-                    <Skeleton height={140} radius="lg" />
-                </Group>
-                <Paper withBorder p="md" radius="lg">
-                    <TableSkeleton rows={15} cols={8} />
-                </Paper>
-            </Stack>
-        );
-    }
+    const isGlobalLoading = !caja && (loadingTrans || empresaLoading);
 
-    if (!caja) return <AppLoader py={100} message="No se encontró la información de la caja..." />;
+    if (!caja && !isGlobalLoading) return <AppLoader py={100} message="No se encontró la información de la caja..." />;
 
     return (
         <Stack gap="md">
@@ -375,7 +351,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 onBack={onBack}
                 isLowBalance={isLowBalance}
                 percentageRemaining={percentageRemaining}
-
                 totalDepositos={totalDepositos}
                 filterState={filterState}
                 setFilterState={setFilterState}
@@ -387,9 +362,16 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 isError={isError}
                 error={error}
                 isReadOnly={isReadOnly}
+                loading={isGlobalLoading}
             />
 
-            <CajaSummaryCards caja={caja} totals={totals} onOpenRetencionesControl={openRetencionesControl} onOpenArqueoControl={openArqueoControl} />
+            <CajaSummaryCards 
+                caja={caja} 
+                totals={totals} 
+                onOpenRetencionesControl={openRetencionesControl} 
+                onOpenArqueoControl={openArqueoControl} 
+                loading={isGlobalLoading}
+            />
 
             <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
                 <TransactionTable
@@ -422,23 +404,30 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             </Paper>
 
             <AppDrawer opened={formOpened} onClose={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }} title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (transactionState.editingId ? "Editar Gasto" : "Registrar Gasto")} size="xl" closeOnClickOutside={false}>
-                <TransactionForm
-                    cajaId={cajaId}
-                    transactionId={transactionState.editingId || undefined}
-                    warningMessage={transactionState.readOnlyMessage}
-                    currentBalance={totals.efectivo}
-                    readOnly={!!transactionState.readOnlyMessage || caja?.estado !== 'abierta'}
-                    onSuccess={() => {
-                        close();
-                        setTransactionState(p => ({ ...p, editingId: null }));
-                        queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
-                        queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
-                        if (transactionState.editingId) {
-                            queryClient.invalidateQueries({ queryKey: ['transaction_detail', transactionState.editingId] });
-                        }
-                    }}
-                    onCancel={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }}
-                />
+                <Suspense fallback={
+                    <Stack align="center" py={50}>
+                        <Loader size="lg" />
+                        <Text size="sm" c="dimmed">Cargando formulario...</Text>
+                    </Stack>
+                }>
+                    <TransactionForm
+                        cajaId={cajaId}
+                        transactionId={transactionState.editingId || undefined}
+                        warningMessage={transactionState.readOnlyMessage}
+                        currentBalance={totals.efectivo}
+                        readOnly={!!transactionState.readOnlyMessage || caja?.estado !== 'abierta'}
+                        onSuccess={() => {
+                            close();
+                            setTransactionState(p => ({ ...p, editingId: null }));
+                            queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                            if (transactionState.editingId) {
+                                queryClient.invalidateQueries({ queryKey: ['transaction_detail', transactionState.editingId] });
+                            }
+                        }}
+                        onCancel={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }}
+                    />
+                </Suspense>
             </AppDrawer>
 
             <AppDrawer opened={retentionOpened} onClose={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); }} title="Comprobante de Retención" size="xl">
