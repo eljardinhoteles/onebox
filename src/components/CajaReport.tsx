@@ -1,6 +1,7 @@
 import { Table, Text, Stack, Group, Title, Divider, Paper, Flex, Box } from '@mantine/core';
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
+import { useEmpresa } from '../context/EmpresaContext';
 
 interface Transaction {
     id: number;
@@ -47,6 +48,8 @@ interface CajaReportProps {
 }
 
 export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, transactions, totals, arqueoData }, ref) => {
+    const { empresa } = useEmpresa();
+    
     if (!caja) return null;
 
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
@@ -59,7 +62,14 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
             <Stack gap="xs" mb="xl">
                 <Group justify="space-between" align="flex-start">
                     <Stack gap={0}>
-                        <Title order={2} style={{ color: 'black' }}>{caja.estado === 'cerrada' ? 'REPORTE DE CIERRE DE CAJA' : 'REPORTE DE CAJA (EN CURSO)'}</Title>
+                        {empresa && (
+                            <Box mb="md">
+                                <Title order={3} style={{ color: 'black', lineHeight: 1.2 }} tt="uppercase">{empresa.nombre}</Title>
+                                {empresa.ruc && <Text size="xs" fw={700} c="dimmed">RUC: {empresa.ruc}</Text>}
+                                {(empresa.direccion || empresa.ciudad) && <Text size="xs" c="dimmed" style={{ maxWidth: 350 }}>{[empresa.direccion, empresa.ciudad].filter(Boolean).join(' - ')}</Text>}
+                            </Box>
+                        )}
+                        <Title order={2} style={{ color: 'black', lineHeight: 1.2 }}>{caja.estado === 'cerrada' ? 'REPORTE DE CIERRE DE CAJA' : 'REPORTE DE CAJA (EN CURSO)'}</Title>
                         <Text fw={700} size="sm" c="dimmed">ID CAJA: #{caja.numero ?? caja.id}</Text>
                     </Stack>
                     <Stack gap={0} align="flex-end">

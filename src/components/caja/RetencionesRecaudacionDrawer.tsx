@@ -1,4 +1,4 @@
-import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge } from '@mantine/core';
+import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge, Box } from '@mantine/core';
 import { AppLoader } from '../ui/AppLoader';
 import { IconPrinter, IconX } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { notifications } from '@mantine/notifications';
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import dayjs from 'dayjs';
+import { useEmpresa } from '../../context/EmpresaContext';
 
 interface RetencionesRecaudacionDrawerProps {
     opened: boolean;
@@ -30,6 +31,7 @@ interface RetencioData {
 }
 
 export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNumero, sucursal }: RetencionesRecaudacionDrawerProps) {
+    const { empresa } = useEmpresa();
     const queryClient = useQueryClient();
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -235,8 +237,15 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
             {/* Versión para Impresión (Oculta en pantalla) */}
             <div style={{ display: 'none' }}>
                 <div ref={printRef} style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-                    <Group justify="space-between" mb="xl">
+                    <Group justify="space-between" align="flex-start" mb="xl">
                         <Stack gap={4}>
+                            {empresa && (
+                                <Box mb="sm">
+                                    <Title order={3} style={{ color: 'black', lineHeight: 1.2 }} tt="uppercase">{empresa.nombre}</Title>
+                                    {empresa.ruc && <Text size="xs" fw={700} c="dimmed">RUC: {empresa.ruc}</Text>}
+                                    {(empresa.direccion || empresa.ciudad) && <Text size="xs" c="dimmed" style={{ maxWidth: 350 }}>{[empresa.direccion, empresa.ciudad].filter(Boolean).join(' - ')}</Text>}
+                                </Box>
+                            )}
                             <Title order={3}>CONTROL DE RECAUDACIÓN DE RETENCIONES</Title>
                             <Text size="sm" fw={700}>Sucursal: {sucursal} | Caja #{cajaNumero || cajaId}</Text>
                         </Stack>

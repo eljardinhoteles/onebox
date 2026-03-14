@@ -18,7 +18,7 @@ interface AperturaCajaModalProps {
 }
 
 export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
-    const { empresa } = useEmpresa();
+    const { empresa, role, sucursalesAsignadas, perfil } = useEmpresa();
     const queryClient = useQueryClient();
     const [arqueoDesglose, setArqueoDesglose] = useState<ArqueoDesglose | null>(null);
 
@@ -27,7 +27,7 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
             saldo_anterior: 0,
             reposicion: 0,
             fecha_apertura: new Date(),
-            responsable: '',
+            responsable: perfil ? `${perfil.nombre || ''} ${perfil.apellido || ''}`.trim() : '',
             sucursal: '',
         },
         validate: {
@@ -43,13 +43,20 @@ export function AperturaCajaModal({ opened, close }: AperturaCajaModalProps) {
     const tieneItemsArqueo = (arqueoDesglose?.items.length ?? 0) > 0;
 
     const { data: sucursales = [] } = useQuery({
-        queryKey: ['sucursales_list', empresa?.id],
+        queryKey: ['sucursales_list', empresa?.id, role, sucursalesAsignadas],
         queryFn: async () => {
             if (!empresa) return [];
             const { data } = await supabase.from('sucursales').select('nombre').eq('empresa_id', empresa.id).order('nombre');
-            return (data || [])
+            
+            let allSucursales = (data || [])
                 .filter(s => s.nombre != null)
-                .map(s => ({ value: String(s.nombre), label: String(s.nombre) }));
+                .map(s => String(s.nombre));
+                
+            if (role !== 'owner' && role !== 'admin') {
+                allSucursales = allSucursales.filter(s => sucursalesAsignadas?.includes(s));
+            }
+                
+            return allSucursales.map(s => ({ value: s, label: s }));
         },
         enabled: !!empresa
     });

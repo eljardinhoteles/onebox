@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, Switch, ActionIcon, Select, NumberInput, Grid, Alert } from '@mantine/core';
-import { IconCheck, IconPlus, IconCalendar, IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
+import { Container, Title, Text, Stack, Paper, Group, Avatar, Button, LoadingOverlay, Box, Badge, ScrollArea, Table, ActionIcon, Select, NumberInput } from '@mantine/core';
+import { IconCheck, IconCalendar, IconArrowLeft } from '@tabler/icons-react';
 import { DatePickerInput } from '@mantine/dates';
 import { AjustesDashboard } from './ajustes/components/AjustesDashboard';
 import { useNotifications } from '../context/NotificationContext';
@@ -19,6 +19,7 @@ import { ConfigSection } from '../components/ajustes/ConfigSection';
 import { CrudSection } from '../components/ajustes/CrudSection';
 import { AboutSection } from './ajustes/components/AboutSection';
 import { InviteModal } from './ajustes/components/InviteModal';
+import { EmpresaSection } from './ajustes/components/EmpresaSection';
 import { CierreHistory } from '../components/CierreHistory';
 import dayjs from 'dayjs';
 
@@ -56,13 +57,12 @@ export function AjustesPage() {
             cierreMensualObligatorio: true,
             diaCierreMensual: '28'
         },
-        empresaForm: { nombre: '', ruc: '', direccion: '', email: '', contacto_nombre: '', ciudad: '' },
         auditRange: [null, null] as [Date | null, Date | null],
         fetchingManual: false,
         editingId: null as string | null
     });
 
-    const { user, activeTab, perfilForm, localConfigs, empresaForm, auditRange, fetchingManual, editingId } = state;
+    const { user, activeTab, perfilForm, localConfigs, auditRange, fetchingManual, editingId } = state;
 
     const setActiveTab = (tab: string | null) => setState(prev => ({ ...prev, activeTab: tab }));
 
@@ -86,19 +86,7 @@ export function AjustesPage() {
     }, [user]);
 
     useEffect(() => {
-        if (empresa) {
-            setState(prev => ({ 
-                ...prev, 
-                empresaForm: { 
-                    nombre: empresa.nombre || '', 
-                    ruc: empresa.ruc || '',
-                    direccion: empresa.direccion || '',
-                    email: empresa.email || '',
-                    contacto_nombre: empresa.contacto_nombre || '',
-                    ciudad: empresa.ciudad || ''
-                } 
-            }));
-        }
+        // ... (This hook previously handled empresaForm, no longer needed)
     }, [empresa]);
 
     useEffect(() => {
@@ -192,19 +180,6 @@ export function AjustesPage() {
     });
 
     const isFetchingGeneral = fetchingMiembros || fetchingLogs || fetchingItems;
-
-    const handleSaveEmpresa = async () => {
-        if (!empresa?.id || role !== 'owner') return;
-        setState(prev => ({ ...prev, fetchingManual: true }));
-        const { error } = await supabase.from('empresas').update(empresaForm).eq('id', empresa.id);
-        if (!error) {
-            notifications.show({ title: 'Empresa actualizada', message: 'Los datos han sido guardados', color: 'teal' });
-            await refreshEmpresa();
-        } else {
-            notifications.show({ title: 'Error', message: error.message, color: 'red' });
-        }
-        setState(prev => ({ ...prev, fetchingManual: false }));
-    };
 
     const handleToggleMemberStatus = async (memberId: string, currentStatus: boolean) => {
         if (!empresa?.id || (role !== 'owner' && role !== 'admin')) return;
@@ -338,135 +313,20 @@ export function AjustesPage() {
                         <Box style={{ position: 'relative' }}>
                             <LoadingOverlay visible={isFetchingGeneral || fetchingManual} overlayProps={{ blur: 1 }} />
 
-                            {activeTab === 'empresa' && (
+                            {activeTab === 'empresa' && empresa && (
                                 <Stack gap="xl">
-                                    <Paper withBorder p="xl" radius="lg">
-                                        <Stack gap="md">
-                                            <Group justify="space-between" align="center">
-                                                <Title order={3}>Datos de la Empresa</Title>
-                                                <Button variant="subtle" size="xs" onClick={() => setActiveTab('perfil')}>Mantenimiento Perfil Personal</Button>
-                                            </Group>
-                                            <Text size="sm" c="dimmed">
-                                                {role === 'owner'
-                                                    ? 'Como propietario, puedes actualizar la información legal de tu organización.'
-                                                    : 'Información general de tu organización.'}
-                                            </Text>
-
-                                            <Stack gap="sm">
-                                                <Alert icon={<IconInfoCircle size={16}/>} title="Aviso Importante" color="blue" variant="light" radius="md">
-                                                    <Text size="sm">Si requiere <b>Factura Electrónica</b> por su suscripción, llene estos datos de acuerdo con su información legal. La factura será emitida con estos detalles.</Text>
-                                                </Alert>
-                                                <Grid>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="Razón Social / Nombre"
-                                                            value={empresaForm.nombre}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, nombre: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="RUC / Identificación"
-                                                            value={empresaForm.ruc}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ruc: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="Correo Electrónico de Facturación"
-                                                            value={empresaForm.email}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, email: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="Nombre de Contacto"
-                                                            value={empresaForm.contacto_nombre}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, contacto_nombre: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="Dirección Legal"
-                                                            value={empresaForm.direccion}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, direccion: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                    <Grid.Col span={{ base: 12, sm: 6 }}>
-                                                        <ConfigSection.Input
-                                                            label="Ciudad"
-                                                            value={empresaForm.ciudad}
-                                                            onChange={(v: string) => setState(p => ({ ...p, empresaForm: { ...p.empresaForm, ciudad: v } }))}
-                                                            readOnly={role !== 'owner'}
-                                                        />
-                                                    </Grid.Col>
-                                                </Grid>
-                                            </Stack>
-
-                                            {role === 'owner' && (
-                                                <Button
-                                                    onClick={handleSaveEmpresa}
-                                                    leftSection={<IconCheck size={16} />}
-                                                    radius="md"
-                                                    mt="md"
-                                                    w="fit-content"
-                                                >
-                                                    Guardar Cambios
-                                                </Button>
-                                            )}
-                                        </Stack>
-                                    </Paper>
-
-                                    <Paper withBorder p="xl" radius="lg">
-                                        <Stack gap="lg">
-                                            <Group justify="space-between">
-                                                <Title order={3}>Miembros del Equipo</Title>
-                                                {(role === 'owner' || role === 'admin') && (
-                                                    <Button
-                                                        variant="light"
-                                                        leftSection={<IconPlus size={16} />}
-                                                        onClick={openInvite}
-                                                        radius="md"
-                                                    >
-                                                        Invitar Miembro
-                                                    </Button>
-                                                )}
-                                            </Group>
-                                            {miembros.map((m) => (
-                                                <Paper key={m.id} withBorder p="md" radius="md">
-                                                    <Group justify="space-between">
-                                                        <Group>
-                                                            <Avatar color="blue">{m.perfiles?.nombre?.[0]}</Avatar>
-                                                            <div>
-                                                                <Text fw={600}>{m.perfiles?.nombre} {m.perfiles?.apellido}</Text>
-                                                                <Text size="xs" c="dimmed">{m.perfiles?.email}</Text>
-                                                            </div>
-                                                        </Group>
-                                                        <Stack align="flex-end" gap={4}>
-                                                            <Group gap="xs">
-                                                                <Badge color={m.activo !== false ? 'blue' : 'gray'}>
-                                                                    {m.activo !== false ? m.role : 'Desactivado'}
-                                                                </Badge>
-                                                                {(role === 'owner' || role === 'admin') && m.user_id !== user?.id && (
-                                                                    <Switch
-                                                                        checked={m.activo !== false}
-                                                                        onChange={() => handleToggleMemberStatus(m.id, m.activo !== false)}
-                                                                        size="sm"
-                                                                        color="teal"
-                                                                    />
-                                                                )}
-                                                            </Group>
-                                                        </Stack>
-                                                    </Group>
-                                                </Paper>
-                                            ))}
-                                        </Stack>
-                                    </Paper>
+                                    <EmpresaSection 
+                                        empresa={empresa} 
+                                        role={role || ''} 
+                                        miembros={miembros} 
+                                        currentUserId={user?.id}
+                                        onInviteClick={openInvite}
+                                        onEditProfile={() => {
+                                            // TODO: si un admin edita otro usuario
+                                        }}
+                                        onToggleMemberStatus={handleToggleMemberStatus}
+                                        onRefresh={refreshEmpresa}
+                                    />
                                 </Stack>
                             )}
 

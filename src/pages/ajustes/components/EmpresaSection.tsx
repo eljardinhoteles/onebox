@@ -13,6 +13,7 @@ interface Member {
     role: string;
     activo: boolean;
     created_at: string;
+    sucursales?: string[];
     perfiles?: {
         nombre?: string;
         apellido?: string;

@@ -34,6 +34,7 @@ interface EmpresaContextType {
     refreshSubscription: () => Promise<void>;
     /** Refresca la empresa (útil después de crear o unirse a una). */
     configs: Record<string, string>;
+    sucursalesAsignadas: string[]; // <-- Nueva propiedad añadida
     refresh: () => Promise<void>;
 }
 
@@ -47,6 +48,7 @@ const EmpresaContext = createContext<EmpresaContextType>({
     subscription: null,
     isReadOnly: false,
     subscriptionLoading: true,
+    sucursalesAsignadas: [], // <-- Default para contexto inicial
     refreshSubscription: async () => { },
     refresh: async () => { },
 });
@@ -58,6 +60,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [configs, setConfigs] = useState<Record<string, string>>({});
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [sucursalesAsignadas, setSucursalesAsignadas] = useState<string[]>([]); // <-- Estado para sucursales asignadas
 
     // Eliminamos el hook useSubscription ya que ahora traemos todo unificado en fetchEmpresa
 
@@ -100,6 +103,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                     membresia:empresa_usuarios (
                         role,
                         empresa_id,
+                        sucursales,
                         empresas (
                             *,
                             configuracion ( clave, valor ),
@@ -144,6 +148,9 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                     const configsRaw = (empresaObj as any).configuracion as any[];
                     configsRaw?.forEach(item => { configMap[item.clave] = item.valor; });
                     setConfigs(configMap);
+                    
+                    // Sucursales asignadas al usuario
+                    setSucursalesAsignadas(membership.sucursales || []); // <-- Almacenar desde la BD
 
                     // Suscripción (unificada)
                     const subRaw = (empresaObj as any).suscripciones;
@@ -154,11 +161,13 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 setEmpresa(null);
                 setRole(null);
                 setSubscription(null);
+                setSucursalesAsignadas([]);
             }
         } catch (err) {
             console.error('Error in EmpresaProvider:', err);
             setEmpresa(null);
             setRole(null);
+            setSucursalesAsignadas([]);
         } finally {
             setLoading(false);
         }
@@ -196,6 +205,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
         <EmpresaContext.Provider value={{
             empresa, role, perfil, loading, configs, isSuperAdmin,
             subscription, isReadOnly, subscriptionLoading, refreshSubscription,
+            sucursalesAsignadas, // <-- Proveer el valor
             refresh: fetchEmpresa
         }}>
             {children}

@@ -75,10 +75,10 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         window.history.replaceState(null, '', newUrl);
     }, [filter, filterSucursal]);
 
-    const { empresa, loading: empresaLoading, isReadOnly } = useEmpresa();
+    const { empresa, loading: empresaLoading, isReadOnly, sucursalesAsignadas, role } = useEmpresa();
 
     const { data: cajas = [], isLoading: fetching } = useQuery({
-        queryKey: ['cajas', empresa?.id, filter, filterSucursal, limit],
+        queryKey: ['cajas', empresa?.id, filter, filterSucursal, limit, sucursalesAsignadas, role],
         placeholderData: keepPreviousData,
         staleTime: 1000 * 60, // 1 minuto de datos "frescos"
         gcTime: 1000 * 60 * 5, // Mantener en memoria 5 minutos
@@ -93,6 +93,13 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     .order('id', { ascending: false })
                     .limit(limit);
                 
+                if (role !== 'owner' && role !== 'admin') {
+                    if (!sucursalesAsignadas || sucursalesAsignadas.length === 0) {
+                        return [];
+                    }
+                    query = query.in('sucursal', sucursalesAsignadas);
+                }
+
                 if (filterSucursal) {
                     query = query.eq('sucursal', filterSucursal);
                 }
@@ -108,6 +115,13 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                         .eq('estado', filter === 'abiertas' ? 'abierta' : 'cerrada')
                         .order('id', { ascending: false })
                         .limit(limit);
+
+                    if (role !== 'owner' && role !== 'admin') {
+                        if (!sucursalesAsignadas || sucursalesAsignadas.length === 0) {
+                            return [];
+                        }
+                        baseQuery = baseQuery.in('sucursal', sucursalesAsignadas);
+                    }
 
                     if (filterSucursal) baseQuery = baseQuery.eq('sucursal', filterSucursal);
 
@@ -150,7 +164,11 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                 .eq('empresa_id', empresa.id)
                 .order('nombre');
             
-            return (data || []).map(s => s.nombre);
+            const allSucursales = (data || []).map(s => s.nombre);
+            if (role !== 'owner' && role !== 'admin') {
+                return allSucursales.filter(s => sucursalesAsignadas?.includes(s));
+            }
+            return allSucursales;
         },
         enabled: !!empresa
     });
