@@ -155,7 +155,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
     });
 
     const { data: sucursalesList = [] } = useQuery({
-        queryKey: ['sucursales_names', empresa?.id],
+        queryKey: ['sucursales_names', empresa?.id, role, sucursalesAsignadas],
         queryFn: async () => {
             if (!empresa) return [];
             const { data } = await supabase
@@ -180,29 +180,45 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     <Menu.Target>
                         <Group gap={12} style={{ cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
                             <Group gap={12} align="center">
-                                <img src={IconReceipt} alt="Cajas" width="40" height="40" style={{ display: 'block' }} />
-                                <Title order={2} size="h3" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} visibleFrom="sm">
-                                    {filterSucursal
-                                        ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
-                                        : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
-                                    }
-                                    {!fetching && cajas.length > 0 && (
-                                        <Text span fz="md" c="dimmed" ml="xs" fw={500}>
+                                <img src={IconReceipt} alt="Cajas" width="40" height="40" style={{ display: 'block', flexShrink: 0 }} />
+                                {/* Desktop */}
+                                <Stack gap={1} visibleFrom="sm" style={{ minWidth: 0 }}>
+                                    <Group gap={5} align="baseline" wrap="nowrap">
+                                        <Title order={3} size="h4" fw={700} c={filterSucursal ? 'blue.7' : undefined} lh={1.15}>
+                                            {filterSucursal ?? 'Cajas'}
+                                        </Title>
+                                        <Text
+                                            fz="sm" c="dimmed" fw={500}
+                                            style={{ visibility: (!fetching && cajas.length > 0) ? 'visible' : 'hidden' }}
+                                        >
                                             ({cajas.length})
                                         </Text>
-                                    )}
-                                </Title>
-                                <Title order={2} size="h5" fw={700} c={(filterSucursal || filter !== 'abiertas') ? 'blue.7' : undefined} hiddenFrom="sm">
-                                    {filterSucursal
-                                        ? (filter !== 'abiertas' ? `${filterSucursal} (${filter === 'abiertas' ? 'Abiertas' : 'Cerradas'})` : `${filterSucursal} (Abiertas)`)
-                                        : (filter === 'abiertas' ? 'Cajas Abiertas' : 'Cajas Cerradas')
-                                    }
-                                    {!fetching && cajas.length > 0 && (
-                                        <Text span fz="sm" c="dimmed" ml="xs" fw={500}>
+                                    </Group>
+                                    <Text fz="xs" fw={600} tt="uppercase" lh={1.1}
+                                        c={filter !== 'abiertas' ? 'orange.6' : 'teal.6'}
+                                    >
+                                        {filter === 'abiertas' ? 'Abiertas' : 'Cerradas'}
+                                    </Text>
+                                </Stack>
+                                {/* Mobile */}
+                                <Stack gap={1} hiddenFrom="sm" style={{ minWidth: 0 }}>
+                                    <Group gap={4} align="baseline" wrap="nowrap">
+                                        <Title order={4} size="h5" fw={700} c={filterSucursal ? 'blue.7' : undefined} lh={1.15}>
+                                            {filterSucursal ?? 'Cajas'}
+                                        </Title>
+                                        <Text
+                                            fz="xs" c="dimmed" fw={500}
+                                            style={{ visibility: (!fetching && cajas.length > 0) ? 'visible' : 'hidden' }}
+                                        >
                                             ({cajas.length})
                                         </Text>
-                                    )}
-                                </Title>
+                                    </Group>
+                                    <Text fz="xs" fw={600} tt="uppercase" lh={1.1}
+                                        c={filter !== 'abiertas' ? 'orange.6' : 'teal.6'}
+                                    >
+                                        {filter === 'abiertas' ? 'Abiertas' : 'Cerradas'}
+                                    </Text>
+                                </Stack>
                             </Group>
                             <IconChevronDown
                                 size={20}
