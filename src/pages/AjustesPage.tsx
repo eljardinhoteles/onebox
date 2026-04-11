@@ -139,6 +139,18 @@ export function AjustesPage() {
         enabled: activeTab === 'empresa' && !!empresa,
         placeholderData: keepPreviousData
     });
+    
+    // Invitaciones
+    const { data: invitaciones = [], isFetching: fetchingInvitaciones } = useQuery({
+        queryKey: ['settings_invitaciones', empresa?.id],
+        queryFn: async () => {
+            if (!empresa) return [];
+            const { data } = await supabase.from('invitaciones').select('*').eq('empresa_id', empresa.id).eq('status', 'pendiente').order('created_at', { ascending: false });
+            return data || [];
+        },
+        enabled: activeTab === 'empresa' && !!empresa,
+        placeholderData: keepPreviousData
+    });
 
     // Auditoría
     const { data: logs = [], isFetching: fetchingLogs } = useQuery({
@@ -179,7 +191,7 @@ export function AjustesPage() {
         placeholderData: keepPreviousData
     });
 
-    const isFetchingGeneral = fetchingMiembros || fetchingLogs || fetchingItems;
+    const isFetchingGeneral = fetchingMiembros || fetchingLogs || fetchingItems || fetchingInvitaciones;
 
     const handleToggleMemberStatus = async (memberId: string, currentStatus: boolean) => {
         if (!empresa?.id || (role !== 'owner' && role !== 'admin')) return;
@@ -197,6 +209,28 @@ export function AjustesPage() {
                 color: 'teal'
             });
             queryClient.invalidateQueries({ queryKey: ['settings_miembros'] });
+        } else {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' });
+        }
+        setState(prev => ({ ...prev, fetchingManual: false }));
+    };
+
+    const handleCancelInvitation = async (invId: string) => {
+        if (!empresa?.id || (role !== 'owner' && role !== 'admin')) return;
+
+        setState(prev => ({ ...prev, fetchingManual: true }));
+        const { error } = await supabase
+            .from('invitaciones')
+            .delete()
+            .eq('id', invId);
+
+        if (!error) {
+            notifications.show({
+                title: 'Invitación cancelada',
+                message: `La invitación ha sido eliminada`,
+                color: 'teal'
+            });
+            queryClient.invalidateQueries({ queryKey: ['settings_invitaciones'] });
         } else {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         }
@@ -325,6 +359,8 @@ export function AjustesPage() {
                                             // TODO: si un admin edita otro usuario
                                         }}
                                         onToggleMemberStatus={handleToggleMemberStatus}
+                                        invitaciones={invitaciones}
+                                        onCancelInvitation={handleCancelInvitation}
                                         onRefresh={refreshEmpresa}
                                     />
                                 </Stack>
@@ -599,6 +635,7 @@ export function AjustesPage() {
                     userId={user.id}
                     onSuccess={() => {
                         queryClient.invalidateQueries({ queryKey: ['settings_miembros'] });
+                        queryClient.invalidateQueries({ queryKey: ['settings_invitaciones'] });
                         closeInvite();
                     }}
                 />

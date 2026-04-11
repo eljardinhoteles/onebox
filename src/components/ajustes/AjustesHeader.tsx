@@ -1,5 +1,5 @@
-import { Group, Avatar, Title, Text, Paper, ActionIcon, Tooltip, Stack, UnstyledButton, Badge, Divider } from '@mantine/core';
-import { IconLogout } from '@tabler/icons-react';
+import { Group, Avatar, Title, Text, Paper, ActionIcon, Tooltip, Stack, UnstyledButton, Badge, Divider, Menu } from '@mantine/core';
+import { IconLogout, IconSelector, IconBuilding } from '@tabler/icons-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useEmpresa } from '../../context/EmpresaContext';
 
@@ -10,7 +10,7 @@ interface AjustesHeaderProps {
 }
 
 export function AjustesHeader({ user, empresa, onEditProfile }: AjustesHeaderProps) {
-    const { perfil } = useEmpresa();
+    const { perfil, availableEmpresas, switchEmpresa } = useEmpresa();
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -32,19 +32,58 @@ export function AjustesHeader({ user, empresa, onEditProfile }: AjustesHeaderPro
                         {empresa?.nombre?.[0] || 'E'}
                     </Avatar>
 
-                    <Stack gap={0} style={{ minWidth: 0 }}>
-                        <Title
-                            order={3}
-                            size="h4"
-                            fw={700}
-                            style={{
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}
-                        >
-                            {empresa?.nombre || 'Mi Empresa'}
-                        </Title>
+                    <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
+                        <Menu shadow="md" width={240} position="bottom-start" radius="md">
+                            <Menu.Target>
+                                <UnstyledButton 
+                                    style={{ 
+                                        padding: '2px 4px', 
+                                        borderRadius: '4px',
+                                        transition: 'background-color 0.2s ease',
+                                        cursor: availableEmpresas.length > 1 ? 'pointer' : 'default',
+                                        '&:hover': availableEmpresas.length > 1 ? { backgroundColor: 'var(--mantine-color-gray-0)' } : {}
+                                    }}
+                                >
+                                    <Group gap={6} wrap="nowrap">
+                                        <Title
+                                            order={3}
+                                            size="h4"
+                                            fw={700}
+                                            style={{
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
+                                            }}
+                                        >
+                                            {empresa?.nombre || 'Mi Empresa'}
+                                        </Title>
+                                        {availableEmpresas.length > 1 && <IconSelector size={16} color="var(--mantine-color-dimmed)" />}
+                                    </Group>
+                                </UnstyledButton>
+                            </Menu.Target>
+
+                            {availableEmpresas.length > 1 && (
+                                <Menu.Dropdown>
+                                    <Menu.Label>Mis Empresas ({availableEmpresas.length})</Menu.Label>
+                                    <Divider mb={5} />
+                                    {availableEmpresas.map((e) => (
+                                        <Menu.Item
+                                            key={e.id}
+                                            leftSection={<IconBuilding size={16} color={e.id === empresa.id ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-dimmed)'} />}
+                                            onClick={() => switchEmpresa(e.id)}
+                                            p="xs"
+                                        >
+                                            <Stack gap={0}>
+                                                <Text size="sm" fw={e.id === empresa.id ? 700 : 400} c={e.id === empresa.id ? 'blue' : 'dark'}>
+                                                    {e.nombre}
+                                                </Text>
+                                                <Text size="xs" c="dimmed" tt="capitalize" lts={0}>{e.role === 'owner' ? 'Propietario' : e.role === 'admin' ? 'Admin' : 'Operador'}</Text>
+                                            </Stack>
+                                        </Menu.Item>
+                                    ))}
+                                </Menu.Dropdown>
+                            )}
+                        </Menu>
                         <Group gap={6} wrap="nowrap">
                             <Badge variant="dot" color="blue" size="xs">VINCULADA</Badge>
                             <Text size="xs" c="dimmed" truncate visibleFrom="sm">

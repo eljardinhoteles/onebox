@@ -99,10 +99,10 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     // --- QUERIES ---
 
-    const { data: caja } = useQuery({
+    const { data: caja, isLoading: loadingCaja } = useQuery({
         queryKey: ['caja', cajaId],
         queryFn: async () => {
-            const { data, error } = await supabase.from('cajas').select('*').eq('id', cajaId).single();
+            const { data, error } = await supabase.from('v_cajas_con_saldo').select('*').eq('id', cajaId).single();
             if (error) throw error;
             return data;
         },
@@ -340,7 +340,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         openClosingModal(false);
     };
 
-    const isGlobalLoading = !caja && (loadingTrans || empresaLoading);
+    const isGlobalLoading = loadingCaja || empresaLoading;
 
     if (!caja && !isGlobalLoading) return <AppLoader py={100} message="No se encontró la información de la caja..." />;
 

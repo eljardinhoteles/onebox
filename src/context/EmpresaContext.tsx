@@ -35,6 +35,8 @@ interface EmpresaContextType {
     /** Refresca la empresa (útil después de crear o unirse a una). */
     configs: Record<string, string>;
     sucursalesAsignadas: string[]; // <-- Nueva propiedad añadida
+    availableEmpresas: { id: string, nombre: string, role: string }[];
+    switchEmpresa: (id: string) => Promise<void>;
     refresh: () => Promise<void>;
 }
 
@@ -49,6 +51,8 @@ const EmpresaContext = createContext<EmpresaContextType>({
     isReadOnly: false,
     subscriptionLoading: true,
     sucursalesAsignadas: [], // <-- Default para contexto inicial
+    availableEmpresas: [],
+    switchEmpresa: async () => { },
     refreshSubscription: async () => { },
     refresh: async () => { },
 });
@@ -61,6 +65,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     const [configs, setConfigs] = useState<Record<string, string>>({});
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [sucursalesAsignadas, setSucursalesAsignadas] = useState<string[]>([]); // <-- Estado para sucursales asignadas
+    const [availableEmpresas, setAvailableEmpresas] = useState<{ id: string, nombre: string, role: string }[]>([]);
 
     // Eliminamos el hook useSubscription ya que ahora traemos todo unificado en fetchEmpresa
 
@@ -135,13 +140,33 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
 
             // 2. Membresía, Empresa y Suscripción
             const membershipRaw = profileData.membresia;
-            const membership = Array.isArray(membershipRaw) ? membershipRaw[0] : membershipRaw;
+            const memberships = Array.isArray(membershipRaw) ? membershipRaw : (membershipRaw ? [membershipRaw] : []);
+            
+            // Mapear todas las empresas disponibles
+            const availables = memberships.map((m: any) => {
+                const e = Array.isArray(m.empresas) ? m.empresas[0] : m.empresas;
+                return { id: e?.id, nombre: e?.nombre, role: m.role };
+            }).filter(e => e.id);
+            setAvailableEmpresas(availables);
+
+            // Determinar empresa activa
+            const storedId = localStorage.getItem('active_empresa_id');
+            let membership = memberships.find((m: any) => {
+                const e = Array.isArray(m.empresas) ? m.empresas[0] : m.empresas;
+                return e?.id === storedId;
+            });
+
+            // Si no hay guardada o no existe esa membresía, tomar la primera
+            if (!membership && memberships.length > 0) {
+                membership = memberships[0];
+            }
 
             if (membership) {
                 const empresaObj = Array.isArray(membership.empresas) ? membership.empresas[0] : membership.empresas;
                 if (empresaObj) {
                     setEmpresa(empresaObj);
                     setRole(membership.role as EmpresaRole);
+                    localStorage.setItem('active_empresa_id', empresaObj.id);
 
                     // Configuración
                     const configMap: Record<string, string> = {};
@@ -201,11 +226,16 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
         await fetchEmpresa();
     };
 
+    const switchEmpresa = async (id: string) => {
+        localStorage.setItem('active_empresa_id', id);
+        await fetchEmpresa();
+    };
+
     return (
         <EmpresaContext.Provider value={{
             empresa, role, perfil, loading, configs, isSuperAdmin,
             subscription, isReadOnly, subscriptionLoading, refreshSubscription,
-            sucursalesAsignadas, // <-- Proveer el valor
+            sucursalesAsignadas, availableEmpresas, switchEmpresa,
             refresh: fetchEmpresa
         }}>
             {children}

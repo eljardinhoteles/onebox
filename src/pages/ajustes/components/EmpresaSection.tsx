@@ -1,5 +1,5 @@
-import { Stack, Card, Group, Avatar, Text, ActionIcon, TextInput, Button, Badge, CopyButton, Tooltip, Alert, Grid } from '@mantine/core';
-import { IconBuilding, IconEdit, IconDeviceFloppy, IconUserPlus, IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
+import { Stack, Card, Group, Avatar, Text, ActionIcon, TextInput, Button, Badge, CopyButton, Tooltip, Alert, Grid, Divider, Table } from '@mantine/core';
+import { IconBuilding, IconEdit, IconDeviceFloppy, IconUserPlus, IconCheck, IconCopy, IconInfoCircle, IconX, IconMail, IconLink } from '@tabler/icons-react';
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { notifications } from '@mantine/notifications';
@@ -22,6 +22,13 @@ interface Member {
     };
 }
 
+interface Invitation {
+    id: string;
+    email: string;
+    role: string;
+    created_at: string;
+}
+
 interface EmpresaSectionProps {
     empresa: Empresa;
     role: string;
@@ -30,6 +37,8 @@ interface EmpresaSectionProps {
     onInviteClick: () => void;
     onEditProfile: (member: Member) => void;
     onToggleMemberStatus: (memberId: string, currentStatus: boolean) => void;
+    invitaciones: Invitation[];
+    onCancelInvitation: (id: string) => void;
     onRefresh: () => void;
     inviteLink?: string;
 }
@@ -42,6 +51,8 @@ export function EmpresaSection({
     onInviteClick,
     onEditProfile,
     onToggleMemberStatus,
+    invitaciones,
+    onCancelInvitation,
     onRefresh,
     inviteLink
 }: EmpresaSectionProps) {
@@ -192,6 +203,67 @@ export function EmpresaSection({
                         onEditProfile={onEditProfile}
                         onToggleStatus={onToggleMemberStatus}
                     />
+
+                    {invitaciones.length > 0 && (
+                        <>
+                            <Divider my="sm" label="Invitaciones Pendientes" labelPosition="center" />
+                            <Table verticalSpacing="sm">
+                                <Table.Tbody>
+                                    {invitaciones.map((inv) => (
+                                        <Table.Tr key={inv.id}>
+                                            <Table.Td>
+                                                <Group gap="sm">
+                                                    <Avatar size="sm" radius="xl" color="orange" variant="light">
+                                                        <IconMail size={16} />
+                                                    </Avatar>
+                                                    <Stack gap={0}>
+                                                        <Text size="sm" fw={500}>{inv.email}</Text>
+                                                        <Text size="xs" c="dimmed">Enviada {dayjs(inv.created_at).format('DD/MM/YYYY')}</Text>
+                                                    </Stack>
+                                                </Group>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Badge color="gray" variant="light" size="sm">
+                                                    {inv.role === 'owner' ? 'Propietario' : inv.role === 'admin' ? 'Admin' : 'Operador'}
+                                                </Badge>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Badge color="orange" variant="outline" size="sm">Pendiente</Badge>
+                                            </Table.Td>
+                                            <Table.Td w={150}>
+                                                <Group justify="flex-end" gap="xs">
+                                                    <CopyButton value={`${window.location.origin}?invite=${inv.id}`}>
+                                                        {({ copied, copy }) => (
+                                                            <Tooltip label={copied ? 'Copiado' : 'Copiar enlace personal'}>
+                                                                <ActionIcon 
+                                                                    variant="light" 
+                                                                    color={copied ? 'teal' : 'blue'} 
+                                                                    onClick={copy}
+                                                                >
+                                                                    {copied ? <IconCheck size={16} /> : <IconLink size={16} />}
+                                                                </ActionIcon>
+                                                            </Tooltip>
+                                                        )}
+                                                    </CopyButton>
+                                                    {(role === 'owner' || role === 'admin') && (
+                                                        <Tooltip label="Cancelar invitación">
+                                                            <ActionIcon 
+                                                                variant="subtle" 
+                                                                color="red" 
+                                                                onClick={() => onCancelInvitation(inv.id)}
+                                                            >
+                                                                <IconX size={16} />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    )}
+                                                </Group>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ))}
+                                </Table.Tbody>
+                            </Table>
+                        </>
+                    )}
                 </Stack>
             </Card>
 

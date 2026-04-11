@@ -257,7 +257,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                                 icon: <IconLock size={16} />,
                             });
                         }
-                        onSelectCaja(caja.numero ?? caja.id);
+                        onSelectCaja(caja.id);
                     }}
                 >
                     {caja.estado === 'abierta' && !isReadOnly ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}

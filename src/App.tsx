@@ -1,7 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
 
 import { AppLoader } from './components/ui/AppLoader'
-import { useQuery } from '@tanstack/react-query'
 import { supabase } from './lib/supabaseClient'
 import type { Session } from '@supabase/supabase-js'
 import { AuthPage } from './components/AuthPage'
@@ -23,8 +22,6 @@ import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } f
 import { useEmpresa } from './context/EmpresaContext';
 import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
-import { Stack, Paper, Skeleton, Group } from '@mantine/core';
-import { TableSkeleton } from './components/ui/TableSkeleton';
 
 function CajasRoute({ opened, close }: { opened: boolean, close: () => void }) {
   const navigate = useNavigate();
@@ -32,50 +29,13 @@ function CajasRoute({ opened, close }: { opened: boolean, close: () => void }) {
 }
 
 function CajaDetalleRoute({ setDetailOnAdd }: { setDetailOnAdd: (fn: (() => void) | undefined) => void }) {
-  const { id } = useParams(); // URL parameter is actually "numero"
+  const { id } = useParams();
   const navigate = useNavigate();
+  const cajaId = parseInt(id!);
 
-  const numero = parseInt(id!);
+  if (isNaN(cajaId)) return <AppLoader py={100} message="ID de caja inválido" withText={false} />;
 
-  const { data: caja, isLoading, isError } = useQuery({
-    queryKey: ['cajaByNumero', numero],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cajas')
-        .select('id')
-        .eq('numero', numero)
-        // si hay duplicados (varias sucursales), priorizar la que está abierta, o la última
-        .order('estado', { ascending: true })
-        .order('id', { ascending: false })
-        .limit(1)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    retry: false
-  });
-
-  if (isLoading) {
-    return (
-      <Stack gap="md" py="xl">
-        <Paper withBorder p="xl" radius="lg">
-          <Skeleton height={30} width={200} radius="xl" />
-        </Paper>
-        <Group grow>
-          <Skeleton height={140} radius="lg" />
-          <Skeleton height={140} radius="lg" />
-          <Skeleton height={140} radius="lg" />
-          <Skeleton height={140} radius="lg" />
-        </Group>
-        <Paper withBorder p="md" radius="lg">
-          <TableSkeleton rows={15} cols={8} />
-        </Paper>
-      </Stack>
-    );
-  }
-  if (isError || !caja) return <AppLoader py={100} message="Caja no encontrada" withText={false} />;
-
-  return <CajaDetalle cajaId={caja.id} setOnAdd={setDetailOnAdd} onBack={() => navigate('/cajas')} />;
+  return <CajaDetalle cajaId={cajaId} setOnAdd={setDetailOnAdd} onBack={() => navigate('/cajas')} />;
 }
 
 export default function App() {
