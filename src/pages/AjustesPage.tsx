@@ -149,7 +149,9 @@ export function AjustesPage() {
             return data || [];
         },
         enabled: activeTab === 'empresa' && !!empresa,
-        placeholderData: keepPreviousData
+        placeholderData: keepPreviousData,
+        staleTime: 0,
+        refetchInterval: 15000, // Refrescar cada 15 segundos para detectar invitaciones aceptadas
     });
 
     // Auditoría
