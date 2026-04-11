@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Container,
     Title,
@@ -36,6 +37,7 @@ import logo from '../assets/Icon.svg';
 import successImage from '../assets/onboarding_success_image.png';
 
 export function OnboardingPage() {
+    const navigate = useNavigate();
     const { refresh: refreshEmpresa, perfil } = useEmpresa();
     const { soporte } = usePlatformConfig();
     const [state, setState] = useState({
@@ -134,8 +136,14 @@ export function OnboardingPage() {
                 .update({ status: 'aceptada', accepted_at: new Date().toISOString() })
                 .eq('id', inv.id);
 
+            // Establecer como empresa activa para el contexto
+            localStorage.setItem('active_empresa_id', inv.empresa_id);
+
             notifications.show({ title: '¡Bienvenido!', message: 'Te has unido a la empresa.', color: 'teal' });
             await refreshEmpresa();
+            
+            // Limpiar la URL y redirigir al dashboard de la nueva empresa
+            navigate('/', { replace: true });
         } catch (error: any) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         } finally {
