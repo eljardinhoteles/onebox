@@ -128,7 +128,7 @@ export function OnboardingPage() {
 
             // Llamar a la función segura que bypasea RLS
             const { error: rpcError } = await supabase.rpc('aceptar_invitacion', {
-                p_invitacion_id: inv.id
+                p_invitacion_id: Number(inv.id)
             });
             if (rpcError) throw rpcError;
 
