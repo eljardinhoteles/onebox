@@ -349,38 +349,42 @@ export function OnboardingPage() {
                                     <Text fw={700} size="sm" c="dimmed" tt="uppercase" lts={1}>Tus Empresas</Text>
                                     <Stack gap="xs">
                                         {availableEmpresas.map((e) => (
-                                            <Paper
+                                            <UnstyledButton
                                                 key={e.id}
-                                                withBorder
-                                                p="md"
-                                                radius="md"
-                                                component={UnstyledButton}
                                                 onClick={() => {
                                                     switchEmpresa(e.id);
                                                     navigate('/', { replace: true });
                                                 }}
-                                                style={{
-                                                    transition: 'all 0.2s ease',
-                                                    '&:hover': {
-                                                        borderColor: 'var(--mantine-color-blue-4)',
-                                                        backgroundColor: 'var(--mantine-color-blue-0)',
-                                                        transform: 'translateY(-2px)'
-                                                    }
-                                                }}
+                                                w="100%"
+                                                style={{ transition: 'all 0.2s ease' }}
                                             >
-                                                <Group justify="space-between">
-                                                    <Group gap="md">
-                                                        <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                                                            <IconBuilding size={20} />
-                                                        </ThemeIcon>
-                                                        <Stack gap={0}>
-                                                            <Text fw={700} size="sm">{e.nombre}</Text>
-                                                            <Text size="xs" c="dimmed" tt="capitalize">{e.role === 'owner' ? 'Propietario' : e.role === 'admin' ? 'Administrador' : 'Operador'}</Text>
-                                                        </Stack>
+                                                <Paper
+                                                    withBorder
+                                                    p="md"
+                                                    radius="md"
+                                                    style={{
+                                                        transition: 'all 0.2s ease',
+                                                        '&:hover': {
+                                                            borderColor: 'var(--mantine-color-blue-4)',
+                                                            backgroundColor: 'var(--mantine-color-blue-0)',
+                                                            transform: 'translateY(-2px)'
+                                                        }
+                                                    }}
+                                                >
+                                                    <Group justify="space-between">
+                                                        <Group gap="md">
+                                                            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                                                                <IconBuilding size={20} />
+                                                            </ThemeIcon>
+                                                            <Stack gap={0}>
+                                                                <Text fw={700} size="sm">{e.nombre}</Text>
+                                                                <Text size="xs" c="dimmed" tt="capitalize">{e.role === 'owner' ? 'Propietario' : e.role === 'admin' ? 'Administrador' : 'Operador'}</Text>
+                                                            </Stack>
+                                                        </Group>
+                                                        <IconChevronRight size={18} color="var(--mantine-color-gray-4)" />
                                                     </Group>
-                                                    <IconChevronRight size={18} color="var(--mantine-color-gray-4)" />
-                                                </Group>
-                                            </Paper>
+                                                </Paper>
+                                            </UnstyledButton>
                                         ))}
                                     </Stack>
                                 </Stack>
