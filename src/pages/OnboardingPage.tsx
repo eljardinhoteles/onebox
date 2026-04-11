@@ -121,11 +121,12 @@ export function OnboardingPage() {
 
             const { error: joinError } = await supabase
                 .from('empresa_usuarios')
-                .insert({
+                .upsert({
                     empresa_id: inv.empresa_id,
                     user_id: user.id,
                     role: inv.role
-                });
+                }, { onConflict: 'empresa_id,user_id' });
+            
             if (joinError) throw joinError;
 
             await supabase
