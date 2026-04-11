@@ -250,15 +250,26 @@ export function AuthPage() {
 
                         {inviteData && (
                             <Card withBorder p="lg" radius="md" bg="blue.0" style={{ borderColor: 'var(--mantine-color-blue-2)' }}>
-                                <Group gap="md">
-                                    <Avatar size="md" color="blue" radius="xl" variant="filled">
-                                        <IconBuilding size={20} />
-                                    </Avatar>
-                                    <Stack gap={0}>
-                                        <Text fw={800} size="sm">{inviteData.empresas?.nombre}</Text>
-                                        <Text size="xs" c="dimmed">Perfil asignado: {inviteData.role}</Text>
-                                    </Stack>
-                                </Group>
+                                <Stack gap="xs">
+                                    <Group gap="md">
+                                        <Avatar size="md" color="blue" radius="xl" variant="filled">
+                                            <IconBuilding size={20} />
+                                        </Avatar>
+                                        <Stack gap={0}>
+                                            <Text fw={800} size="sm">{inviteData.empresas?.nombre}</Text>
+                                            <Text size="xs" c="dimmed">Perfil asignado: {inviteData.role}</Text>
+                                        </Stack>
+                                    </Group>
+                                    {type === 'register' ? (
+                                        <Text size="xs" c="dimmed" mt={5}>
+                                            ¿Ya tienes una cuenta? <Anchor component="button" fw={700} onClick={() => setType('login')}>Inicia sesión aquí</Anchor> para aceptar la invitación.
+                                        </Text>
+                                    ) : (
+                                        <Text size="xs" c="dimmed" mt={5}>
+                                            Inicia sesión con tu cuenta actual para unirte a este equipo.
+                                        </Text>
+                                    )}
+                                </Stack>
                             </Card>
                         )}
 
@@ -266,25 +277,19 @@ export function AuthPage() {
                             <Stack gap="md">
                                 {type !== 'reset' && (
                                     <>
-                                        {!inviteData ? (
-                                            <TextInput
-                                                label="Correo Electrónico"
-                                                placeholder="usuario@correo.com"
-                                                required
-                                                size="md"
-                                                radius="md"
-                                                value={email}
-                                                onChange={(event) => setEmail(event.currentTarget.value)}
-                                            />
-                                        ) : (
-                                            <TextInput
-                                                label="Correo de Invitación"
-                                                value={inviteData.email}
-                                                disabled
-                                                size="md"
-                                                radius="md"
-                                                variant="filled"
-                                            />
+                                        <TextInput
+                                            label="Correo Electrónico"
+                                            placeholder="usuario@correo.com"
+                                            required
+                                            size="md"
+                                            radius="md"
+                                            value={email}
+                                            onChange={(event) => setEmail(event.currentTarget.value)}
+                                        />
+                                        {inviteData && email !== inviteData.email && (
+                                            <Text size="xs" color="orange" fw={500}>
+                                                Nota: Esta invitación fue enviada a {inviteData.email}
+                                            </Text>
                                         )}
                                     </>
                                 )}
@@ -360,11 +365,9 @@ export function AuthPage() {
                                     color="blue"
                                     style={{ height: 48 }}
                                 >
-                                    {inviteData ? 'Completar Registro' : (
-                                        type === 'login' ? 'Iniciar Sesión' :
-                                        type === 'register' ? 'Registrarse' :
-                                        type === 'forgot' ? 'Enviar Enlace' : 'Actualizar Contraseña'
-                                    )}
+                                    {type === 'login' ? (inviteData ? 'Iniciar Sesión y Unirme' : 'Iniciar Sesión') :
+                                     type === 'register' ? (inviteData ? 'Completar Registro y Unirme' : 'Registrarse') :
+                                     type === 'forgot' ? 'Enviar Enlace' : 'Actualizar Contraseña'}
                                 </Button>
                             </Stack>
                         </form>

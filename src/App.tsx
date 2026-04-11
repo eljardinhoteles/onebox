@@ -148,7 +148,7 @@ export default function App() {
         >
           <AuthPage />
         </motion.div>
-      ) : !empresaLoading && !empresa && !isSuperAdmin ? (
+      ) : !empresaLoading && (!empresa || hasAuthParams) && !isSuperAdmin ? (
         <motion.div
           key="onboarding"
           initial={{ opacity: 0, x: 20 }}
@@ -172,7 +172,7 @@ export default function App() {
     </AnimatePresence>
   );
 
-  if (!session || (session && !empresa && !isSuperAdmin)) {
+  if (!session || (session && (!empresa || hasAuthParams) && !isSuperAdmin)) {
     return (
       <MotionConfig reducedMotion="never">
         {authToOnboardingTransition}
