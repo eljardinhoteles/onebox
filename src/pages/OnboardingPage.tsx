@@ -118,7 +118,7 @@ export function OnboardingPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 0. Asegurar que el usuario tenga un perfil para evitar error 500 de foreign key
+            // Asegurar perfil del usuario
             await supabase.from('perfiles').upsert({
                 id: user.id,
                 email: user.email,
@@ -126,28 +126,17 @@ export function OnboardingPage() {
                 apellido: user.user_metadata?.apellido || ''
             }, { onConflict: 'id' });
 
-            const { error: joinError } = await supabase
-                .from('empresa_usuarios')
-                .upsert({
-                    empresa_id: inv.empresa_id,
-                    user_id: user.id,
-                    role: inv.role
-                }, { onConflict: 'empresa_id,user_id' });
-            
-            if (joinError) throw joinError;
+            // Llamar a la función segura que bypasea RLS
+            const { error: rpcError } = await supabase.rpc('aceptar_invitacion', {
+                p_invitacion_id: inv.id
+            });
+            if (rpcError) throw rpcError;
 
-            await supabase
-                .from('invitaciones')
-                .update({ status: 'aceptada', accepted_at: new Date().toISOString() })
-                .eq('id', inv.id);
-
-            // Establecer como empresa activa para el contexto
+            // Establecer como empresa activa
             localStorage.setItem('active_empresa_id', inv.empresa_id);
 
             notifications.show({ title: '¡Bienvenido!', message: 'Te has unido a la empresa.', color: 'teal' });
             await refreshEmpresa();
-            
-            // Limpiar la URL y redirigir al dashboard de la nueva empresa
             navigate('/', { replace: true });
         } catch (error: any) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
