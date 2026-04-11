@@ -54,7 +54,10 @@ export default function App() {
   const isCajas = location.pathname.startsWith('/cajas');
   const isCajaDetail = location.pathname.match(/^\/cajas\/\d+$/);
   const isProveedores = location.pathname.startsWith('/proveedores');
-  const isLanding = location.pathname === '/landing' || location.pathname === '/';
+  
+  const queryParams = new URLSearchParams(location.search);
+  const hasAuthParams = queryParams.has('invite') || queryParams.has('mode');
+  const isLanding = (location.pathname === '/landing' || location.pathname === '/') && !hasAuthParams;
 
   useHotkeys([
     ['alt + 1', () => navigate('/cajas')],
