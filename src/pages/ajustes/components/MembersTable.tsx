@@ -1,5 +1,5 @@
-import { Table, Group, Avatar, Stack, Text, Badge, ActionIcon, Tooltip, MultiSelect, Modal, Button } from '@mantine/core';
-import { IconUser, IconEdit, IconUserMinus, IconUserCheck, IconBuilding, IconDeviceFloppy } from '@tabler/icons-react';
+import { Table, Group, Avatar, Stack, Text, Badge, ActionIcon, Tooltip, MultiSelect, Modal, Button, Select } from '@mantine/core';
+import { IconUser, IconEdit, IconUserMinus, IconUserCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useEmpresa } from '../../../context/EmpresaContext';
@@ -37,6 +37,7 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
 
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [selectedSucursales, setSelectedSucursales] = useState<string[]>([]);
+    const [selectedRole, setSelectedRole] = useState<string>('');
     const [saving, setSaving] = useState(false);
 
     const { data: sucursalesList = [] } = useQuery({
@@ -49,19 +50,22 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
         enabled: !!empresa && isPrivileged
     });
 
-    const handleSaveSucursales = async () => {
+    const handleSaveMember = async () => {
         if (!editingMember) return;
         setSaving(true);
         const { error } = await supabase
             .from('empresa_usuarios')
-            .update({ sucursales: selectedSucursales })
+            .update({ 
+                sucursales: selectedSucursales,
+                role: selectedRole
+            })
             .eq('id', editingMember.id);
         
         setSaving(false);
         if (error) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         } else {
-            notifications.show({ title: 'Guardado', message: 'Sucursales asignadas actualizadas', color: 'teal' });
+            notifications.show({ title: 'Guardado', message: 'Datos del miembro actualizados', color: 'teal' });
             setEditingMember(null);
             queryClient.invalidateQueries({ queryKey: ['settings_miembros'] });
         }
@@ -132,20 +136,23 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
                         </Table.Td>
                         <Table.Td>
                             <Group gap="xs" justify="flex-end">
-                                {isPrivileged && m.role === 'operador' && (
-                                    <Tooltip label="Limitar sucursales asignadas">
-                                        <ActionIcon
-                                            variant="light"
-                                            color="blue"
-                                            size="sm"
-                                            onClick={() => {
-                                                setEditingMember(m);
-                                                setSelectedSucursales(m.sucursales || []);
-                                            }}
-                                        >
-                                            <IconBuilding size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                {isPrivileged && m.user_id !== currentUserId && m.role !== 'owner' && (
+                                    (currentUserRole === 'owner' || m.role === 'operador') && (
+                                        <Tooltip label="Editar rol y sucursales">
+                                            <ActionIcon
+                                                variant="light"
+                                                color="blue"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setEditingMember(m);
+                                                    setSelectedSucursales(m.sucursales || []);
+                                                    setSelectedRole(m.role);
+                                                }}
+                                            >
+                                                <IconEdit size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    )
                                 )}
                                 {m.user_id === currentUserId && (
                                     <Tooltip label="Editar mi perfil">
@@ -181,7 +188,7 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
         <Modal 
             opened={!!editingMember} 
             onClose={() => setEditingMember(null)} 
-            title="Asignar Sucursales"
+            title="Editar Miembro"
             centered
         >
             <Stack gap="md">
@@ -189,6 +196,19 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
                     Seleccione las sucursales a las que <b>{editingMember?.perfiles?.nombre}</b> tendrá acceso para facturar y abrir cajas.
                 </Text>
                 
+                <Select
+                    label="Rol en la empresa"
+                    placeholder="Seleccione rol"
+                    data={[
+                        { value: 'admin', label: 'Administrador' },
+                        { value: 'operador', label: 'Operador' },
+                    ]}
+                    value={selectedRole}
+                    onChange={(v) => setSelectedRole(v || '')}
+                    disabled={currentUserRole !== 'owner' && editingMember?.role === 'admin'}
+                    mb="xs"
+                />
+
                 <MultiSelect
                     label="Sucursales asignadas"
                     placeholder="Seleccione una o más"
@@ -197,6 +217,8 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
                     onChange={setSelectedSucursales}
                     searchable
                     clearable
+                    disabled={selectedRole === 'admin'} // Los admins usualmente tienen acceso global
+                    description={selectedRole === 'admin' ? "Los administradores tienen acceso a todas las sucursales" : undefined}
                     nothingFoundMessage="No hay sucursales creadas aún"
                     classNames={{
                         input: 'bg-white'
@@ -207,10 +229,10 @@ export function MembersTable({ members, currentUserId, currentUserRole, onEditPr
                     <Button variant="default" onClick={() => setEditingMember(null)}>Cancelar</Button>
                     <Button 
                         loading={saving} 
-                        onClick={handleSaveSucursales}
+                        onClick={handleSaveMember}
                         leftSection={<IconDeviceFloppy size={16} />}
                     >
-                        Guardar Accesos
+                        Guardar Cambios
                     </Button>
                 </Group>
             </Stack>
