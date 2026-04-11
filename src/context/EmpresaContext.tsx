@@ -156,10 +156,8 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 return e?.id === storedId;
             });
 
-            // Si no hay guardada o no existe esa membresía, tomar la primera
-            if (!membership && memberships.length > 0) {
-                membership = memberships[0];
-            }
+            // ELIMINADO: Ya no auto-selecciona la primera si no hay guardada. 
+            // Esto permite mostrar el "Selector de Empresa" en OnboardingPage.
 
             if (membership) {
                 const empresaObj = Array.isArray(membership.empresas) ? membership.empresas[0] : membership.empresas;

@@ -13,6 +13,9 @@ import {
     Image,
     Center,
     Badge,
+    Paper,
+    ThemeIcon,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconPlus,
@@ -22,6 +25,8 @@ import {
     IconCheck,
     IconBrandWhatsapp,
     IconMail,
+    IconBuilding,
+    IconChevronRight,
 } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
@@ -38,7 +43,7 @@ import successImage from '../assets/onboarding_success_image.png';
 
 export function OnboardingPage() {
     const navigate = useNavigate();
-    const { refresh: refreshEmpresa, perfil } = useEmpresa();
+    const { refresh: refreshEmpresa, perfil, availableEmpresas, switchEmpresa } = useEmpresa();
     const { soporte } = usePlatformConfig();
     const [state, setState] = useState({
         invitations: [] as any[],
@@ -339,11 +344,56 @@ export function OnboardingPage() {
                                 </Text>
                             </Box>
 
-                            <InvitationSection invitations={invitations} handleAccept={handleAcceptInvitation} />
+                            {availableEmpresas.length > 0 && (
+                                <Stack gap="md">
+                                    <Text fw={700} size="sm" c="dimmed" tt="uppercase" lts={1}>Tus Empresas</Text>
+                                    <Stack gap="xs">
+                                        {availableEmpresas.map((e) => (
+                                            <Paper
+                                                key={e.id}
+                                                withBorder
+                                                p="md"
+                                                radius="md"
+                                                component={UnstyledButton}
+                                                onClick={() => {
+                                                    switchEmpresa(e.id);
+                                                    navigate('/', { replace: true });
+                                                }}
+                                                style={{
+                                                    transition: 'all 0.2s ease',
+                                                    '&:hover': {
+                                                        borderColor: 'var(--mantine-color-blue-4)',
+                                                        backgroundColor: 'var(--mantine-color-blue-0)',
+                                                        transform: 'translateY(-2px)'
+                                                    }
+                                                }}
+                                            >
+                                                <Group justify="space-between">
+                                                    <Group gap="md">
+                                                        <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                                                            <IconBuilding size={20} />
+                                                        </ThemeIcon>
+                                                        <Stack gap={0}>
+                                                            <Text fw={700} size="sm">{e.nombre}</Text>
+                                                            <Text size="xs" c="dimmed" tt="capitalize">{e.role === 'owner' ? 'Propietario' : e.role === 'admin' ? 'Administrador' : 'Operador'}</Text>
+                                                        </Stack>
+                                                    </Group>
+                                                    <IconChevronRight size={18} color="var(--mantine-color-gray-4)" />
+                                                </Group>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                </Stack>
+                            )}
 
                             {invitations.length > 0 && (
-                                <Divider label="O también puedes" labelPosition="center" />
+                                <Stack gap="md">
+                                    <Divider label="Invitaciones Pendientes" labelPosition="center" />
+                                    <InvitationSection invitations={invitations} handleAccept={handleAcceptInvitation} />
+                                </Stack>
                             )}
+
+                            <Divider label="O también puedes" labelPosition="center" />
 
                             <Button
                                 variant="light"
