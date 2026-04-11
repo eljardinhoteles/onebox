@@ -138,15 +138,30 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
             });
             setIsSuperAdmin(profileData.is_superadmin === true);
 
-            // 2. Membresía, Empresa y Suscripción
-            const membershipRaw = profileData.membresia;
-            const memberships = Array.isArray(membershipRaw) ? membershipRaw : (membershipRaw ? [membershipRaw] : []);
-            
+            // 2. Obtener TODAS las membresías directamente (más confiable post-invitación)
+            const { data: membershipsData, error: membError } = await supabase
+                .from('empresa_usuarios')
+                .select(`
+                    role,
+                    empresa_id,
+                    sucursales,
+                    empresas (
+                        *,
+                        configuracion ( clave, valor ),
+                        suscripciones (*)
+                    )
+                `)
+                .eq('user_id', profileData.id);
+
+            if (membError) throw membError;
+
+            const memberships = membershipsData || [];
+
             // Mapear todas las empresas disponibles
             const availables = memberships.map((m: any) => {
                 const e = Array.isArray(m.empresas) ? m.empresas[0] : m.empresas;
                 return { id: e?.id, nombre: e?.nombre, role: m.role };
-            }).filter(e => e.id);
+            }).filter((e: any) => e.id);
             setAvailableEmpresas(availables);
 
             // Determinar empresa activa
