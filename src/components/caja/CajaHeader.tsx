@@ -75,7 +75,7 @@ export function CajaHeader({
                     <Text size="sm">
                         Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo en caja.
                         <br />
-                        <Text span size="xs" c="dimmed">Fondo inicial: ${caja?.monto_inicial?.toLocaleString()} · Dep\u00f3sitos realizados: ${totalDepositos.toLocaleString()}</Text>
+                        <Text span size="xs" c="dimmed">Fondo inicial: ${caja?.monto_inicial?.toLocaleString()} · Depósitos realizados: ${totalDepositos.toLocaleString()}</Text>
                     </Text>
                 </Alert>
             )}
