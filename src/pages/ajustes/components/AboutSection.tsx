@@ -490,8 +490,8 @@ export function AboutSection() {
                             </Stack>
                         </Group>
                         <Stack gap={2} align="flex-end" visibleFrom="xs">
-                            <Badge variant="light" color="blue" size="sm">Versión 1.5.40</Badge>
-                            <Text size="xs" c="dimmed">Actualización: Marzo 2026</Text>
+                            <Badge variant="light" color="blue" size="sm">Versión 1.6.0</Badge>
+                            <Text size="xs" c="dimmed">Actualización: Abril 2026</Text>
                         </Stack>
                     </Group>
 

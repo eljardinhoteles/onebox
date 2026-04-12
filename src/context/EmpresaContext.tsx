@@ -100,22 +100,10 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // PETICIÓN ÚNICA: Perfil, membresía, empresa, configuración Y suscripción en un solo viaje
+            // 1. Obtener perfil básico (sin JOINS complejos para evitar recursión RLS)
             const { data: profileData, error: profileError } = await supabase
                 .from('perfiles')
-                .select(`
-                    *,
-                    membresia:empresa_usuarios (
-                        role,
-                        empresa_id,
-                        sucursales,
-                        empresas (
-                            *,
-                            configuracion ( clave, valor ),
-                            suscripciones (*)
-                        )
-                    )
-                `)
+                .select('*')
                 .eq('id', user.id)
                 .maybeSingle();
 
@@ -130,7 +118,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // 1. Perfil y SuperAdmin
+            // Guardar datos básicos del perfil
             setPerfil({
                 id: profileData.id,
                 nombre: profileData.nombre,
