@@ -177,12 +177,12 @@ export function TransactionItemList({ form, readOnly, itemSuggestions, recurring
     return (
         <Stack gap="xs">
             {!isMobile && form.values.items.length > 0 && (
-                <Group align="center" gap="xs" px={4} mb={-4} translate="no">
-                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ flex: 1 }}>Producto</Text>
-                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={70}>Cant.</Text>
-                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85}>P. Unit.</Text>
-                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85} ta="right">Subtotal</Text>
-                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={40} ta="center">IVA</Text>
+                <Group align="center" gap="xs" px={4} mb={-4}>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ flex: 1 }} className="notranslate">Producto</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={70} className="notranslate">Cant.</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85} className="notranslate">P. Unit.</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85} ta="right" className="notranslate">Subtotal</Text>
+                    <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={40} ta="center" className="notranslate">IVA</Text>
                     {!readOnly && <div style={{ width: 28 }} />}
                 </Group>
             )}
