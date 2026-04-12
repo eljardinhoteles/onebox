@@ -177,7 +177,7 @@ export function TransactionItemList({ form, readOnly, itemSuggestions, recurring
     return (
         <Stack gap="xs">
             {!isMobile && form.values.items.length > 0 && (
-                <Group align="center" gap="xs" px={4} mb={-4}>
+                <Group align="center" gap="xs" px={4} mb={-4} translate="no">
                     <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ flex: 1 }}>Producto</Text>
                     <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={70}>Cant.</Text>
                     <Text size="xs" fw={700} tt="uppercase" c="dimmed" w={85}>P. Unit.</Text>
