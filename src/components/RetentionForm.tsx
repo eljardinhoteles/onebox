@@ -106,7 +106,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
                 .from('retenciones')
                 .upsert({
                     transaccion_id: transactionId,
-                    fecha_retencion: values.fecha_retencion.toISOString().split('T')[0],
+                    fecha_retencion: dayjs(values.fecha_retencion).format('YYYY-MM-DD'),
                     numero_retencion: values.numero_retencion,
                     total_fuente: totals.fuente,
                     total_iva: totals.iva,
