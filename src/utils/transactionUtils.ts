@@ -47,52 +47,129 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
 
         return `
         <tr>
-            <td style="padding: 4px 2px; border-bottom: 1px solid #eee; text-align: center;">${qty}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px solid #eee;">${item.nombre}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px solid #eee; text-align: right;">${Number(vlr).toFixed(2)}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px solid #eee; text-align: right;">${itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: center;">${qty}</td>
+            <td style="padding: 2px 5px; border-bottom: 1px solid #000;">${item.nombre}</td>
+            <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: right;">${Number(vlr).toFixed(2)}</td>
+            <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: right;">${itemTotal.toFixed(2)}</td>
         </tr>
       `;
     }).join('');
 
     printWindow.document.write(`
-    <html>
+    <!DOCTYPE html>
+    <html lang="es">
         <head>
-            <title>Recibo de Caja - Sin Factura</title>
+            <meta charset="UTF-8">
+            <title>Recibo de Caja - Egreso</title>
             <style>
-                body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; color: #333; }
-                .ticket { padding: 10px; }
-                h2 { text-align: center; margin: 0; font-size: 16px; text-transform: uppercase; }
-                .info { margin-top: 10px; font-size: 11px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-                .total { margin-top: 15px; border-top: 2px dashed #000; padding-top: 5px; text-align: right; font-weight: bold; font-size: 13px; }
-                .signatures { margin-top: 50px; display: flex; flex-direction: column; gap: 40px; align-items: center; font-size: 10px; }
-                .sig-line { width: 150px; border-top: 1px solid #000; text-align: center; padding-top: 2px; }
+                /* Configuración para Impresoras POS */
+                @page { margin: 0; size: auto; }
+                * { box-sizing: border-box; }
+                
+                body { 
+                    font-family: 'Courier New', Courier, monospace; 
+                    width: 80mm;
+                    margin: 0; 
+                    padding: 5mm;
+                    color: #000 !important;
+                    background-color: #fff;
+                    font-weight: bold; /* Todo grueso para tono uniforme y legible */
+                    
+                    /* Forzar nitidez máxima */
+                    -webkit-font-smoothing: none;
+                    font-smooth: never;
+                    text-rendering: optimizeSpeed;
+                }
+
+                .ticket { width: 100%; }
+                
+                h2 { 
+                    text-align: center; 
+                    margin: 0 0 5px 0; 
+                    font-size: 16pt; 
+                    text-transform: uppercase;
+                }
+
+                .subtitle { 
+                    text-align: center; 
+                    font-size: 9pt; 
+                    margin-bottom: 10px; 
+                    border-bottom: 2px dashed #000; 
+                    padding-bottom: 5px;
+                    line-height: 1.1;
+                }
+
+                .info { 
+                    margin-bottom: 10px; 
+                    font-size: 11pt; 
+                    line-height: 1.3; 
+                }
+
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 5px; 
+                    font-size: 10pt; 
+                }
+
+                th { 
+                    border-bottom: 2px solid #000; 
+                    padding: 2px 0; 
+                }
+
+                .total { 
+                    margin-top: 15px; 
+                    border-top: 3px solid #000; 
+                    padding-top: 5px; 
+                    text-align: right; 
+                    font-size: 14pt; 
+                }
+
+                .signatures { 
+                    margin-top: 70px; 
+                    display: flex; 
+                    flex-direction: column; 
+                    gap: 40px; 
+                    align-items: center; 
+                    font-size: 10pt; 
+                }
+
+                .sig-line { 
+                    width: 80%; 
+                    border-top: 2px solid #000; 
+                    text-align: center; 
+                    padding-top: 4px; 
+                }
+
                 @media print {
-                    body { width: 100%; margin: 0; }
+                    body { 
+                        width: 80mm; 
+                        padding: 0; 
+                        margin: 0 auto; 
+                    }
                     .no-print { display: none; }
                 }
             </style>
         </head>
         <body>
             <div class="ticket">
-                <h2>COMPROBANTE DE EGRESO</h2>
-                <div style="text-align: center; font-size: 9px;">(DOCUMENTO INTERNO - SIN FACTURA)</div>
+                <h2>Comprobante Egreso</h2>
+                <div class="subtitle">(DOCUMENTO INTERNO - SIN VALIDEZ TRIBUTARIA)</div>
 
                 <div class="info">
-                    ${sucursal ? `<div><b>SUCURSAL:</b> ${sucursal}</div>` : ''}
-                    <div><b>FECHA:</b> ${fecha}</div>
-                    <div><b>CAJA NO:</b> ${cajaId}</div>
-                    <div><b>DETALLE DE GASTOS:</b></div>
+                    ${sucursal ? `<div>SUCURSAL: ${sucursal}</div>` : ''}
+                    <div>FECHA: ${fecha}</div>
+                    <div>CAJA NO: ${cajaId}</div>
+                    <div style="margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">DETALLE DE GASTO:</div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="padding: 4px 2px; border-bottom: 1px solid #000; text-align: center; width: 10%;">CANT</th>
-                            <th style="padding: 4px 2px; border-bottom: 1px solid #000; text-align: left; width: 50%;">DESCRIPCIÓN</th>
-                            <th style="padding: 4px 2px; border-bottom: 1px solid #000; text-align: right; width: 20%;">V.UNIT</th>
-                            <th style="padding: 4px 2px; border-bottom: 1px solid #000; text-align: right; width: 20%;">TOTAL</th>
+                            <th style="text-align: center; width: 10%;">CT</th>
+                            <th style="text-align: left; width: 50%;">DESCRIPCIÓN</th>
+                            <th style="text-align: right; width: 20%;">V.U</th>
+                            <th style="text-align: right; width: 20%;">TOT</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,17 +178,21 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
                 </table>
 
                 <div class="total">
-                    TOTAL PAGADO: $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    TOTAL PAGADO: $${total.toFixed(2)}
                 </div>
 
                 <div class="signatures">
-                    <div class="sig-line">ENTREGADO CONFORME</div>
-                    <div class="sig-line">RECIBE CONFORME (FIRMA)</div>
+                    <div class="sig-line">RECIBIDO CONFORME (FIRMA)</div>
                 </div>
             </div>
             <script>
                 window.onload = function() {
-                    window.print();
+                    // Pequeña espera para asegurar renderizado antes de imprimir
+                    setTimeout(() => {
+                        window.print();
+                        // Opcional: cerrar la ventana después de imprimir
+                        // window.close();
+                    }, 300);
                 }
             </script>
         </body>
