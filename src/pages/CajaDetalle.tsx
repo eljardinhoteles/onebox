@@ -30,6 +30,7 @@ import { RetencionesRecaudacionDrawer } from '../components/caja/RetencionesReca
 import { ArqueoControlModal } from '../components/caja/ArqueoControlModal';
 import { DepositoBancoModal } from '../components/caja/DepositoBancoModal';
 import { CajaHeader } from '../components/caja/CajaHeader';
+import { VerUltimoArqueoModal } from '../components/caja/VerUltimoArqueoModal';
 
 const TransactionForm = lazy(() => import('../components/TransactionForm').then(m => ({ default: m.TransactionForm })));
 
@@ -78,6 +79,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const [retencionesControlOpened, { open: openRetencionesControl, close: closeRetencionesControl }] = useDisclosure(false);
     const [arqueoControlOpened, { open: openArqueoControl, close: closeArqueoControl }] = useDisclosure(false);
     const [depositoOpened, { open: openDeposito, close: closeDeposito }] = useDisclosure(false);
+    const [ultimoArqueoOpened, { open: openUltimoArqueo, close: closeUltimoArqueo }] = useDisclosure(false);
 
     const componentRef = useRef<HTMLDivElement>(null);
     const handlePrint = useReactToPrint({
@@ -102,7 +104,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
     const { data: caja, isLoading: loadingCaja } = useQuery({
         queryKey: ['caja', cajaId],
         queryFn: async () => {
-            const { data, error } = await supabase.from('v_cajas_con_saldo').select('*').eq('id', cajaId).single();
+            const { data, error } = await supabase.from('cajas').select('*').eq('id', cajaId).single();
             if (error) throw error;
             return data;
         },
@@ -207,6 +209,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
             notifications.show({ title: 'Eliminado', message: 'Registro eliminado', color: 'teal' });
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
@@ -359,6 +362,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 handleCloseCaja={handleCloseCaja}
                 openDeposito={openDeposito}
                 handlePrint={handlePrint}
+                openVerUltimoArqueo={openUltimoArqueo}
                 isError={isError}
                 error={error}
                 isReadOnly={isReadOnly}
@@ -420,6 +424,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             close();
                             setTransactionState(p => ({ ...p, editingId: null }));
                             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
                             queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
                             if (transactionState.editingId) {
                                 queryClient.invalidateQueries({ queryKey: ['transaction_detail', transactionState.editingId] });
@@ -434,14 +439,20 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 {transactionState.retentionId && (
                     <RetentionForm
                         transactionId={transactionState.retentionId}
-                        onSuccess={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}
+                        onSuccess={() => {
+                            closeRetention();
+                            setTransactionState(p => ({ ...p, retentionId: null }));
+                            queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                        }}
                         onCancel={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); }}
                         readOnly={caja?.estado !== 'abierta'}
                     />
                 )}
             </AppDrawer>
 
-            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} cajaNumero={caja?.numero} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
+            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} cajaNumero={caja?.numero} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
             <TransactionNovedadesDrawer opened={novedadesOpened} onClose={() => { closeNovedades(); setTransactionState(p => ({ ...p, selectedForNovedades: null })); }} transactionId={transactionState.selectedForNovedades?.id || null} transactionDetail={transactionState.selectedForNovedades ? `${transactionState.selectedForNovedades.proveedor?.nombre || 'Gasto'} - $${transactionState.selectedForNovedades.total_factura}` : undefined} />
             <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} arqueoData={arqueoData} />
             <CierreCajaModal
@@ -467,6 +478,12 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 opened={depositoOpened} onClose={closeDeposito} cajaId={cajaId} maxMonto={totals.efectivo}
                 onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}
                 existingDeposits={deposits} onDeleteDeposit={(id) => deleteTransactionMutation.mutate(id)}
+            />
+            <VerUltimoArqueoModal
+                opened={ultimoArqueoOpened}
+                onClose={closeUltimoArqueo}
+                cajaId={cajaId}
+                cajaNumero={caja?.numero}
             />
         </Stack>
     );

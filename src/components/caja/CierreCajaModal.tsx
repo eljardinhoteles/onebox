@@ -46,7 +46,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
             banco_reposicion: (value, values) =>
                 values.metodo_reposicion !== 'ninguna' && !value ? 'Requerido para la reposición' : null,
             numero_cheque_reposicion: (value, values) =>
-                values.metodo_reposicion === 'cheque' && !value ? 'Requerido para el cierre con cheque' : null,
+                values.metodo_reposicion !== 'ninguna' && !value ? `Requerido para el cierre con ${values.metodo_reposicion}` : null,
         },
     });
 
@@ -77,7 +77,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                 fecha_cierre: dayjs(values.fecha_cierre).toISOString(),
                 reposicion: values.metodo_reposicion === 'ninguna' ? 0 : totals.neto,
                 metodo_reposicion: values.metodo_reposicion,
-                numero_cheque_reposicion: values.metodo_reposicion === 'cheque' ? values.numero_cheque_reposicion : null,
+                numero_cheque_reposicion: values.metodo_reposicion !== 'ninguna' ? values.numero_cheque_reposicion : null,
                 banco_reposicion: values.metodo_reposicion !== 'ninguna' ? values.banco_reposicion : null,
                 observaciones: values.observaciones,
             };
@@ -119,8 +119,21 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
 
             return true;
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             if (!caja) return;
+            queryClient.setQueryData(['caja', caja.id], (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                    ...oldData,
+                    estado: 'cerrada',
+                    fecha_cierre: dayjs(variables.fecha_cierre).toISOString(),
+                    reposicion: variables.metodo_reposicion === 'ninguna' ? 0 : totals.neto,
+                    metodo_reposicion: variables.metodo_reposicion,
+                    numero_cheque_reposicion: variables.metodo_reposicion !== 'ninguna' ? variables.numero_cheque_reposicion : null,
+                    banco_reposicion: variables.metodo_reposicion !== 'ninguna' ? variables.banco_reposicion : null,
+                    observaciones: variables.observaciones,
+                };
+            });
             queryClient.invalidateQueries({ queryKey: ['caja', caja.id] });
             queryClient.invalidateQueries({ queryKey: ['cajas'] });
             notifications.show({

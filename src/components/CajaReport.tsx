@@ -113,20 +113,29 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 </Flex>
             </Stack>
 
-            {/* Reposición */}
-            {caja.estado === 'cerrada' && (
-                <Paper withBorder p="sm" radius="md" mb="xl" style={{ border: '2px solid black' }}>
-                    <Stack gap={4}>
-                        <Text size="xs" fw={700} tt="uppercase">Detalle de Reposición</Text>
-                        <Group justify="space-between">
-                            <Text fw={700} size="lg">MONTO A REPONER:</Text>
-                            <Text fw={700} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                        </Group>
-                        <Text size="sm" fw={600}>Número de Cheque: {caja.numero_cheque_reposicion || '---'}</Text>
-                        <Text size="sm" fw={600}>Banco: {caja.banco_reposicion || '---'}</Text>
-                    </Stack>
-                </Paper>
-            )}
+            {caja.estado === 'cerrada' && (() => {
+                const metodoReposicion = caja.metodo_reposicion || (caja.reposicion > 0 ? 'cheque' : 'ninguna');
+                return (
+                    <Paper withBorder p="sm" radius="md" mb="xl" style={{ border: '2px solid black' }}>
+                        <Stack gap={4}>
+                            <Text size="xs" fw={700} tt="uppercase">Detalle de Reposición</Text>
+                            <Group justify="space-between" mb="xs">
+                                <Text fw={700} size="lg">MONTO A REPONER:</Text>
+                                <Text fw={700} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            </Group>
+                            <Text size="sm" fw={600}>Método de Reposición: <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{metodoReposicion === 'cheque' ? 'Cheque' : metodoReposicion === 'transferencia' ? 'Transferencia' : 'Sin Reposición'}</span></Text>
+                            {metodoReposicion !== 'ninguna' && (
+                                <>
+                                    <Text size="sm" fw={600}>
+                                        {metodoReposicion === 'transferencia' ? 'Número de Referencia' : 'Número de Cheque'}: <span style={{ fontWeight: 700 }}>{caja.numero_cheque_reposicion || '---'}</span>
+                                    </Text>
+                                    <Text size="sm" fw={600}>Banco: <span style={{ fontWeight: 700 }}>{caja.banco_reposicion || '---'}</span></Text>
+                                </>
+                            )}
+                        </Stack>
+                    </Paper>
+                );
+            })()}
 
             {/* Observaciones de Cierre */}
             {caja.observaciones && (

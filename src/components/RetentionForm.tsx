@@ -160,6 +160,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
             notifications.show({ title: 'Éxito', message: 'Retención guardada', color: 'teal', icon: <IconCheck size={16} /> });
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
             queryClient.invalidateQueries({ queryKey: ['retention_detail', transactionId] });
+            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion'] });
             onSuccess();
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red', icon: <IconX size={16} /> })
@@ -188,6 +189,7 @@ export function RetentionForm({ transactionId, onSuccess, onCancel, readOnly = f
             notifications.show({ title: 'Eliminado', message: 'Retención eliminada', color: 'teal', icon: <IconCheck size={16} /> });
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
             queryClient.invalidateQueries({ queryKey: ['retention_detail', transactionId] });
+            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion'] });
             onSuccess();
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })

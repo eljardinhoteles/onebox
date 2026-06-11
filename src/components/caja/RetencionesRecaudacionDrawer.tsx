@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { AppDrawer } from '../ui/AppDrawer';
 import { notifications } from '@mantine/notifications';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import dayjs from 'dayjs';
 import { useEmpresa } from '../../context/EmpresaContext';
@@ -83,6 +83,12 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
         },
         enabled: opened
     });
+
+    useEffect(() => {
+        if (opened) {
+            queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
+        }
+    }, [opened, cajaId, queryClient]);
 
     const toggleRecaudadaMutation = useMutation({
         mutationFn: async ({ id, value }: { id: number; value: boolean }) => {

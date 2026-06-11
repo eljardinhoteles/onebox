@@ -1,6 +1,6 @@
 
 import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton } from '@mantine/core';
-import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle } from '@tabler/icons-react';
+import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle, IconCash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { MonthlyCloseAlert } from '../MonthlyCloseAlert';
 import { useAppConfig } from '../../hooks/useAppConfig';
@@ -18,6 +18,7 @@ interface CajaHeaderProps {
     handleCloseCaja: () => void;
     openDeposito: () => void;
     handlePrint: () => void;
+    openVerUltimoArqueo: () => void;
     isError?: boolean;
     error?: any;
     isReadOnly?: boolean;
@@ -37,6 +38,7 @@ export function CajaHeader({
     handleCloseCaja,
     openDeposito,
     handlePrint,
+    openVerUltimoArqueo,
     isError,
     error,
     isReadOnly,
@@ -124,6 +126,7 @@ export function CajaHeader({
                             <Tooltip label="Registrar Depósito [D]" withArrow radius="md"><ActionIcon variant="light" color="green" onClick={openDeposito} size="lg" radius="md"><IconBuildingBank size={20} /></ActionIcon></Tooltip>
                         </>
                     )}
+                    <Tooltip label="Ver Último Arqueo" withArrow radius="md" position="bottom"><ActionIcon variant="light" color="teal" size="lg" radius="md" onClick={openVerUltimoArqueo}><IconCash size={18} /></ActionIcon></Tooltip>
                     <Tooltip label="Imprimir Reporte [P]" withArrow radius="md" position="bottom"><ActionIcon variant="light" color="blue" size="lg" radius="md" onClick={handlePrint}><IconPrinter size={18} /></ActionIcon></Tooltip>
                 </Group>
             </Group>
