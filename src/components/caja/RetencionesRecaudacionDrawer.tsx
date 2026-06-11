@@ -1,6 +1,6 @@
 import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge, Box } from '@mantine/core';
 import { AppLoader } from '../ui/AppLoader';
-import { IconPrinter, IconX } from '@tabler/icons-react';
+import { IconPrinter, IconX, IconRefresh } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { AppDrawer } from '../ui/AppDrawer';
@@ -159,14 +159,25 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
                         <Text size="sm" c="dimmed">Sucursal: <Text span fw={700} c="dark">{sucursal || '---'}</Text></Text>
                         <Text size="sm" c="dimmed">Caja: <Text span fw={700} c="dark">#{cajaNumero || cajaId}</Text></Text>
                     </Stack>
-                    <Button
-                        variant="light"
-                        leftSection={<IconPrinter size={18} />}
-                        onClick={() => handlePrint()}
-                        disabled={retenciones.length === 0}
-                    >
-                        Imprimir Lista Control
-                    </Button>
+                    <Group gap="sm">
+                        <Button
+                            variant="light"
+                            color="blue"
+                            leftSection={<IconRefresh size={18} />}
+                            onClick={() => queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] })}
+                            loading={isLoading}
+                        >
+                            Refrescar
+                        </Button>
+                        <Button
+                            variant="light"
+                            leftSection={<IconPrinter size={18} />}
+                            onClick={() => handlePrint()}
+                            disabled={retenciones.length === 0}
+                        >
+                            Imprimir Lista Control
+                        </Button>
+                    </Group>
                 </Group>
 
                 <Group grow>
