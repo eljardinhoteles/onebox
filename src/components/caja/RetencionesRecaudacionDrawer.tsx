@@ -1,4 +1,4 @@
-import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge, Box } from '@mantine/core';
+import { Table, Text, Stack, Group, Checkbox, Button, Title, Paper, Badge, Box, ActionIcon } from '@mantine/core';
 import { AppLoader } from '../ui/AppLoader';
 import { IconPrinter, IconX, IconRefresh } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -160,15 +160,16 @@ export function RetencionesRecaudacionDrawer({ opened, onClose, cajaId, cajaNume
                         <Text size="sm" c="dimmed">Caja: <Text span fw={700} c="dark">#{cajaNumero || cajaId}</Text></Text>
                     </Stack>
                     <Group gap="sm">
-                        <Button
+                        <ActionIcon
                             variant="light"
                             color="blue"
-                            leftSection={<IconRefresh size={18} />}
+                            size="lg"
                             onClick={() => queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] })}
                             loading={isLoading}
+                            title="Refrescar"
                         >
-                            Refrescar
-                        </Button>
+                            <IconRefresh size={20} />
+                        </ActionIcon>
                         <Button
                             variant="light"
                             leftSection={<IconPrinter size={18} />}
