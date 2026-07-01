@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu, Button, Pagination } from '@mantine/core';
+import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu, Pagination } from '@mantine/core';
 import { AppLoader } from '../components/ui/AppLoader';
 import { IconChevronDown, IconMapPin } from '@tabler/icons-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';

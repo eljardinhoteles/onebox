@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton, Paper, ThemeIcon, Badge } from '@mantine/core';
+import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton, Badge } from '@mantine/core';
 import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle, IconCash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { MonthlyCloseAlert } from '../MonthlyCloseAlert';
@@ -10,8 +10,6 @@ interface CajaHeaderProps {
     caja: any;
     onBack?: () => void;
     isLowBalance: boolean;
-    percentageRemaining: number;
-    totalDepositos: number;
     filterState: any;
     setFilterState: (fn: (prev: any) => any) => void;
     TIPO_LABELS: Record<string, string>;
@@ -30,8 +28,6 @@ export function CajaHeader({
     caja,
     onBack,
     isLowBalance,
-    percentageRemaining,
-    totalDepositos,
     filterState,
     setFilterState,
     TIPO_LABELS,

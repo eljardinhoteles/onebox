@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useReactToPrint } from 'react-to-print';
 import { ActionIcon, Button, Group, Loader, Paper, Stack, Text, Tooltip } from '@mantine/core';
@@ -12,10 +12,7 @@ import { AppDrawer } from '../components/ui/AppDrawer';
 import { RetentionForm } from '../components/RetentionForm';
 import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
-import {
-    IconPlus,
-    IconPrinter, IconAlertTriangle, IconEye, IconTransfer
-} from '@tabler/icons-react';
+import { IconPrinter, IconAlertTriangle, IconEye, IconTransfer } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
 import dayjs from 'dayjs';
@@ -174,7 +171,6 @@ export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
     const totals = useCajaCalculations(caja, transactions);
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
 
-    const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
     const montoInicial = caja?.monto_inicial || 0;
 
     // El porcentaje se calcula vs el monto inicial original (los depósitos ya están descontados en totals.efectivo)
@@ -340,8 +336,6 @@ export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
                 caja={caja}
                 onBack={onBack ? () => onBack(caja?.estado) : undefined}
                 isLowBalance={isLowBalance}
-                percentageRemaining={percentageRemaining}
-                totalDepositos={totalDepositos}
                 filterState={filterState}
                 setFilterState={setFilterState}
                 TIPO_LABELS={TIPO_LABELS}
