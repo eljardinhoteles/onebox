@@ -1,6 +1,6 @@
 import { Box, Container, Title, Text, SimpleGrid, Paper, Group, Avatar, ThemeIcon, rem, Stack } from '@mantine/core';
 import { IconQuote } from '@tabler/icons-react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 
 const testimonials = [
     {
@@ -41,7 +41,7 @@ export function TestimonialsSection() {
                 <SimpleGrid cols={{ base: 1, md: 3 }} spacing={40}>
                     {testimonials.map((item, index) => (
                         <motion.div
-                            key={index}
+                            key={item.author}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}

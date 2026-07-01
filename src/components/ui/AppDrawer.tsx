@@ -10,14 +10,14 @@ export function AppDrawer({ children, loading, ...props }: AppDrawerProps) {
             position="right"
             padding="md"
             transitionProps={{ transition: 'slide-left', duration: 400 }}
-            overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+            overlayProps={{ backgroundOpacity: 0.5, }}
             styles={{
                 content: { display: 'flex', flexDirection: 'column' },
                 body: { flex: 1, display: 'flex', flexDirection: 'column', gap: 'md', overflow: 'hidden' }
             }}
             {...props}
         >
-            <LoadingOverlay visible={!!loading} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
+            <LoadingOverlay visible={!!loading} zIndex={1000} overlayProps={{ radius: "sm", }} />
             <ScrollArea flex={1} mx="-md" px="md">
                 <Stack gap="md" pb="xl">
                     {children}

@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-    TextInput,
-    PasswordInput,
     Title,
     Text,
     Container,
-    Button,
     Stack,
     Box,
     Center,
@@ -15,25 +12,28 @@ import {
     Avatar,
     Anchor,
     Image,
-    Switch,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { supabase } from '../lib/supabaseClient';
-import {
-    IconLock, IconBuilding, IconCrown
-} from '@tabler/icons-react';
-import { motion } from 'framer-motion';
+import { IconBuilding, IconCrown } from '@tabler/icons-react';
+import { m as motion } from 'framer-motion';
 import logo from '../assets/Icon.svg';
 import sideImage from '../assets/auth_side_image.png';
+import { LoginForm } from './auth/LoginForm';
+import { RegisterForm } from './auth/RegisterForm';
+import { ForgotPasswordForm } from './auth/ForgotPasswordForm';
+import { ResetPasswordForm } from './auth/ResetPasswordForm';
+
+type AuthType = 'login' | 'register' | 'forgot' | 'reset';
+
+function getInitialType(): AuthType {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('invite')) return 'register';
+    if (params.get('mode') === 'register') return 'register';
+    return 'login';
+}
 
 export function AuthPage() {
-    const [type, setType] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [nombre, setNombre] = useState('');
-    const [apellido, setApellido] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [type, setType] = useState<AuthType>(getInitialType);
     const [inviteData, setInviteData] = useState<any>(null);
     const [loadingInvite, setLoadingInvite] = useState(false);
 
@@ -45,19 +45,9 @@ export function AuthPage() {
             }
         });
 
-        const params = new URLSearchParams(window.location.search);
-        const mode = params.get('mode');
-        const invite = params.get('invite');
-
-        if (mode === 'register') {
-            setType('register');
-        } else if (mode === 'login') {
-            setType('login');
-        }
+        const invite = new URLSearchParams(window.location.search).get('invite');
 
         if (invite) {
-            setType('register');
-
             const fetchInvite = async () => {
                 setLoadingInvite(true);
                 try {
@@ -68,7 +58,6 @@ export function AuthPage() {
                         .single();
                     if (data && !error) {
                         setInviteData(data);
-                        setEmail(data.email);
                     }
                 } catch (e) {
                     console.error('Error fetching invite:', e);
@@ -81,71 +70,6 @@ export function AuthPage() {
 
         return () => subscription.unsubscribe();
     }, []);
-
-    const handleAuth = async () => {
-        setLoading(true);
-        try {
-            if (type === 'login') {
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-                notifications.show({
-                    title: '¡Bienvenido!',
-                    message: 'Sesión iniciada correctamente',
-                    color: 'blue',
-                    icon: <IconLock size={16} />,
-                });
-            } else if (type === 'register') {
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: {
-                            nombre,
-                            apellido
-                        }
-                    }
-                });
-                if (error) throw error;
-                notifications.show({
-                    title: 'Registro completo',
-                    message: 'Revisa tu correo para confirmar',
-                    color: 'teal',
-                    autoClose: 10000,
-                });
-            } else if (type === 'forgot') {
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin,
-                });
-                if (error) throw error;
-                notifications.show({
-                    title: 'Correo enviado',
-                    message: 'Se ha enviado un enlace de recuperación a tu email',
-                    color: 'blue',
-                });
-                setType('login');
-            } else if (type === 'reset') {
-                if (password !== confirmPassword) {
-                    throw new Error('Las contraseñas no coinciden');
-                }
-                const { error } = await supabase.auth.updateUser({ password });
-                if (error) throw error;
-                notifications.show({
-                    title: 'Contraseña actualizada',
-                    message: 'Tu contraseña ha sido cambiada con éxito. Ya puedes iniciar sesión.',
-                    color: 'teal',
-                });
-                setType('login');
-            }
-        } catch (err: any) {
-            notifications.show({
-                title: 'Error',
-                message: err.message,
-                color: 'red',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const getTitle = () => {
         if (inviteData) return 'Bienvenido a bordo';
@@ -206,7 +130,7 @@ export function AuthPage() {
             {/* Panel Derecho: Formulario (70%) */}
             <Center p="xl" bg="white" style={{ flex: 1 }}>
                 <Container size={420} w="100%">
-                    <LoadingOverlay visible={loadingInvite} overlayProps={{ blur: 1 }} />
+                    <LoadingOverlay visible={loadingInvite} overlayProps={{ }} />
                     <Stack gap={40}>
                         <Box>
                             {type === 'register' && (
@@ -273,104 +197,18 @@ export function AuthPage() {
                             </Card>
                         )}
 
-                        <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }}>
-                            <Stack gap="md">
-                                {type !== 'reset' && (
-                                    <>
-                                        <TextInput
-                                            label="Correo Electrónico"
-                                            placeholder="usuario@correo.com"
-                                            required
-                                            size="md"
-                                            radius="md"
-                                            value={email}
-                                            onChange={(event) => setEmail(event.currentTarget.value)}
-                                        />
-                                        {inviteData && email !== inviteData.email && (
-                                            <Text size="xs" color="orange" fw={500}>
-                                                Nota: Esta invitación fue enviada a {inviteData.email}
-                                            </Text>
-                                        )}
-                                    </>
-                                )}
-
-                                {type === 'register' && (
-                                    <Group grow gap="md">
-                                        <TextInput
-                                            label="Nombre"
-                                            placeholder="Tu nombre"
-                                            required
-                                            size="md"
-                                            radius="md"
-                                            value={nombre}
-                                            onChange={(event) => setNombre(event.currentTarget.value)}
-                                        />
-                                        <TextInput
-                                            label="Apellido"
-                                            placeholder="Tu apellido"
-                                            required
-                                            size="md"
-                                            radius="md"
-                                            value={apellido}
-                                            onChange={(event) => setApellido(event.currentTarget.value)}
-                                        />
-                                    </Group>
-                                )}
-
-                                {(type === 'login' || type === 'register' || type === 'reset') && (
-                                    <Stack gap={6}>
-                                        <PasswordInput
-                                            label={type === 'reset' ? "Nueva Contraseña" : "Contraseña"}
-                                            placeholder="••••••••"
-                                            required
-                                            size="md"
-                                            radius="md"
-                                            value={password}
-                                            onChange={(event) => setPassword(event.currentTarget.value)}
-                                        />
-                                        {type === 'reset' && (
-                                            <PasswordInput
-                                                label="Confirmar Contraseña"
-                                                placeholder="••••••••"
-                                                required
-                                                size="md"
-                                                radius="md"
-                                                value={confirmPassword}
-                                                onChange={(event) => setConfirmPassword(event.currentTarget.value)}
-                                            />
-                                        )}
-                                        {type === 'login' && (
-                                            <Anchor component="button" size="xs" fw={700} ta="right" onClick={() => setType('forgot')}>
-                                                ¿Olvidaste tu contraseña?
-                                            </Anchor>
-                                        )}
-                                    </Stack>
-                                )}
-
-                                {type === 'login' && (
-                                    <Switch
-                                        label="Recordar mis datos de acceso"
-                                        size="sm"
-                                        defaultChecked
-                                    />
-                                )}
-
-                                <Button
-                                    type="submit"
-                                    fullWidth
-                                    loading={loading}
-                                    size="md"
-                                    radius="md"
-                                    mt="md"
-                                    color="blue"
-                                    style={{ height: 48 }}
-                                >
-                                    {type === 'login' ? (inviteData ? 'Iniciar Sesión y Unirme' : 'Iniciar Sesión') :
-                                     type === 'register' ? (inviteData ? 'Completar Registro y Unirme' : 'Registrarse') :
-                                     type === 'forgot' ? 'Enviar Enlace' : 'Actualizar Contraseña'}
-                                </Button>
-                            </Stack>
-                        </form>
+                        {type === 'login' && (
+                            <LoginForm inviteEmail={inviteData?.email} onForgotPassword={() => setType('forgot')} />
+                        )}
+                        {type === 'register' && (
+                            <RegisterForm inviteEmail={inviteData?.email} />
+                        )}
+                        {type === 'forgot' && (
+                            <ForgotPasswordForm onSuccess={() => setType('login')} />
+                        )}
+                        {type === 'reset' && (
+                            <ResetPasswordForm onSuccess={() => setType('login')} />
+                        )}
 
                         {!inviteData && (
                             <Stack align="center" gap="sm">

@@ -1,5 +1,5 @@
 import { Box, Container, Text, Title, Stack, Paper, SimpleGrid, ThemeIcon, rem, Group, Badge, Image } from '@mantine/core';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { IconReceipt2, IconReceiptTax } from '@tabler/icons-react';
 
 import { FeatureCheck } from './LandingUtils';

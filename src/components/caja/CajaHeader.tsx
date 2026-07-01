@@ -1,9 +1,10 @@
-
-import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Stack, Group, ActionIcon, Title, Text, Tooltip, Button, Alert, PillsInput, Pill, Menu, Skeleton, Paper, ThemeIcon, Badge } from '@mantine/core';
 import { IconArrowLeft, IconSearch, IconFilter, IconReceipt, IconLock, IconBuildingBank, IconPrinter, IconAlertTriangle, IconCash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { MonthlyCloseAlert } from '../MonthlyCloseAlert';
 import { useAppConfig } from '../../hooks/useAppConfig';
+import { useDebouncedCallback } from '@mantine/hooks';
 
 interface CajaHeaderProps {
     caja: any;
@@ -48,39 +49,64 @@ export function CajaHeader({
     const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
     const closingDay = parseInt(configs.dia_cierre_mensual || '28');
 
+    const [localQuery, setLocalQuery] = useState(filterState.query || '');
+
+    useEffect(() => {
+        if (!filterState.query) {
+            setLocalQuery('');
+        }
+    }, [filterState.query]);
+
+    const handleSearchDebounced = useDebouncedCallback((val: string) => {
+        setFilterState(p => ({ ...p, query: val }));
+    }, 500);
+
     return (
         <Stack gap="md" className="no-print">
-            <Group align="center" gap="sm">
-                {onBack && (
-                    <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" onClick={onBack}><IconArrowLeft size={20} /></ActionIcon>
-                )}
-                <div style={{ flex: 1 }}>
-                    {loading ? (
-                        <Stack gap={4}>
-                            <Skeleton height={28} width={200} radius="md" />
-                            <Skeleton height={16} width={300} radius="xs" />
-                        </Stack>
-                    ) : (
-                        <>
-                            <Title order={2} fw={700}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
-                            <Text size="sm" c="dimmed">
-                                {caja?.responsable} · Apertura: {dayjs(caja?.fecha_apertura).format('DD/MM/YYYY')}
-                                {caja?.fecha_cierre && ` · Cierre: ${dayjs(caja.fecha_cierre).format('DD/MM/YYYY')}`}
-                            </Text>
-                        </>
+            <Group align="center" justify="space-between" gap="sm">
+                <Group align="center" gap="md" style={{ flex: 1 }}>
+                    {onBack && (
+                        <ActionIcon variant="subtle" color="gray" size="xl" radius="xl" onClick={onBack}>
+                            <IconArrowLeft size={24} />
+                        </ActionIcon>
                     )}
-                </div>
+                    <div style={{ flex: 1 }}>
+                        {loading ? (
+                            <Stack gap={4}>
+                                <Skeleton height={32} width={250} radius="md" />
+                                <Skeleton height={16} width={300} radius="xs" />
+                            </Stack>
+                        ) : (
+                            <>
+                                <Group gap="sm" align="center">
+                                    <Title order={1} size="h2" fw={800} style={{ lineHeight: 1 }}>{caja?.sucursal || 'Caja'} #{caja?.numero ?? caja?.id}</Title>
+                                    <Badge color={caja?.estado === 'abierta' ? 'green' : 'gray'} variant="light" size="sm">
+                                        {caja?.estado === 'abierta' ? 'ABIERTA' : 'CERRADA'}
+                                    </Badge>
+                                    {isLowBalance && (
+                                        <Badge color="orange" variant="filled" leftSection={<IconAlertTriangle size={12} />} size="sm">
+                                            SALDO BAJO
+                                        </Badge>
+                                    )}
+                                </Group>
+                                <Text size="sm" c="dimmed" mt={8}>
+                                    <Text span fw={600} c="dark.3">{caja?.responsable}</Text>
+                                    <Text span mx={6}>·</Text>
+                                    Apertura: {dayjs(caja?.fecha_apertura).format('DD MMM YYYY')}
+                                    {caja?.fecha_cierre && (
+                                        <>
+                                            <Text span mx={6}>·</Text>
+                                            <Text span c="red.7" fw={600}>Cierre: {dayjs(caja.fecha_cierre).format('DD MMM YYYY')}</Text>
+                                        </>
+                                    )}
+                                </Text>
+                            </>
+                        )}
+                    </div>
+                </Group>
+
             </Group>
             {!configLoading && <MonthlyCloseAlert enabled={cierreEnabled} closingDay={closingDay} />}
-            {isLowBalance && (
-                <Alert variant="light" color="orange" title="Saldo de Caja Bajo" icon={<IconAlertTriangle size={18} />} radius="md" mb="md">
-                    <Text size="sm">
-                        Solo queda un <b>{percentageRemaining.toFixed(1)}%</b> disponible del efectivo en caja.
-                        <br />
-                        <Text span size="xs" c="dimmed">Fondo inicial: ${caja?.monto_inicial?.toLocaleString()} · Depósitos realizados: ${totalDepositos.toLocaleString()}</Text>
-                    </Text>
-                </Alert>
-            )}
             {isError && (
                 <Alert variant="light" color="red" title="Error al cargar transacciones" icon={<IconAlertTriangle size={18} />} radius="md">
                     <Text size="sm">{error instanceof Error ? error.message : 'Ha ocurrido un error desconocido'}</Text>
@@ -113,21 +139,52 @@ export function CajaHeader({
                             {filterState.tipo && (
                                 <Pill withRemoveButton onRemove={() => setFilterState(p => ({ ...p, tipo: null }))} size="sm" color="blue">{TIPO_LABELS[filterState.tipo]}</Pill>
                             )}
-                            <PillsInput.Field placeholder={filterState.tipo ? "" : "Buscar por proveedor, RUC o factura..."} value={filterState.query} onChange={(e) => setFilterState(p => ({ ...p, query: e.currentTarget.value }))} />
+                            <PillsInput.Field 
+                                placeholder={filterState.tipo ? "" : "Buscar por proveedor, RUC o factura..."} 
+                                value={localQuery} 
+                                onChange={(e) => {
+                                    const val = e.currentTarget.value;
+                                    setLocalQuery(val);
+                                    handleSearchDebounced(val);
+                                }} 
+                            />
                         </Pill.Group>
                     </PillsInput>
                 </Group>
 
-                <Group>
+                <Group gap="sm" align="center">
                     {caja?.estado === 'abierta' && !isReadOnly && (
                         <>
-                            <Tooltip label="Legalizar Gastos [L]" withArrow radius="md"><Button variant="outline" color="orange" leftSection={<IconReceipt size={16} />} onClick={openLegalization}>Legalizar</Button></Tooltip>
-                            <Button variant="filled" color="red" leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>Cerrar Caja</Button>
-                            <Tooltip label="Registrar Depósito [D]" withArrow radius="md"><ActionIcon variant="light" color="green" onClick={openDeposito} size="lg" radius="md"><IconBuildingBank size={20} /></ActionIcon></Tooltip>
+                            <Tooltip label="Legalizar Gastos [L]" withArrow radius="md">
+                                <Button variant="light" color="orange" h={36} leftSection={<IconReceipt size={16} />} onClick={openLegalization}>
+                                    Legalizar
+                                </Button>
+                            </Tooltip>
+                            <Button variant="filled" color="red" h={36} leftSection={<IconLock size={16} />} onClick={handleCloseCaja}>
+                                Cerrar Caja
+                            </Button>
                         </>
                     )}
-                    <Tooltip label="Ver Último Arqueo" withArrow radius="md" position="bottom"><ActionIcon variant="light" color="teal" size="lg" radius="md" onClick={openVerUltimoArqueo}><IconCash size={18} /></ActionIcon></Tooltip>
-                    <Tooltip label="Imprimir Reporte [P]" withArrow radius="md" position="bottom"><ActionIcon variant="light" color="blue" size="lg" radius="md" onClick={handlePrint}><IconPrinter size={18} /></ActionIcon></Tooltip>
+                    
+                    <ActionIcon.Group>
+                        {caja?.estado === 'abierta' && !isReadOnly && (
+                            <Tooltip label="Registrar Depósito [D]" withArrow position="bottom">
+                                <ActionIcon variant="default" size={36} onClick={openDeposito} c="green.7">
+                                    <IconBuildingBank size={18} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <Tooltip label="Ver Último Arqueo" withArrow position="bottom">
+                            <ActionIcon variant="default" size={36} onClick={openVerUltimoArqueo} c="teal.7">
+                                <IconCash size={18} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Imprimir Reporte [P]" withArrow position="bottom">
+                            <ActionIcon variant="default" size={36} onClick={handlePrint} c="blue.7">
+                                <IconPrinter size={18} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </ActionIcon.Group>
                 </Group>
             </Group>
         </Stack>

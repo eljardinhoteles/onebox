@@ -12,7 +12,7 @@ export function AppModal({ children, loading, ...props }: AppModalProps) {
             transitionProps={{ transition: 'fade', duration: 300 }}
             overlayProps={{
                 backgroundOpacity: 0.6,
-                blur: 8,
+                
             }}
             styles={{
                 header: { borderBottom: '1px solid #eee', marginBottom: '1rem', paddingBottom: '0.75rem' },
@@ -20,7 +20,7 @@ export function AppModal({ children, loading, ...props }: AppModalProps) {
             }}
             {...props}
         >
-            <LoadingOverlay visible={!!loading} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
+            <LoadingOverlay visible={!!loading} zIndex={1000} overlayProps={{ radius: "sm", }} />
             {children}
         </Modal>
     );

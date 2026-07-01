@@ -14,6 +14,31 @@ interface TransactionNovedadesDrawerProps {
     transactionDetail?: string;
 }
 
+const getIcon = (accion: string) => {
+    switch (accion) {
+        case 'CREAR_GASTO': return <IconPlus size={12} />;
+        case 'EDITAR_GASTO': return <IconEdit size={12} />;
+        case 'ELIMINAR_GASTO': return <IconTrash size={12} />;
+        case 'CREAR_RETENCION':
+        case 'EDITAR_RETENCION': return <IconFileInvoice size={12} />;
+        case 'LEGALIZACION_GASTOS': return <IconLink size={12} />;
+        case 'ANOTACION_MANUAL': return <IconMessage2 size={12} />;
+        default: return <IconHistory size={12} />;
+    }
+    };
+
+const getColor = (accion: string) => {
+    switch (accion) {
+        case 'CREAR_GASTO': return 'blue';
+        case 'ANOTACION_MANUAL': return 'grape';
+        case 'CREAR_RETENCION':
+        case 'EDITAR_RETENCION': return 'orange';
+        case 'ELIMINAR_RETENCION': return 'red';
+        case 'LEGALIZACION_GASTOS': return 'teal';
+        default: return 'gray';
+    }
+    };
+
 export function TransactionNovedadesDrawer({ opened, onClose, transactionId, transactionDetail }: TransactionNovedadesDrawerProps) {
     const queryClient = useQueryClient();
     const [nota, setNota] = useState('');
@@ -99,30 +124,7 @@ export function TransactionNovedadesDrawer({ opened, onClose, transactionId, tra
         }
     });
 
-    const getIcon = (accion: string) => {
-        switch (accion) {
-            case 'CREAR_GASTO': return <IconPlus size={12} />;
-            case 'EDITAR_GASTO': return <IconEdit size={12} />;
-            case 'ELIMINAR_GASTO': return <IconTrash size={12} />;
-            case 'CREAR_RETENCION':
-            case 'EDITAR_RETENCION': return <IconFileInvoice size={12} />;
-            case 'LEGALIZACION_GASTOS': return <IconLink size={12} />;
-            case 'ANOTACION_MANUAL': return <IconMessage2 size={12} />;
-            default: return <IconHistory size={12} />;
-        }
-    };
 
-    const getColor = (accion: string) => {
-        switch (accion) {
-            case 'CREAR_GASTO': return 'blue';
-            case 'ANOTACION_MANUAL': return 'grape';
-            case 'CREAR_RETENCION':
-            case 'EDITAR_RETENCION': return 'orange';
-            case 'ELIMINAR_RETENCION': return 'red';
-            case 'LEGALIZACION_GASTOS': return 'teal';
-            default: return 'gray';
-        }
-    };
 
     return (
         <Drawer
@@ -133,7 +135,7 @@ export function TransactionNovedadesDrawer({ opened, onClose, transactionId, tra
             size="md"
         >
             <Stack gap="md" pos="relative" h="100%">
-                <LoadingOverlay visible={isLoading} overlayProps={{ blur: 1 }} />
+                <LoadingOverlay visible={isLoading} overlayProps={{ }} />
 
                 {transactionDetail && (
                     <Paper withBorder p="xs" radius="md" bg="gray.0">

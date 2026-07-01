@@ -1,7 +1,6 @@
-import { Box, Container, Badge, Title, Text, Group, Button, Modal, AspectRatio, Image, Paper, SimpleGrid, ThemeIcon } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { motion } from 'framer-motion';
-import { IconArrowRight, IconPlayerPlay, IconCheck } from '@tabler/icons-react';
+import { Box, Container, Badge, Title, Text, Group, Button, Image, Paper, SimpleGrid, ThemeIcon } from '@mantine/core';
+import { m as motion } from 'framer-motion';
+import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import cajaHero1 from '../../../assets/3x/caja_hero_1.png';
 import cajaHero2 from '../../../assets/3x/caja_hero_2.png';
@@ -23,35 +22,11 @@ function HeroFeatureCheck({ children }: { children: React.ReactNode }) {
 
 export function HeroSection() {
     const navigate = useNavigate();
-    const [opened, { open, close }] = useDisclosure(false);
 
     return (
         <Box className="hero-section">
             <div className="hero-blob-right" />
             <div className="hero-blob-left" />
-
-            {/* Modal para el Video (VSL) */}
-            <Modal
-                opened={opened}
-                onClose={close}
-                title="Conoce Mi Caja Chica en Acción"
-                size="xl"
-                radius="md"
-                centered
-                styles={{
-                    title: { fontWeight: 700 }, // Negrita para el título del modal
-                }}
-            >
-                <AspectRatio ratio={16 / 9}>
-                    <iframe
-                        src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1" // Placeholder: cambiar por el link real
-                        title="Demostración Mi Caja Chica"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                    />
-                </AspectRatio>
-            </Modal>
 
             <Container size="md" pos="relative" style={{ zIndex: 1 }}>
                 <Box
@@ -223,16 +198,6 @@ export function HeroSection() {
                                     onClick={() => navigate('/cajas?mode=register')}
                                 >
                                     Empezar prueba de 14 días gratis
-                                </Button>
-                                <Button
-                                    size="md"
-                                    radius="md"
-                                    variant="default"
-                                    leftSection={<IconPlayerPlay size={18} />}
-                                    fw={600}
-                                    onClick={open}
-                                >
-                                    Ver demostración en video
                                 </Button>
                             </Group>
                         </motion.div>

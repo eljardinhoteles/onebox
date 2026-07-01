@@ -1,5 +1,5 @@
 import { Card, Group, Text, Stack, Badge, Tooltip, Divider, Avatar, Button, ActionIcon, TextInput, Modal, Paper, Box, ThemeIcon } from '@mantine/core';
-import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconTrash } from '@tabler/icons-react';
+import { IconBuildingStore, IconCalendar, IconLockOpen, IconLock, IconTrash, IconArrowRight } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';
@@ -29,9 +29,10 @@ interface CajaCardProps {
     onSelectCaja: (id: number) => void;
     onDelete?: () => void;
     isReadOnly?: boolean;
+    layout?: 'grid' | 'list';
 }
 
-export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadOnly }: CajaCardProps) {
+export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadOnly, layout = 'grid' }: CajaCardProps) {
     const totalDepositos = caja.total_depositos || 0;
     const montoInicial = caja.monto_inicial;
 
@@ -115,12 +116,109 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
         }
     };
 
+    if (layout === 'list') {
+        return (
+            <Card
+                shadow="none"
+                padding="sm"
+                radius="md"
+                withBorder
+                bg="gray.0"
+                className="transition-all hover:bg-gray-50"
+            >
+                <Group wrap="nowrap" justify="space-between" align="center" gap="lg">
+                    {/* Sección Izquierda: Sucursal y Fechas */}
+                    <Group gap="md" style={{ flex: '1 1 30%', minWidth: 200 }} wrap="nowrap">
+                        <ThemeIcon size={48} radius="xl" color="gray" variant="light">
+                            <IconBuildingStore size={24} stroke={1.5} />
+                        </ThemeIcon>
+                        <Stack gap={2}>
+                            <Group gap="xs">
+                                <Text size="md" fw={700} c="dark.9" lineClamp={1}>{caja.sucursal}</Text>
+                                <Badge size="sm" radius="sm" variant="light" color={caja.estado === 'abierta' ? 'teal' : 'gray'}>
+                                    {caja.estado.toUpperCase()}
+                                </Badge>
+                            </Group>
+                            <Group gap={4}>
+                                <Text size="xs" c="dimmed" fw={600}>CAJA #{caja.numero ?? caja.id}</Text>
+                                <Text size="xs" c="dimmed">•</Text>
+                                <IconCalendar size={12} className="text-gray-400" />
+                                <Text size="xs" c="dimmed" fw={500}>
+                                    {caja.estado === 'cerrada' && caja.fecha_cierre
+                                        ? dayjs(caja.fecha_cierre).format('DD MMM YYYY')
+                                        : dayjs(caja.fecha_apertura).format('DD MMM YYYY')}
+                                </Text>
+                            </Group>
+                        </Stack>
+                    </Group>
+
+                    {/* Sección Central: Barras de progreso y Saldos */}
+                    <Stack gap={4} style={{ flex: '1 1 40%', minWidth: 250 }}>
+                        <Group justify="space-between" align="flex-end" wrap="nowrap">
+                            <Stack gap={0}>
+                                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Efectivo Disponible</Text>
+                                <Text size="lg" fw={700} className="font-mono" c={isLowBalance ? 'orange.8' : 'blue.9'}>
+                                    ${caja.saldo_actual.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </Text>
+                            </Stack>
+                            <Stack gap={0} align="flex-end">
+                                <Text size="xs" c="dimmed" fw={600}>${montoInicial.toLocaleString(undefined, { minimumFractionDigits: 2 })} Inicial</Text>
+                                {totalDepositos > 0 && (
+                                    <Text size="xs" c="red.7" fw={600}>
+                                        (-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })} dep)
+                                    </Text>
+                                )}
+                            </Stack>
+                        </Group>
+
+                        <Tooltip label={<Text size="xs" fw={700}>{percentageRemaining.toFixed(1)}%</Text>} withArrow radius="md">
+                            <Paper w="100%" h={6} radius="xl" bg="gray.2" style={{ overflow: 'hidden' }}>
+                                <div
+                                    style={{
+                                        transform: `scaleX(${Math.min(100, percentageRemaining) / 100})`,
+                                        transformOrigin: 'left',
+                                        width: '100%',
+                                        height: '100%',
+                                        backgroundColor: isLowBalance ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-gray-6)',
+                                        transition: 'transform 0.5s ease, background-color 0.5s ease'
+                                    }}
+                                />
+                            </Paper>
+                        </Tooltip>
+                    </Stack>
+
+                    {/* Sección Derecha: Responsable y Botón */}
+                    <Group gap="lg" style={{ flex: '1 1 30%', minWidth: 150 }} justify="flex-end" wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap">
+                            <Stack gap={0} align="flex-end" className="hidden sm:flex">
+                                <Text size="xs" fw={500} lineClamp={1}>{caja.responsable}</Text>
+                                <Text fz={10} c="dimmed">Responsable</Text>
+                            </Stack>
+                            <Avatar size="md" radius="xl" color="blue" name={caja.responsable} />
+                        </Group>
+                        <Button
+                            variant="light"
+                            color={isLowBalance ? 'orange' : 'gray'}
+                            size="sm"
+                            px="sm"
+                            rightSection={<IconArrowRight size={14} />}
+                            onClick={() => onSelectCaja(caja.id)}
+                            style={{ flexShrink: 0 }}
+                        >
+                            Ver Detalle
+                        </Button>
+                    </Group>
+                </Group>
+            </Card>
+        );
+    }
+
     return (
         <>
             <Card
                 shadow={caja.estado === 'abierta' ? 'sm' : 'none'}
                 padding="lg"
-                radius="md"
+                radius="lg"
                 withBorder
                 bg={caja.estado === 'abierta' ? 'white' : 'gray.1'}
                 className={`transition-all group ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
@@ -206,7 +304,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                                 <Badge color="orange" variant="dot" size="xs">Saldo Bajo</Badge>
                             )}
                             {totalDepositos > 0 && (
-                                <Text size="xs" c="red.7" fw={600} style={{ fontSize: 11 }}>
+                                <Text size="xs" c="red.7" fw={600}>
                                     (-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })} depósitos)
                                 </Text>
                             )}
@@ -221,10 +319,12 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                         <Paper w="100%" h={6} radius="xl" bg="gray.1" style={{ overflow: 'hidden' }}>
                             <div
                                 style={{
-                                    width: `${Math.min(100, percentageRemaining)}%`,
+                                    transform: `scaleX(${Math.min(100, percentageRemaining) / 100})`,
+                                    transformOrigin: 'left',
+                                    width: '100%',
                                     height: '100%',
                                     backgroundColor: isLowBalance ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-blue-6)',
-                                    transition: 'width 0.5s ease'
+                                    transition: 'transform 0.5s ease, background-color 0.5s ease'
                                 }}
                             />
                         </Paper>
@@ -233,35 +333,36 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
 
                 <Divider my="sm" color="white" />
 
-                <Group justify="space-between" align="center" mb="md">
-                    <Group gap="xs">
+                <Group justify="space-between" align="center" wrap="nowrap" gap="sm">
+                    <Group gap="xs" style={{ flex: '1 1 50%', minWidth: 0 }} wrap="nowrap">
                         <Avatar size="sm" radius="xl" color="blue" name={caja.responsable} />
-                        <Stack gap={0}>
-                            <Text size="xs" fw={500}>{caja.responsable}</Text>
+                        <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
+                            <Text size="xs" fw={500} lineClamp={1} truncate>{caja.responsable}</Text>
                             <Text fz={10} c="dimmed">Responsable</Text>
                         </Stack>
                     </Group>
-                </Group>
 
-                <Button
-                    variant="light"
-                    color={caja.estado === 'abierta' && !isReadOnly ? 'blue' : 'gray'}
-                    fullWidth
-                    leftSection={caja.estado === 'abierta' && !isReadOnly ? undefined : <IconLock size={16} />}
-                    onClick={() => {
-                        if (caja.estado === 'cerrada' || isReadOnly) {
-                            notifications.show({
-                                title: 'Caja Bloqueada',
-                                message: 'Accediendo en modo solo lectura debido al estado de la caja o tu suscripción. No se pueden realizar cambios.',
-                                color: 'gray',
-                                icon: <IconLock size={16} />,
-                            });
-                        }
-                        onSelectCaja(caja.id);
-                    }}
-                >
-                    {caja.estado === 'abierta' && !isReadOnly ? 'Gestionar Caja' : 'Ver Histórico Bloqueado'}
-                </Button>
+                    <Button
+                        variant="light"
+                        color={caja.estado === 'abierta' && !isReadOnly ? (isLowBalance ? 'orange' : 'blue') : 'gray'}
+                        style={{ flex: '1 1 50%' }}
+                        leftSection={caja.estado === 'abierta' && !isReadOnly ? undefined : <IconLock size={16} />}
+                        rightSection={caja.estado === 'abierta' && !isReadOnly ? <IconArrowRight size={16} /> : undefined}
+                        onClick={() => {
+                            if (caja.estado === 'cerrada' || isReadOnly) {
+                                notifications.show({
+                                    title: 'Caja Bloqueada',
+                                    message: 'Accediendo en modo solo lectura debido al estado de la caja o tu suscripción. No se pueden realizar cambios.',
+                                    color: 'gray',
+                                    icon: <IconLock size={16} />,
+                                });
+                            }
+                            onSelectCaja(caja.id);
+                        }}
+                    >
+                        {caja.estado === 'abierta' && !isReadOnly ? 'Gestionar' : 'Histórico'}
+                    </Button>
+                </Group>
             </Card >
 
             <Modal

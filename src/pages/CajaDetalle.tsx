@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useReactToPrint } from 'react-to-print';
 import { ActionIcon, Button, Group, Loader, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { AppLoader } from '../components/ui/AppLoader';
@@ -13,7 +14,7 @@ import { LegalizationDrawer } from '../components/LegalizationDrawer';
 import { notifications } from '@mantine/notifications';
 import {
     IconPlus,
-    IconPrinter, IconAlertTriangle, IconEye
+    IconPrinter, IconAlertTriangle, IconEye, IconTransfer
 } from '@tabler/icons-react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { CajaReport } from '../components/CajaReport';
@@ -36,9 +37,7 @@ const TransactionForm = lazy(() => import('../components/TransactionForm').then(
 
 interface CajaDetalleProps {
     cajaId: number;
-    setHeaderActions?: (actions: React.ReactNode) => void;
-    setOnAdd?: (fn: (() => void) | undefined) => void;
-    onBack?: () => void;
+    onBack?: (estado?: string) => void;
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -48,7 +47,7 @@ const TIPO_LABELS: Record<string, string> = {
     sin_factura: 'S/ Factura',
 };
 
-export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: CajaDetalleProps) {
+export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
     const { isReadOnly, loading: empresaLoading } = useEmpresa();
     const queryClient = useQueryClient();
     const { configs } = useAppConfig();
@@ -109,21 +108,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             return data;
         },
     });
-
-    // Exponer handleCreate al padre para el FAB
-    useEffect(() => {
-        if (!setOnAdd) return;
-
-        if (caja?.estado === 'abierta' && !isReadOnly) {
-            setOnAdd(() => handleCreate);
-        } else {
-            setOnAdd(undefined);
-        }
-
-        return () => {
-            setOnAdd(undefined);
-        };
-    }, [caja?.estado, setOnAdd]);
 
     const { data: transactions = [], isLoading: loadingTrans, isError, error } = useQuery({
         queryKey: ['transactions', cajaId],
@@ -210,6 +194,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
             queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
+            queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+            queryClient.invalidateQueries({ queryKey: ['cajas'] });
             notifications.show({ title: 'Eliminado', message: 'Registro eliminado', color: 'teal' });
         },
         onError: (err: any) => notifications.show({ title: 'Error', message: err.message, color: 'red' })
@@ -220,6 +206,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             t.proveedor?.nombre?.toLowerCase().includes(filterState.query.toLowerCase()) ||
             t.proveedor?.ruc?.includes(filterState.query) ||
             t.numero_factura?.toLowerCase().includes(filterState.query.toLowerCase()) ||
+            dayjs(t.fecha_factura).format('DD/MM/YYYY').includes(filterState.query) ||
             t.items?.some((i: any) => i.nombre.toLowerCase().includes(filterState.query.toLowerCase()));
 
         if (t.tipo_documento === 'deposito') return false;
@@ -243,35 +230,6 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             sortOrder: prev.sortBy === key && prev.sortOrder === 'asc' ? 'desc' : 'asc'
         }));
     };
-
-    useEffect(() => {
-        if (!setHeaderActions) return;
-
-        const day = new Date().getDate();
-        const cierreEnabled = configs.cierre_mensual_obligatorio !== 'false';
-        const closingDay = parseInt(configs.dia_cierre_mensual || '28');
-        const isMonthlyCloseBlocking = cierreEnabled && day >= closingDay;
-
-        if (caja?.estado === 'abierta') {
-            setHeaderActions(
-                (isMonthlyCloseBlocking || isReadOnly) ? (
-                    <Tooltip label={isReadOnly ? "Modo de solo lectura" : "Cierre mensual bloqueado"} withArrow position="bottom">
-                        <ActionIcon variant="filled" color="gray" size="lg" radius="md" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                            <IconPlus size={18} />
-                        </ActionIcon>
-                    </Tooltip>
-                ) : (
-                    <Tooltip label="Registrar Gasto [N]" withArrow position="bottom" radius="md">
-                        <ActionIcon variant="filled" color="blue" size="lg" radius="md" onClick={handleCreate} style={{ boxShadow: 'var(--mantine-shadow-sm)' }}>
-                            <IconPlus size={18} />
-                        </ActionIcon>
-                    </Tooltip>
-                )
-            );
-        } else {
-            setHeaderActions(null);
-        }
-    }, [caja, setHeaderActions, configs.cierre_mensual_obligatorio, configs.dia_cierre_mensual]);
 
     const handleEdit = (id: number) => {
         const trans = transactions.find(t => t.id === id);
@@ -347,11 +305,40 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
 
     if (!caja && !isGlobalLoading) return <AppLoader py={100} message="No se encontró la información de la caja..." />;
 
+    const fabSlot = document.getElementById('global-fab-slot');
+
     return (
         <Stack gap="md">
+            {fabSlot && caja?.estado === 'abierta' && !isReadOnly && createPortal(
+                <Tooltip label="Nueva Transacción" position="top" withArrow color="cyan.7">
+                    <ActionIcon
+                        size={48}
+                        radius={24}
+                        variant="filled"
+                        color="cyan"
+                        onClick={handleCreate}
+                        style={{
+                            boxShadow: '0 4px 14px rgba(21, 170, 191, 0.4)',
+                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(21, 170, 191, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 4px 14px rgba(21, 170, 191, 0.4)';
+                        }}
+                    >
+                        <IconTransfer size={22} stroke={2.5} />
+                    </ActionIcon>
+                </Tooltip>,
+                fabSlot
+            )}
+
             <CajaHeader
                 caja={caja}
-                onBack={onBack}
+                onBack={onBack ? () => onBack(caja?.estado) : undefined}
                 isLowBalance={isLowBalance}
                 percentageRemaining={percentageRemaining}
                 totalDepositos={totalDepositos}
@@ -375,9 +362,11 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 onOpenRetencionesControl={openRetencionesControl} 
                 onOpenArqueoControl={openArqueoControl} 
                 loading={isGlobalLoading}
+                isLowBalance={isLowBalance}
+                percentageRemaining={percentageRemaining}
             />
 
-            <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="shadow-sm border-gray-100" style={{ position: 'relative' }}>
+            <Paper withBorder p={{ base: 'xs', sm: 'md' }} radius="lg" className="border-gray-100" style={{ position: 'relative' }}>
                 <TransactionTable
                     transactions={filteredTransactions}
                     loading={loadingTrans}
@@ -390,21 +379,8 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                     sortOrder={filterState.sortOrder}
                     onSort={handleSort}
                     isReadOnly={isReadOnly}
+                    isFilterActive={!!(filterState.query || filterState.tipo)}
                 />
-
-                {(!filterState.query && !filterState.tipo) ? null : (
-                    <Paper withBorder mt="md" p="md" radius="md" bg="blue.0" style={{ borderColor: 'var(--mantine-color-blue-2)' }}>
-                        <Group justify="space-between" align="center">
-                            <Stack gap={0}><Text size="xs" fw={700} c="blue.9" tt="uppercase" lts={1}>Resumen de Filtro</Text><Text size="xs" c="dimmed">{filteredTransactions.length} transacciones encontradas</Text></Stack>
-                            <Group gap="xl">
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Total Facturado</Text><Text fw={700} size="sm" c="red.7">-${filteredTransactions.reduce((acc, t) => acc + t.total_factura, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. Fuente</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_fuente || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Ret. IVA</Text><Text fw={700} size="sm" c="orange.8">-${filteredTransactions.reduce((acc, t) => acc + (t.retencion?.total_iva || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
-                                <Stack gap={0} align="flex-end"><Text size="xs" c="dimmed" fw={500}>Gasto Neto</Text><Text fw={700} size="md" c="blue.9">${filteredTransactions.reduce((acc, t) => acc + (t.total_factura - (t.retencion?.total_retenido || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Stack>
-                            </Group>
-                        </Group>
-                    </Paper>
-                )}
             </Paper>
 
             <AppDrawer opened={formOpened} onClose={() => { close(); setTransactionState(p => ({ ...p, editingId: null })); }} title={caja?.estado !== 'abierta' ? "Detalle de Gasto" : (transactionState.editingId ? "Editar Gasto" : "Registrar Gasto")} size="xl" closeOnClickOutside={false}>
@@ -426,6 +402,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                             queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
                             queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['cajas'] });
                             if (transactionState.editingId) {
                                 queryClient.invalidateQueries({ queryKey: ['transaction_detail', transactionState.editingId] });
                             }
@@ -445,6 +422,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                             queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
                             queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] });
                             queryClient.invalidateQueries({ queryKey: ['caja', cajaId] });
+                            queryClient.invalidateQueries({ queryKey: ['cajas'] });
                         }}
                         onCancel={() => { closeRetention(); setTransactionState(p => ({ ...p, retentionId: null })); }}
                         readOnly={caja?.estado !== 'abierta'}
@@ -452,7 +430,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
                 )}
             </AppDrawer>
 
-            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} cajaNumero={caja?.numero} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }} />
+            <LegalizationDrawer opened={legalizationOpened} onClose={closeLegalization} cajaId={cajaId} cajaNumero={caja?.numero} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['retenciones_recaudacion', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); queryClient.invalidateQueries({ queryKey: ['cajas'] }); }} />
             <TransactionNovedadesDrawer opened={novedadesOpened} onClose={() => { closeNovedades(); setTransactionState(p => ({ ...p, selectedForNovedades: null })); }} transactionId={transactionState.selectedForNovedades?.id || null} transactionDetail={transactionState.selectedForNovedades ? `${transactionState.selectedForNovedades.proveedor?.nombre || 'Gasto'} - $${transactionState.selectedForNovedades.total_factura}` : undefined} />
             <CajaReport ref={componentRef} caja={caja} transactions={transactions} totals={totals} arqueoData={arqueoData} />
             <CierreCajaModal
@@ -476,7 +454,7 @@ export function CajaDetalle({ cajaId, setHeaderActions, setOnAdd, onBack }: Caja
             <ArqueoControlModal opened={arqueoControlOpened} onClose={closeArqueoControl} cajaId={cajaId} cajaNumero={caja?.numero} sucursal={caja?.sucursal} efectivoEsperado={totals.efectivo} />
             <DepositoBancoModal
                 opened={depositoOpened} onClose={closeDeposito} cajaId={cajaId} maxMonto={totals.efectivo}
-                onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); }}
+                onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] }); queryClient.invalidateQueries({ queryKey: ['caja', cajaId] }); queryClient.invalidateQueries({ queryKey: ['cajas'] }); }}
                 existingDeposits={deposits} onDeleteDeposit={(id) => deleteTransactionMutation.mutate(id)}
             />
             <VerUltimoArqueoModal

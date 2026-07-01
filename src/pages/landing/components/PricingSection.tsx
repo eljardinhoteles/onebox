@@ -1,5 +1,5 @@
 import { Box, Container, Text, Title, Group, Badge, Paper, Stack, Button, SimpleGrid, Card, Divider, rem, Avatar } from '@mantine/core';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { FeatureCheck } from './LandingUtils';

@@ -20,7 +20,7 @@ import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconCheck, IconInfoCircle, IconExclamationCircle } from '@tabler/icons-react';
 import { useEmpresa } from './context/EmpresaContext';
-import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
+import { MotionConfig, AnimatePresence, LazyMotion, domAnimation, m as motion } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 
 function CajasRoute({ opened, close }: { opened: boolean, close: () => void }) {
@@ -28,14 +28,22 @@ function CajasRoute({ opened, close }: { opened: boolean, close: () => void }) {
   return <CajasPage opened={opened} close={close} onSelectCaja={(id) => navigate(`/cajas/${id}`)} />;
 }
 
-function CajaDetalleRoute({ setDetailOnAdd }: { setDetailOnAdd: (fn: (() => void) | undefined) => void }) {
+function CajaDetalleRoute() {
   const { id } = useParams();
   const navigate = useNavigate();
   const cajaId = parseInt(id!);
 
   if (isNaN(cajaId)) return <AppLoader py={100} message="ID de caja inválido" withText={false} />;
 
-  return <CajaDetalle cajaId={cajaId} setOnAdd={setDetailOnAdd} onBack={() => navigate('/cajas')} />;
+  const handleBack = (estado?: string) => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate(`/cajas${estado === 'cerrada' ? '?estado=cerradas' : ''}`);
+    }
+  };
+
+  return <CajaDetalle cajaId={cajaId} onBack={handleBack} />;
 }
 
 export default function App() {
@@ -45,8 +53,6 @@ export default function App() {
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [detailOnAdd, setDetailOnAdd] = useState<(() => void) | undefined>();
 
   const [proveedoresModalOpened, { open: openProveedoresModal, close: closeProveedoresModal }] = useDisclosure(false);
   const [cajasModalOpened, { open: openCajasModal, close: closeCajasModal }] = useDisclosure(false);
@@ -125,12 +131,14 @@ export default function App() {
 
     return (
       <MotionConfig reducedMotion="never">
-        <Suspense fallback={<AppLoader fullScreen message="Cargando..." />}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/landing" replace />} />
-            <Route path="/landing" element={<LandingPage />} />
-          </Routes>
-        </Suspense>
+        <LazyMotion features={domAnimation}>
+          <Suspense fallback={<AppLoader fullScreen message="Cargando..." />}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/landing" replace />} />
+              <Route path="/landing" element={<LandingPage />} />
+            </Routes>
+          </Suspense>
+        </LazyMotion>
       </MotionConfig>
     );
   }
@@ -175,25 +183,28 @@ export default function App() {
   if (!session || (session && (!empresa || hasAuthParams) && !isSuperAdmin)) {
     return (
       <MotionConfig reducedMotion="never">
-        {authToOnboardingTransition}
+        <LazyMotion features={domAnimation}>
+          {authToOnboardingTransition}
+        </LazyMotion>
       </MotionConfig>
     );
   }
 
   const handleFabAction = () => {
-    if (isCajaDetail && detailOnAdd) detailOnAdd();
-    else if (isCajas && !isCajaDetail) openCajasModal();
+    if (isCajas && !isCajaDetail) openCajasModal();
     else if (isProveedores) openProveedoresModal();
   };
 
-  const showFab = !isReadOnly && ((isCajas && !isCajaDetail) || (isCajaDetail && !!detailOnAdd) || isProveedores);
+  const showFab = !isReadOnly && ((isCajas && !isCajaDetail) || isProveedores);
 
   // Superadmin sin empresa: mostrar admin directamente
   const isAdminRoute = location.pathname === '/admin';
   if (isSuperAdmin && isAdminRoute) {
     return (
       <MotionConfig reducedMotion="never">
-        <AdminPage />
+        <LazyMotion features={domAnimation}>
+          <AdminPage />
+        </LazyMotion>
       </MotionConfig>
     );
   }
@@ -205,18 +216,20 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="never">
-      <MainLayout onAdd={showFab ? handleFabAction : undefined}>
-        <Suspense fallback={<AppLoader py={100} message="Cargando sección..." />}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/cajas" replace />} />
-            <Route path="/cajas" element={<CajasRoute opened={cajasModalOpened} close={closeCajasModal} />} />
-            <Route path="/cajas/:id" element={<CajaDetalleRoute setDetailOnAdd={setDetailOnAdd} />} />
-            <Route path="/proveedores" element={<ProveedoresPage opened={proveedoresModalOpened} close={closeProveedoresModal} />} />
-            <Route path="/ajustes" element={<AjustesPage />} />
-            {isSuperAdmin && <Route path="/admin" element={<AdminPage />} />}
-          </Routes>
-        </Suspense>
-      </MainLayout>
+      <LazyMotion features={domAnimation}>
+        <MainLayout onAdd={showFab ? handleFabAction : undefined}>
+          <Suspense fallback={<AppLoader py={100} message="Cargando sección..." />}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/cajas" replace />} />
+              <Route path="/cajas" element={<CajasRoute opened={cajasModalOpened} close={closeCajasModal} />} />
+              <Route path="/cajas/:id" element={<CajaDetalleRoute />} />
+              <Route path="/proveedores" element={<ProveedoresPage opened={proveedoresModalOpened} close={closeProveedoresModal} />} />
+              <Route path="/ajustes" element={<AjustesPage />} />
+              {isSuperAdmin && <Route path="/admin" element={<AdminPage />} />}
+            </Routes>
+          </Suspense>
+        </MainLayout>
+      </LazyMotion>
     </MotionConfig>
   )
 }

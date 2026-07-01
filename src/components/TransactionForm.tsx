@@ -267,7 +267,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
     const totals = calculateTransactionTotals(form.values.items);
 
-    const handlePrintReceipt = () => printReceipt(cajaNumeroLabel as any, form.values.fecha_factura, form.values.items, totals.total, dbData?.sucursal);
+    const handlePrintReceipt = (format: 'ticket' | 'a4') => printReceipt(cajaNumeroLabel as any, form.values.fecha_factura, form.values.items, totals.total, dbData?.sucursal, format);
 
     const handleSubmit = async (values: typeof form.values) => {
         const totalAValidar = calculateTransactionTotals(values.items).total;
@@ -344,7 +344,10 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     <TransactionSummary totals={totals} availableBalance={availableBalance} originalTotal={originalTotal} transactionId={transactionId} />
 
                     {form.values.tipo_documento === 'sin_factura' && (
-                        <Button variant="light" color="orange" leftSection={<IconPrinter size={16} />} onClick={handlePrintReceipt} fullWidth>Imprimir Recibo de Egreso</Button>
+                        <Group grow gap="xs">
+                            <Button variant="light" color="orange" leftSection={<IconPrinter size={16} />} onClick={() => handlePrintReceipt('ticket')}>Imprimir Ticket</Button>
+                            <Button variant="light" color="orange" leftSection={<IconPrinter size={16} />} onClick={() => handlePrintReceipt('a4')}>Imprimir</Button>
+                        </Group>
                     )}
 
                     {!readOnly ? (

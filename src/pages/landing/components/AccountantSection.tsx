@@ -1,5 +1,5 @@
 import { Box, Container, Paper, SimpleGrid, Badge, Title, Text, Stack, Group, ThemeIcon, rem, Image } from '@mantine/core';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { IconCalculator, IconCheck, IconReceiptTax, IconBell } from '@tabler/icons-react';
 import cierreImg from '../../../assets/3x/Cierre.png';
 import cajaCerradaImg from '../../../assets/3x/Caja_Cerrada.png';

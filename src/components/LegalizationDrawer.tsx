@@ -124,9 +124,10 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
                 await supabase.from('transaccion_items').insert(newItems);
             }
 
-            await supabase.from('transacciones').update({ parent_id: mainTrans.id }).in('id', state.selectedIds);
-
-            const { data: { user } } = await supabase.auth.getUser();
+            const [ , { data: { user } } ] = await Promise.all([
+                supabase.from('transacciones').update({ parent_id: mainTrans.id }).in('id', state.selectedIds),
+                supabase.auth.getUser()
+            ]);
             await supabase.from('bitacora').insert({
                 accion: 'LEGALIZACION_GASTOS',
                 detalle: { main_transaccion_id: mainTrans.id, total: totalSelected, factura: state.invoiceNumber },
@@ -154,7 +155,7 @@ export function LegalizationDrawer({ opened, onClose, cajaId, cajaNumero, onSucc
     return (
         <Drawer opened={opened} onClose={onClose} title={<Text fw={700} size="lg">Legalización de Gastos {cajaNumero && `· Caja #${cajaNumero}`}</Text>} position="right" size="md">
             <Stack gap="md" pos="relative">
-                <LoadingOverlay visible={state.loading || state.submitting} overlayProps={{ blur: 2 }} />
+                <LoadingOverlay visible={state.loading || state.submitting} overlayProps={{ }} />
                 <Text size="sm" c="dimmed">Selecciona los gastos registrados "Sin Factura" para agrupar bajo una factura formal.</Text>
 
                 <LegalizationSummary selectedCount={state.selectedIds.length} totalAmount={totalSelected} />

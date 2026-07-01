@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Paper, UnstyledButton, Text, ActionIcon, Tooltip } from '@mantine/core';
 import {
     IconReceipt2,
@@ -21,10 +22,27 @@ interface NavbarProps {
     onAdd?: () => void;
 }
 
+const handleWhatsappSoporte = () => {
+    window.open('https://wa.me/593999999999?text=Hola,%20necesito%20soporte%20con%20Mi%20Caja%20Chica', '_blank');
+};
+
 export function Navbar({ onAdd }: NavbarProps) {
     const location = useLocation();
     const navigate = useNavigate();
     
+    const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        const handleShow = () => setIsVisible(true);
+        const handleHide = () => setIsVisible(false);
+        window.addEventListener('show-navbar', handleShow);
+        window.addEventListener('hide-navbar', handleHide);
+        return () => {
+            window.removeEventListener('show-navbar', handleShow);
+            window.removeEventListener('hide-navbar', handleHide);
+        }
+    }, []);
+
     const isAjustes = location.pathname.startsWith('/ajustes');
 
     let actionLabel = "Nueva Acción Rápida";
@@ -44,22 +62,21 @@ export function Navbar({ onAdd }: NavbarProps) {
         ActionIconComponent = IconUserPlus;
     }
 
-    const handleWhatsappSoporte = () => {
-        window.open('https://wa.me/593999999999?text=Hola,%20necesito%20soporte%20con%20Mi%20Caja%20Chica', '_blank');
-    };
-
     return (
         <div
             className="no-print"
             style={{
                 position: 'fixed',
-                bottom: '1rem',
+                bottom: isVisible ? '1rem' : '-100px',
+                opacity: isVisible ? 1 : 0,
+                pointerEvents: isVisible ? 'auto' : 'none',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 100,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
+                transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
         >
             {/* Notificaciones - sutil a la izquierda */}
@@ -87,6 +104,7 @@ export function Navbar({ onAdd }: NavbarProps) {
                             <UnstyledButton
                                 key={item.value}
                                 onClick={() => navigate(item.path)}
+                                className="navbar-tab"
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -96,7 +114,6 @@ export function Navbar({ onAdd }: NavbarProps) {
                                     borderRadius: 22,
                                     backgroundColor: isActive ? item.color : 'transparent',
                                     color: isActive ? '#fff' : '#868e96',
-                                    transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), gap 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                     overflow: 'hidden',
                                     whiteSpace: 'nowrap',
                                 }}
@@ -104,19 +121,19 @@ export function Navbar({ onAdd }: NavbarProps) {
                                 <Icon
                                     size={20}
                                     stroke={isActive ? 2 : 1.5}
+                                    className="navbar-tab-icon"
                                     style={{
                                         flexShrink: 0,
-                                        transition: 'stroke-width 0.2s ease',
                                     }}
                                 />
                                 <Text
                                     size="sm"
                                     fw={600}
+                                    className="navbar-tab-label"
                                     style={{
                                         maxWidth: isActive ? 120 : 0,
                                         opacity: isActive ? 1 : 0,
                                         overflow: 'hidden',
-                                        transition: 'max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease',
                                     }}
                                 >
                                     {item.label}
@@ -176,7 +193,9 @@ export function Navbar({ onAdd }: NavbarProps) {
                         <ActionIconComponent size={22} stroke={2.5} />
                     </ActionIcon>
                 </Tooltip>
-            ) : null}
+            ) : (
+                <div id="global-fab-slot" />
+            )}
         </div>
     );
 }

@@ -35,7 +35,18 @@ export const calculateTransactionTotals = (items: Item[]) => {
     };
 };
 
-export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], total: number, sucursal?: string) => {
+const escapeHtml = (value: string) =>
+    value.replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[char] as string));
+
+export type PrintFormat = 'ticket' | 'a4';
+
+export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], total: number, sucursal?: string, format: PrintFormat = 'ticket') => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -48,12 +59,183 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
         return `
         <tr>
             <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: center;">${qty}</td>
-            <td style="padding: 2px 5px; border-bottom: 1px solid #000;">${item.nombre}</td>
+            <td style="padding: 2px 5px; border-bottom: 1px solid #000;">${escapeHtml(item.nombre)}</td>
             <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: right;">${Number(vlr).toFixed(2)}</td>
             <td style="padding: 2px 0; border-bottom: 1px solid #000; text-align: right;">${itemTotal.toFixed(2)}</td>
         </tr>
       `;
     }).join('');
+
+    const isTicket = format === 'ticket';
+
+    const style = isTicket ? `
+                /* Configuración para Impresoras POS */
+                @page { margin: 0; size: auto; }
+                * { box-sizing: border-box; }
+
+                body {
+                    font-family: 'Courier New', Courier, monospace;
+                    width: 80mm;
+                    margin: 0;
+                    padding: 5mm;
+                    color: #000 !important;
+                    background-color: #fff;
+                    font-weight: bold; /* Todo grueso para tono uniforme y legible */
+
+                    /* Forzar nitidez máxima */
+                    -webkit-font-smoothing: none;
+                    font-smooth: never;
+                    text-rendering: optimizeSpeed;
+                }
+
+                .ticket { width: 100%; }
+
+                h2 {
+                    text-align: center;
+                    margin: 0 0 5px 0;
+                    font-size: 16pt;
+                    text-transform: uppercase;
+                }
+
+                .subtitle {
+                    text-align: center;
+                    font-size: 9pt;
+                    margin-bottom: 10px;
+                    border-bottom: 2px dashed #000;
+                    padding-bottom: 5px;
+                    line-height: 1.1;
+                }
+
+                .info {
+                    margin-bottom: 10px;
+                    font-size: 11pt;
+                    line-height: 1.3;
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 5px;
+                    font-size: 10pt;
+                }
+
+                th {
+                    border-bottom: 2px solid #000;
+                    padding: 2px 0;
+                }
+
+                .total {
+                    margin-top: 15px;
+                    border-top: 3px solid #000;
+                    padding-top: 5px;
+                    text-align: right;
+                    font-size: 14pt;
+                }
+
+                .signatures {
+                    margin-top: 70px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 40px;
+                    align-items: center;
+                    font-size: 10pt;
+                }
+
+                .sig-line {
+                    width: 80%;
+                    border-top: 2px solid #000;
+                    text-align: center;
+                    padding-top: 4px;
+                }
+
+                @media print {
+                    body {
+                        width: 80mm;
+                        padding: 0;
+                        margin: 0 auto;
+                    }
+                    .no-print { display: none; }
+                }
+    ` : `
+                /* Configuración para hoja A4 */
+                @page { margin: 20mm; size: A4; }
+                * { box-sizing: border-box; }
+
+                body {
+                    font-family: Arial, Helvetica, sans-serif;
+                    width: 100%;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 10mm;
+                    color: #000;
+                    background-color: #fff;
+                }
+
+                .ticket { width: 100%; }
+
+                h2 {
+                    text-align: center;
+                    margin: 0 0 8px 0;
+                    font-size: 22pt;
+                    text-transform: uppercase;
+                }
+
+                .subtitle {
+                    text-align: center;
+                    font-size: 10pt;
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 10px;
+                }
+
+                .info {
+                    margin-bottom: 20px;
+                    font-size: 12pt;
+                    line-height: 1.6;
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                    font-size: 11pt;
+                }
+
+                th {
+                    border-bottom: 2px solid #000;
+                    padding: 8px 4px;
+                    text-transform: uppercase;
+                }
+
+                td { padding: 6px 4px; }
+
+                .total {
+                    margin-top: 25px;
+                    border-top: 3px solid #000;
+                    padding-top: 10px;
+                    text-align: right;
+                    font-size: 16pt;
+                    font-weight: bold;
+                }
+
+                .signatures {
+                    margin-top: 100px;
+                    display: flex;
+                    justify-content: center;
+                    font-size: 11pt;
+                }
+
+                .sig-line {
+                    width: 300px;
+                    border-top: 2px solid #000;
+                    text-align: center;
+                    padding-top: 6px;
+                }
+
+                @media print {
+                    .no-print { display: none; }
+                }
+    `;
 
     printWindow.document.write(`
     <!DOCTYPE html>
@@ -62,93 +244,7 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
             <meta charset="UTF-8">
             <title>Recibo de Caja - Egreso</title>
             <style>
-                /* Configuración para Impresoras POS */
-                @page { margin: 0; size: auto; }
-                * { box-sizing: border-box; }
-                
-                body { 
-                    font-family: 'Courier New', Courier, monospace; 
-                    width: 80mm;
-                    margin: 0; 
-                    padding: 5mm;
-                    color: #000 !important;
-                    background-color: #fff;
-                    font-weight: bold; /* Todo grueso para tono uniforme y legible */
-                    
-                    /* Forzar nitidez máxima */
-                    -webkit-font-smoothing: none;
-                    font-smooth: never;
-                    text-rendering: optimizeSpeed;
-                }
-
-                .ticket { width: 100%; }
-                
-                h2 { 
-                    text-align: center; 
-                    margin: 0 0 5px 0; 
-                    font-size: 16pt; 
-                    text-transform: uppercase;
-                }
-
-                .subtitle { 
-                    text-align: center; 
-                    font-size: 9pt; 
-                    margin-bottom: 10px; 
-                    border-bottom: 2px dashed #000; 
-                    padding-bottom: 5px;
-                    line-height: 1.1;
-                }
-
-                .info { 
-                    margin-bottom: 10px; 
-                    font-size: 11pt; 
-                    line-height: 1.3; 
-                }
-
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin-top: 5px; 
-                    font-size: 10pt; 
-                }
-
-                th { 
-                    border-bottom: 2px solid #000; 
-                    padding: 2px 0; 
-                }
-
-                .total { 
-                    margin-top: 15px; 
-                    border-top: 3px solid #000; 
-                    padding-top: 5px; 
-                    text-align: right; 
-                    font-size: 14pt; 
-                }
-
-                .signatures { 
-                    margin-top: 70px; 
-                    display: flex; 
-                    flex-direction: column; 
-                    gap: 40px; 
-                    align-items: center; 
-                    font-size: 10pt; 
-                }
-
-                .sig-line { 
-                    width: 80%; 
-                    border-top: 2px solid #000; 
-                    text-align: center; 
-                    padding-top: 4px; 
-                }
-
-                @media print {
-                    body { 
-                        width: 80mm; 
-                        padding: 0; 
-                        margin: 0 auto; 
-                    }
-                    .no-print { display: none; }
-                }
+                ${style}
             </style>
         </head>
         <body>
@@ -157,7 +253,7 @@ export const printReceipt = (cajaId: number, fechaFactura: Date, items: Item[], 
                 <div class="subtitle">(DOCUMENTO INTERNO - SIN VALIDEZ TRIBUTARIA)</div>
 
                 <div class="info">
-                    ${sucursal ? `<div>SUCURSAL: ${sucursal}</div>` : ''}
+                    ${sucursal ? `<div>SUCURSAL: ${escapeHtml(sucursal)}</div>` : ''}
                     <div>FECHA: ${fecha}</div>
                     <div>CAJA NO: ${cajaId}</div>
                     <div style="margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">DETALLE DE GASTO:</div>

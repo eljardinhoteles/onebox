@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu, Button } from '@mantine/core';
+import { Paper, Text, SimpleGrid, Title, Stack, SegmentedControl, Group, Menu, Button, Pagination } from '@mantine/core';
 import { AppLoader } from '../components/ui/AppLoader';
 import { IconChevronDown, IconMapPin } from '@tabler/icons-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -48,14 +48,19 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
         const params = new URLSearchParams(window.location.search);
         return params.get('sucursal');
     });
-    const [limit, setLimit] = useState(12);
+    const [page, setPage] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlPage = params.get('page');
+        return urlPage ? parseInt(urlPage) : 1;
+    });
+    const pageSize = 12;
 
-    // Reset limit on filter change
+    // Reset page on filter change
     useEffect(() => {
-        setLimit(12);
+        setPage(1);
     }, [filter, filterSucursal]);
 
-    // PERSISTENCIA: Sincronizar filtros con la URL
+    // PERSISTENCIA: Sincronizar filtros y página con la URL
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
 
@@ -71,31 +76,40 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
             params.delete('sucursal');
         }
 
+        if (page > 1) {
+            params.set('page', page.toString());
+        } else {
+            params.delete('page');
+        }
+
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.history.replaceState(null, '', newUrl);
-    }, [filter, filterSucursal]);
+    }, [filter, filterSucursal, page]);
 
     const { empresa, loading: empresaLoading, isReadOnly, sucursalesAsignadas, role } = useEmpresa();
 
-    const { data: cajas = [], isLoading: fetching } = useQuery({
-        queryKey: ['cajas', empresa?.id, filter, filterSucursal, limit, sucursalesAsignadas, role],
+    const { data: { data: cajas = [], count = 0 } = {}, isLoading: fetching } = useQuery({
+        queryKey: ['cajas', empresa?.id, filter, filterSucursal, page, sucursalesAsignadas, role],
         placeholderData: keepPreviousData,
         staleTime: 1000 * 60, // 1 minuto de datos "frescos"
         gcTime: 1000 * 60 * 5, // Mantener en memoria 5 minutos
         queryFn: async () => {
-            if (!empresa) return [];
+            if (!empresa) return { data: [], count: 0 };
             try {
+                const from = (page - 1) * pageSize;
+                const to = from + pageSize - 1;
+
                 let query = supabase
                     .from('v_cajas_con_saldo')
-                    .select('*')
+                    .select('*', { count: 'exact' })
                     .eq('empresa_id', empresa.id)
                     .eq('estado', filter === 'abiertas' ? 'abierta' : 'cerrada')
                     .order('id', { ascending: false })
-                    .limit(limit);
+                    .range(from, to);
                 
                 if (role !== 'owner' && role !== 'admin') {
                     if (!sucursalesAsignadas || sucursalesAsignadas.length === 0) {
-                        return [];
+                        return { data: [], count: 0 };
                     }
                     query = query.in('sucursal', sucursalesAsignadas);
                 }
@@ -104,28 +118,28 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                     query = query.eq('sucursal', filterSucursal);
                 }
 
-                const { data, error } = await query;
+                const { data, error, count } = await query;
 
                 if (error) {
                     console.warn('Fallback a tabla base + cálculo manual:', error);
                     let baseQuery = supabase
                         .from('cajas')
-                        .select('*')
+                        .select('*', { count: 'exact' })
                         .eq('empresa_id', empresa.id)
                         .eq('estado', filter === 'abiertas' ? 'abierta' : 'cerrada')
                         .order('id', { ascending: false })
-                        .limit(limit);
+                        .range(from, to);
 
                     if (role !== 'owner' && role !== 'admin') {
                         if (!sucursalesAsignadas || sucursalesAsignadas.length === 0) {
-                            return [];
+                            return { data: [], count: 0 };
                         }
                         baseQuery = baseQuery.in('sucursal', sucursalesAsignadas);
                     }
 
                     if (filterSucursal) baseQuery = baseQuery.eq('sucursal', filterSucursal);
 
-                    const { data: baseData, error: baseError } = await baseQuery;
+                    const { data: baseData, error: baseError, count: baseCount } = await baseQuery;
 
                     if (baseError) throw baseError;
 
@@ -135,7 +149,7 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                         .select('caja_id, tipo_documento, total_factura')
                         .in('caja_id', (baseData || []).map(c => c.id));
 
-                    return (baseData || []).map(c => {
+                    const calculatedData = (baseData || []).map(c => {
                         const cTrans = transData?.filter(t => t.caja_id === c.id) || [];
                         const total_depositos = cTrans.filter(t => t.tipo_documento === 'deposito').reduce((sum, t) => sum + t.total_factura, 0);
                         const total_gastos = cTrans.filter(t => t.tipo_documento !== 'deposito').reduce((sum, t) => sum + t.total_factura, 0);
@@ -144,8 +158,9 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
 
                         return { ...c, total_gastos, total_depositos, total_retenido_recaudado, saldo_actual };
                     });
+                    return { data: calculatedData, count: baseCount || 0 };
                 }
-                return data || [];
+                return { data: data || [], count: count || 0 };
             } catch (error) {
                 console.error('Error in cajas query:', error);
                 throw error;
@@ -274,10 +289,11 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                         </Paper>
                     ) : (
                         <Stack gap="xl" align="center">
-                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" w="100%">
+                            <SimpleGrid cols={filter === 'abiertas' ? { base: 1, sm: 2, lg: 3 } : 1} spacing={filter === 'abiertas' ? "lg" : "sm"} w="100%">
                                 {cajas.map((caja: Caja) => (
                                     <CajaCard
                                         key={caja.id}
+                                        layout={filter === 'abiertas' ? 'grid' : 'list'}
                                         caja={caja}
                                         alertThreshold={alertThreshold}
                                         onSelectCaja={onSelectCaja}
@@ -287,15 +303,14 @@ export function CajasPage({ opened, close, onSelectCaja }: CajasPageProps) {
                                 ))}
                             </SimpleGrid>
                             
-                            {cajas.length >= limit && (
-                                <Button 
-                                    variant="subtle" 
-                                    color="gray" 
-                                    onClick={() => setLimit(prev => prev + 12)}
-                                    loading={fetching}
-                                >
-                                    Cargar más cajas
-                                </Button>
+                            {count > pageSize && (
+                                <Pagination 
+                                    total={Math.ceil(count / pageSize)} 
+                                    value={page} 
+                                    onChange={setPage} 
+                                    color="blue"
+                                    mt="md"
+                                />
                             )}
                         </Stack>
                     )}

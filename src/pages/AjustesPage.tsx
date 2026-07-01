@@ -23,6 +23,8 @@ import { EmpresaSection } from './ajustes/components/EmpresaSection';
 import { CierreHistory } from '../components/CierreHistory';
 import dayjs from 'dayjs';
 
+const TABLE_MAP: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
+
 const ACTION_LABELS: Record<string, { label: string, color: string }> = {
     'CREAR_TRANSACCION': { label: 'Nueva Transacción', color: 'teal' },
     'ELIMINAR_TRANSACCION': { label: 'Gasto Eliminado', color: 'red' },
@@ -170,14 +172,13 @@ export function AjustesPage() {
     });
 
     // CRUD Items (Sucursales, Bancos, etc)
-    const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
-    const isCrudTab = activeTab ? !!tableMap[activeTab] : false;
+    const isCrudTab = activeTab ? !!TABLE_MAP[activeTab] : false;
     
     const { data: items = [], isFetching: fetchingItems } = useQuery({
         queryKey: ['settings_items', activeTab, empresa?.id],
         queryFn: async () => {
-            if (!empresa || !activeTab || !tableMap[activeTab]) return [];
-            const table = tableMap[activeTab];
+            if (!empresa || !activeTab || !TABLE_MAP[activeTab]) return [];
+            const table = TABLE_MAP[activeTab];
             const { data } = await supabase.from(table).select('*').eq('empresa_id', empresa.id).order('nombre');
             
             if (activeTab === 'sucursales' && data) {
@@ -260,8 +261,7 @@ export function AjustesPage() {
     const handleCrudSave = async (values: any) => {
         if (!empresa?.id || !activeTab) return;
         setState(prev => ({ ...prev, fetchingManual: true }));
-        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
-        const table = tableMap[activeTab!];
+        const table = TABLE_MAP[activeTab!];
 
         // Filtrar valores según la tabla para evitar errores de columnas inexistentes
         const filteredValues: any = { nombre: values.nombre };
@@ -293,8 +293,7 @@ export function AjustesPage() {
 
     const handleDelete = async (id: string) => {
         if (!activeTab) return;
-        const tableMap: Record<string, string> = { sucursales: 'sucursales', bancos: 'bancos', regimenes: 'regimenes', productos: 'productos_recurrentes' };
-        const table = tableMap[activeTab!];
+        const table = TABLE_MAP[activeTab!];
         
         setState(prev => ({ ...prev, fetchingManual: true }));
         const { error } = await supabase.from(table).delete().eq('id', id);

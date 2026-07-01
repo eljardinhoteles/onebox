@@ -18,9 +18,11 @@ interface CajaSummaryCardsProps {
     onOpenRetencionesControl?: () => void;
     onOpenArqueoControl?: () => void;
     loading?: boolean;
+    isLowBalance?: boolean;
+    percentageRemaining?: number;
 }
 
-export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpenArqueoControl, loading }: CajaSummaryCardsProps) {
+export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpenArqueoControl, loading, isLowBalance, percentageRemaining }: CajaSummaryCardsProps) {
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showNeto, setShowNeto] = useState(false);
 
@@ -28,23 +30,22 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
         <Grid gutter={{ base: 'xs', sm: 'md' }}>
             {loading ? (
                 <>
-                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="md" /></Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="md" /></Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="md" /></Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="md" /></Grid.Col>
+                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="lg" /></Grid.Col>
+                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="lg" /></Grid.Col>
+                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="lg" /></Grid.Col>
+                    <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}><Skeleton height={100} radius="lg" /></Grid.Col>
                 </>
             ) : (
                 <>
                     {/* Monto Inicial */}
                     <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                        <Tooltip label="Toca para ver el desglose del monto inicial" position="bottom" withArrow radius="md" openDelay={800}>
+                        <Tooltip label="Toca para ver el desglose del monto inicial" position="bottom" withArrow radius="lg" openDelay={800}>
                             <Paper
                                 withBorder
                                 p={{ base: 'xs', sm: 'md' }}
-                                radius="md"
-                                shadow="xs"
+                                radius="lg"
                                 onClick={() => setShowBreakdown(!showBreakdown)}
-                                style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
+                                style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease' }}
                                 className={showBreakdown ? 'bg-blue-50/30' : ''}
                             >
                                 <Group justify="space-between" align="start">
@@ -57,7 +58,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                             ${(caja?.monto_inicial || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Stack>
-                                    <ThemeIcon variant="light" size="lg" radius="md" color="blue">
+                                    <ThemeIcon variant="light" size="lg" radius="lg" color="blue">
                                         <IconWallet size={20} stroke={1.5} />
                                     </ThemeIcon>
                                 </Group>
@@ -86,16 +87,15 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
 
                     {/* Total Facturado / Neto Toggle */}
                     <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                        <Tooltip label={showNeto ? "Toca para ver el total facturado" : "Toca para ver el gasto neto (después de retenciones)"} position="bottom" withArrow radius="md" openDelay={800}>
+                        <Tooltip label={showNeto ? "Toca para ver el total facturado" : "Toca para ver el gasto neto (después de retenciones)"} position="bottom" withArrow radius="lg" openDelay={800}>
                             <Paper
                                 withBorder
                                 p={{ base: 'xs', sm: 'md' }}
-                                radius="md"
-                                shadow="xs"
+                                radius="lg"
                                 onClick={() => setShowNeto(!showNeto)}
                                 style={{
                                     cursor: 'pointer',
-                                    transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                                    transition: 'background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
                                     borderColor: showNeto ? 'var(--mantine-color-blue-3)' : undefined
                                 }}
                                 bg={showNeto ? 'blue.0' : undefined}
@@ -109,7 +109,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                             {showNeto ? '' : '-'}${totals[showNeto ? 'neto' : 'facturado'].toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Stack>
-                                    <ThemeIcon variant="light" size="lg" radius="md" color={showNeto ? 'blue' : 'red'}>
+                                    <ThemeIcon variant="light" size="lg" radius="lg" color={showNeto ? 'blue' : 'red'}>
                                         <IconCalculator size={20} stroke={1.5} />
                                     </ThemeIcon>
                                 </Group>
@@ -122,14 +122,13 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
 
                     {/* Retenciones */}
                     <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                        <Tooltip label="Toca para ver el control de retenciones" position="bottom" withArrow radius="md" openDelay={800}>
+                        <Tooltip label="Toca para ver el control de retenciones" position="bottom" withArrow radius="lg" openDelay={800}>
                             <Paper
                                 withBorder
                                 p={{ base: 'xs', sm: 'md' }}
-                                radius="md"
-                                shadow="xs"
+                                radius="lg"
                                 onClick={() => onOpenRetencionesControl?.()}
-                                style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
+                                style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease' }}
                                 className="hover:bg-orange-50/30"
                             >
                                 <Group justify="space-between" align="start">
@@ -139,7 +138,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                             +${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Stack>
-                                    <ThemeIcon variant="light" size="lg" radius="md" color="orange">
+                                    <ThemeIcon variant="light" size="lg" radius="lg" color="orange">
                                         <IconFileInvoice size={20} stroke={1.5} />
                                     </ThemeIcon>
                                 </Group>
@@ -155,29 +154,36 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
 
                     {/* Efectivo Final */}
                     <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                        <Tooltip label="Toca para iniciar el arqueo de control" position="bottom" withArrow radius="md" openDelay={800}>
+                        <Tooltip label={caja?.estado === 'abierta' ? "Toca para iniciar el arqueo de control" : "Caja cerrada"} position="bottom" withArrow radius="lg" openDelay={800}>
                             <Paper
                                 withBorder
                                 p={{ base: 'xs', sm: 'md' }}
-                                radius="md"
-                                shadow="xs"
-                                bg="teal.0"
-                                onClick={() => onOpenArqueoControl?.()}
-                                style={{ cursor: 'pointer', transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease' }}
-                                className="hover:shadow-md"
+                                radius="lg"
+                                bg={isLowBalance ? "orange.0" : "teal.0"}
+                                onClick={caja?.estado === 'abierta' ? () => onOpenArqueoControl?.() : undefined}
+                                style={{ 
+                                    cursor: caja?.estado === 'abierta' ? 'pointer' : 'default', 
+                                    transition: 'background-color 0.2s ease, transform 0.2s ease',
+                                    borderColor: isLowBalance ? 'var(--mantine-color-orange-3)' : undefined 
+                                }}
+                                
                             >
                                 <Group justify="space-between" align="start">
                                     <Stack gap={0}>
-                                        <Text size="xs" c="teal.9" fw={700} tt="uppercase">Efectivo en Caja</Text>
-                                        <Text size="xl" fw={700} c="teal.9">
+                                        <Text size="xs" c={isLowBalance ? "orange.9" : "teal.9"} fw={700} tt="uppercase">Efectivo en Caja</Text>
+                                        <Text size="xl" fw={700} c={isLowBalance ? "orange.9" : "teal.9"}>
                                             ${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Stack>
-                                    <ThemeIcon variant="filled" size="lg" radius="md" color="teal">
+                                    <ThemeIcon variant="filled" size="lg" radius="lg" color={isLowBalance ? "orange" : "teal"}>
                                         <IconReceipt2 size={20} stroke={1.5} />
                                     </ThemeIcon>
                                 </Group>
-                                <Text size="xs" c="teal.8" mt="xs">Toca para hacer un arqueo de control</Text>
+                                <Text size="xs" c={isLowBalance ? "orange.8" : "teal.8"} mt="xs" fw={isLowBalance ? 600 : 400}>
+                                    {caja?.estado === 'abierta'
+                                        ? (isLowBalance ? `¡Saldo Bajo! Queda ${percentageRemaining?.toFixed(1)}%` : "Toca para hacer un arqueo de control")
+                                        : "Saldo final registrado"}
+                                </Text>
                             </Paper>
                         </Tooltip>
                     </Grid.Col>

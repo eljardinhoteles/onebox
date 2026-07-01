@@ -1,5 +1,5 @@
 import { Box, Container, Text, Title, SimpleGrid, Card, Group, ThemeIcon, Stack } from '@mantine/core';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { IconCircleX, IconCircleCheck, IconClock, IconShieldLock, IconFileReport, IconBuildingStore, IconTruckDelivery, IconUsers } from '@tabler/icons-react';
 
 export function FeaturesAndUseCasesSection() {

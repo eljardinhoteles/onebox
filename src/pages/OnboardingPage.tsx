@@ -41,6 +41,80 @@ import { OnboardingWizard } from './onboarding/OnboardingWizard';
 import logo from '../assets/Icon.svg';
 import successImage from '../assets/onboarding_success_image.png';
 
+const SidePanel = ({ soporte }: { soporte: any }) => (
+    <Box
+        visibleFrom="md"
+        style={{
+            flex: '0 0 35%',
+            position: 'relative',
+            backgroundImage: `linear-gradient(rgba(35, 138, 229, 0.4), rgba(13, 13, 13, 0.9)), url(${successImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        }}
+    >
+        <Stack
+            h="100%"
+            justify="space-between"
+            p={60}
+            style={{ position: 'relative', zIndex: 10 }}
+        >
+            <Group gap="sm" align="center">
+                <Image src={logo} w={40} h={40} radius="md" />
+                <Text fw={700} size="xl" c="white" style={{ letterSpacing: '-0.5px' }}>
+                    Mi Caja Chica
+                </Text>
+            </Group>
+
+            <Stack gap="xs">
+                <Badge color="blue.4" variant="filled" size="lg" radius="sm">¡Excelente!</Badge>
+                <Text fw={800} size="xl" c="white" style={{ fontSize: '2rem', lineHeight: 1.1, letterSpacing: '-1px' }}>
+                    Tu equipo está listo para despegar.
+                </Text>
+                <Stack gap={0}>
+                    <Text fw={500} c="gray.3" size="md">
+                        Configura los últimos detalles y toma el control total de tu flujo de efectivo hoy mismo.
+                    </Text>
+                    
+                    {(soporte?.whatsapp || soporte?.correo) && (
+                        <Box mt="xl" pt="sm" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                            <Text fw={700} c="white" size="sm" mb={4}>¿Necesitas ayuda?</Text>
+                            <Group gap="md">
+                                {soporte.whatsapp && (
+                                    <Button
+                                        component="a"
+                                        href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
+                                        target="_blank"
+                                        variant="subtle"
+                                        color="green.4"
+                                        size="compact-sm"
+                                        leftSection={<IconBrandWhatsapp size={16} />}
+                                        style={{ paddingLeft: 0 }}
+                                    >
+                                        {soporte.whatsapp}
+                                    </Button>
+                                )}
+                                {soporte.correo && (
+                                    <Button
+                                        component="a"
+                                        href={`mailto:${soporte.correo}`}
+                                        variant="subtle"
+                                        color="blue.4"
+                                        size="compact-sm"
+                                        leftSection={<IconMail size={16} />}
+                                        style={{ paddingLeft: 0 }}
+                                    >
+                                        {soporte.correo}
+                                    </Button>
+                                )}
+                            </Group>
+                        </Box>
+                    )}
+                </Stack>
+            </Stack>
+        </Stack>
+    </Box>
+);
+
 export function OnboardingPage() {
     const navigate = useNavigate();
     const { refresh: refreshEmpresa, perfil, availableEmpresas, switchEmpresa } = useEmpresa();
@@ -241,86 +315,13 @@ export function OnboardingPage() {
 
     const prevStep = () => setState(prev => ({ ...prev, activeStep: (prev.activeStep > 0 ? prev.activeStep - 1 : prev.activeStep) }));
 
-    const SidePanel = () => (
-        <Box
-            visibleFrom="md"
-            style={{
-                flex: '0 0 35%',
-                position: 'relative',
-                backgroundImage: `linear-gradient(rgba(35, 138, 229, 0.4), rgba(13, 13, 13, 0.9)), url(${successImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-            }}
-        >
-            <Stack
-                h="100%"
-                justify="space-between"
-                p={60}
-                style={{ position: 'relative', zIndex: 10 }}
-            >
-                <Group gap="sm" align="center">
-                    <Image src={logo} w={40} h={40} radius="md" />
-                    <Text fw={700} size="xl" c="white" style={{ letterSpacing: '-0.5px' }}>
-                        Mi Caja Chica
-                    </Text>
-                </Group>
-
-                <Stack gap="xs">
-                    <Badge color="blue.4" variant="filled" size="lg" radius="sm">¡Excelente!</Badge>
-                    <Text fw={800} size="xl" c="white" style={{ fontSize: '2rem', lineHeight: 1.1, letterSpacing: '-1px' }}>
-                        Tu equipo está listo para despegar.
-                    </Text>
-                    <Stack gap={0}>
-                        <Text fw={500} c="gray.3" size="md">
-                            Configura los últimos detalles y toma el control total de tu flujo de efectivo hoy mismo.
-                        </Text>
-                        
-                        {(soporte?.whatsapp || soporte?.correo) && (
-                            <Box mt="xl" pt="sm" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-                                <Text fw={700} c="white" size="sm" mb={4}>¿Necesitas ayuda?</Text>
-                                <Group gap="md">
-                                    {soporte.whatsapp && (
-                                        <Button
-                                            component="a"
-                                            href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            variant="subtle"
-                                            color="green.4"
-                                            size="compact-sm"
-                                            leftSection={<IconBrandWhatsapp size={16} />}
-                                            style={{ paddingLeft: 0 }}
-                                        >
-                                            {soporte.whatsapp}
-                                        </Button>
-                                    )}
-                                    {soporte.correo && (
-                                        <Button
-                                            component="a"
-                                            href={`mailto:${soporte.correo}`}
-                                            variant="subtle"
-                                            color="blue.4"
-                                            size="compact-sm"
-                                            leftSection={<IconMail size={16} />}
-                                            style={{ paddingLeft: 0 }}
-                                        >
-                                            {soporte.correo}
-                                        </Button>
-                                    )}
-                                </Group>
-                            </Box>
-                        )}
-                    </Stack>
-                </Stack>
-            </Stack>
-        </Box>
-    );
 
     return (
         <Group gap={0} mih="100vh" align="stretch" wrap="nowrap">
             {/* Panel Izquierdo: Contenido */}
             <Center p="xl" bg="white" style={{ flex: 1 }}>
                 <Container size={!showCreateWizard ? 420 : 600} w="100%">
-                    <LoadingOverlay visible={loading || processing} overlayProps={{ blur: 1 }} />
+                    <LoadingOverlay visible={loading || processing} overlayProps={{ }} />
 
                     {!showCreateWizard ? (
                         <Stack gap={40}>
@@ -345,14 +346,14 @@ export function OnboardingPage() {
                                                     navigate('/', { replace: true });
                                                 }}
                                                 w="100%"
-                                                style={{ transition: 'all 0.2s ease' }}
+                                                style={{ transition: 'background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease' }}
                                             >
                                                 <Paper
                                                     withBorder
                                                     p="md"
                                                     radius="md"
                                                     style={{
-                                                        transition: 'all 0.2s ease',
+                                                        transition: 'background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease',
                                                         '&:hover': {
                                                             borderColor: 'var(--mantine-color-blue-4)',
                                                             backgroundColor: 'var(--mantine-color-blue-0)',
@@ -506,7 +507,7 @@ export function OnboardingPage() {
                 </Container>
             </Center>
 
-            <SidePanel />
+            <SidePanel soporte={soporte} />
         </Group>
     );
 }
