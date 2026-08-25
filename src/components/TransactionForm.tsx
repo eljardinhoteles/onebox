@@ -50,9 +50,9 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
         validate: {
             tipo_documento: (value) => (value ? null : 'Requerido'),
             numero_factura: (value, values) =>
-                (values.tipo_documento !== 'sin_factura' && !value ? 'El número es obligatorio' : null),
+                (values.tipo_documento !== 'sin_factura' && values.tipo_documento !== 'no_deducible' && !value ? 'El número es obligatorio' : null),
             proveedor_id: (value, values) =>
-                (values.tipo_documento !== 'sin_factura' && !value ? 'Seleccione un proveedor' : null),
+                (values.tipo_documento !== 'sin_factura' && values.tipo_documento !== 'no_deducible' && !value ? 'Seleccione un proveedor' : null),
             items: {
                 nombre: (value) => (value && value.length < 2 ? 'Nombre inválido' : null),
                 cantidad: (value) => (!value || value <= 0 ? 'Cantidad debe ser mayor a 0' : null),
@@ -211,7 +211,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     tipo_documento: values.tipo_documento,
                     proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
                     fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
-                    numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
+                    numero_factura: (values.tipo_documento === 'sin_factura' || values.tipo_documento === 'no_deducible') ? 'S/N' : values.numero_factura,
                     total_factura: totals.total
                 }).eq('id', transactionId);
                 if (updateError) throw updateError;
@@ -222,7 +222,7 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
                     tipo_documento: values.tipo_documento,
                     proveedor_id: values.proveedor_id ? parseInt(values.proveedor_id) : null,
                     fecha_factura: dayjs(values.fecha_factura).format('YYYY-MM-DD'),
-                    numero_factura: values.tipo_documento === 'sin_factura' ? 'S/N' : values.numero_factura,
+                    numero_factura: (values.tipo_documento === 'sin_factura' || values.tipo_documento === 'no_deducible') ? 'S/N' : values.numero_factura,
                     total_factura: totals.total
                 }]).select().single();
                 if (transError) throw transError;
@@ -296,7 +296,13 @@ export function TransactionForm({ cajaId, transactionId, onSuccess, onCancel, re
 
                     <Select
                         label="Tipo de Documento"
-                        data={[{ value: 'factura', label: 'Factura' }, { value: 'nota_venta', label: 'Nota de Venta' }, { value: 'liquidacion_compra', label: 'Liquidación de Compra' }, { value: 'sin_factura', label: 'Sin Factura' }]}
+                        data={[
+                            { value: 'factura', label: 'Factura' },
+                            { value: 'nota_venta', label: 'Nota de Venta' },
+                            { value: 'liquidacion_compra', label: 'Liquidación de Compra' },
+                            { value: 'sin_factura', label: 'Sin Factura' },
+                            { value: 'no_deducible', label: 'No Deducible (Sin Factura)', disabled: true }
+                        ]}
                         required readOnly={readOnly} variant={readOnly ? "filled" : "default"}
                         {...form.getInputProps('tipo_documento')}
                     />

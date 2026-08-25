@@ -14,6 +14,7 @@ interface CajaSummaryCardsProps {
         neto: number;
         efectivo: number;
         totalDepositos?: number;
+        totalNoDeducibles?: number;
     };
     onOpenRetencionesControl?: () => void;
     onOpenArqueoControl?: () => void;
@@ -85,9 +86,9 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                         </Tooltip>
                     </Grid.Col>
 
-                    {/* Total Facturado / Neto Toggle */}
+                    {/* Total Gastos / Neto Toggle */}
                     <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-                        <Tooltip label={showNeto ? "Toca para ver el total facturado" : "Toca para ver el gasto neto (después de retenciones)"} position="bottom" withArrow radius="lg" openDelay={800}>
+                        <Tooltip label={showNeto ? "Toca para ver el total de gastos" : "Toca para ver el gasto neto (después de retenciones)"} position="bottom" withArrow radius="lg" openDelay={800}>
                             <Paper
                                 withBorder
                                 p={{ base: 'xs', sm: 'md' }}
@@ -103,10 +104,10 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                 <Group justify="space-between" align="start">
                                     <Stack gap={0}>
                                         <Text size="xs" c={showNeto ? 'blue.9' : 'dimmed'} fw={700} tt="uppercase">
-                                            {showNeto ? 'Gasto Neto' : 'Total Facturado'}
+                                            {showNeto ? 'Gasto Neto' : 'Total'}
                                         </Text>
                                         <Text size="xl" fw={700} c={showNeto ? 'blue.9' : 'red.6'}>
-                                            {showNeto ? '' : '-'}${totals[showNeto ? 'neto' : 'facturado'].toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            {showNeto ? '' : '-'}${(totals[showNeto ? 'neto' : 'facturado'] + (totals.totalNoDeducibles || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Stack>
                                     <ThemeIcon variant="light" size="lg" radius="lg" color={showNeto ? 'blue' : 'red'}>
@@ -114,7 +115,7 @@ export function CajaSummaryCards({ caja, totals, onOpenRetencionesControl, onOpe
                                     </ThemeIcon>
                                 </Group>
                                 <Text size="xs" c="dimmed" mt="xs">
-                                    {showNeto ? 'Gasto real descontando retenciones' : 'Suma de gastos facturados'}
+                                    {showNeto ? 'Gasto real descontando retenciones' : 'Suma de todos los gastos'}
                                 </Text>
                             </Paper>
                         </Tooltip>

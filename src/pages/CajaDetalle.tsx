@@ -42,6 +42,7 @@ const TIPO_LABELS: Record<string, string> = {
     nota_venta: 'N. Venta',
     liquidacion_compra: 'Liq. Compra',
     sin_factura: 'S/ Factura',
+    no_deducible: 'No Deducible',
 };
 
 export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
@@ -267,6 +268,61 @@ export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
         });
     };
 
+    const handleMarkNoDeducible = (id: number) => {
+        modals.openConfirmModal({
+            title: <Group gap="xs"><IconAlertTriangle size={18} color="red" /><Text fw={700}>Marcar como No Deducible</Text></Group>,
+            centered: true,
+            children: (
+                <Stack gap="sm">
+                    <Text size="sm">Este gasto no tiene factura y será marcado como <b>No Deducible</b>.</Text>
+                    <Paper withBorder p="xs" radius="md" bg="red.0" c="red.9">
+                        <Text size="xs" fw={500}>Los gastos No Deducibles no son deducibles de impuestos. Esta acción permitirá el cierre de la caja y quedará registrado en el reporte.</Text>
+                    </Paper>
+                </Stack>
+            ),
+            labels: { confirm: 'Marcar No Deducible', cancel: 'Cancelar' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('transacciones')
+                        .update({ tipo_documento: 'no_deducible' })
+                        .eq('id', id);
+                    if (error) throw error;
+                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                    notifications.show({ title: 'Marcado', message: 'El gasto fue marcado como No Deducible.', color: 'orange' });
+                } catch (e: any) {
+                    notifications.show({ title: 'Error', message: e.message, color: 'red' });
+                }
+            }
+        });
+    };
+
+    const handleRevertNoDeducible = (id: number) => {
+        modals.openConfirmModal({
+            title: <Group gap="xs"><IconAlertTriangle size={18} color="orange" /><Text fw={700}>Revertir a Sin Factura</Text></Group>,
+            centered: true,
+            children: (
+                <Text size="sm">Este gasto volverá al estado <b>Sin Factura</b>. Recuerda que deberás legalizarlo o volver a marcarlo como No Deducible antes del cierre.</Text>
+            ),
+            labels: { confirm: 'Revertir', cancel: 'Cancelar' },
+            confirmProps: { color: 'orange' },
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('transacciones')
+                        .update({ tipo_documento: 'sin_factura' })
+                        .eq('id', id);
+                    if (error) throw error;
+                    queryClient.invalidateQueries({ queryKey: ['transactions', cajaId] });
+                    notifications.show({ title: 'Revertido', message: 'El gasto volvió a estado Sin Factura.', color: 'orange' });
+                } catch (e: any) {
+                    notifications.show({ title: 'Error', message: e.message, color: 'red' });
+                }
+            }
+        });
+    };
+
     const openClosingModal = (readOnly: boolean = false) => {
         setIsClosingInReadOnlyMode(readOnly);
         openClosing();
@@ -281,9 +337,9 @@ export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
                 centered: true,
                 children: (
                     <Stack gap="md">
-                        <Text size="sm">No es posible cerrar la caja debido a que existen transacciones registradas como <b>"Sin Factura"</b> que aún no han sido legalizadas.</Text>
+                        <Text size="sm">Existen gastos registrados como <b>"Sin Factura"</b> que no han sido procesados.</Text>
                         <Paper withBorder p="xs" bg="orange.0" c="orange.9" className="border-orange-200">
-                            <Text size="xs" fw={500}>Debes legalizar todos los gastos pendientes antes de proceder con el cierre definitivo de la caja.</Text>
+                            <Text size="xs" fw={500}>Debes <b>legalizar</b> el gasto o marcarlo como <b>No Deducible</b> (usando el botón rojo ⚠ en la tabla) antes del cierre.</Text>
                         </Paper>
                         <Group grow>
                             <Button variant="default" onClick={() => modals.closeAll()}>Entendido</Button>
@@ -369,6 +425,8 @@ export function CajaDetalle({ cajaId, onBack }: CajaDetalleProps) {
                     onDelete={handleDelete}
                     onRetention={(id: number) => { setTransactionState(p => ({ ...p, retentionId: id })); openRetention(); }}
                     onNovedades={(t: Transaction) => { setTransactionState(p => ({ ...p, selectedForNovedades: t })); openNovedades(); }}
+                    onMarkNoDeducible={handleMarkNoDeducible}
+                    onRevertNoDeducible={handleRevertNoDeducible}
                     sortBy={filterState.sortBy}
                     sortOrder={filterState.sortOrder}
                     onSort={handleSort}

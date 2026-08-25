@@ -3,7 +3,7 @@ import { Table, Text, Group, Stack, ActionIcon, ScrollArea, Badge, Tooltip, Them
 import { useMediaQuery } from '@mantine/hooks';
 import { AppLoader } from '../ui/AppLoader';
 import { TableSkeleton } from '../ui/TableSkeleton';
-import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconFileDescription, IconEye, IconFileInvoice, IconAlertTriangle, IconCheck, IconMessage2, IconMessage2Filled, IconFileInvoiceFilled, IconSortAscending, IconSortDescending, IconSelector, IconBuildingBank } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import type { Transaction } from '../../hooks/useCajaCalculations';
@@ -16,6 +16,8 @@ interface TransactionTableProps {
     onDelete: (t: Transaction) => void;
     onRetention: (id: number) => void;
     onNovedades: (t: Transaction) => void;
+    onMarkNoDeducible?: (id: number) => void;
+    onRevertNoDeducible?: (id: number) => void;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     onSort?: (key: string) => void;
@@ -33,6 +35,8 @@ export function TransactionTable({
     onDelete,
     onRetention,
     onNovedades,
+    onMarkNoDeducible,
+    onRevertNoDeducible,
     sortBy,
     sortOrder,
     onSort,
@@ -165,7 +169,8 @@ export function TransactionTable({
                                     t.tipo_documento === 'nota_venta' ? 'orange' :
                                         t.tipo_documento === 'liquidacion_compra' ? 'teal' :
                                             t.tipo_documento === 'deposito' ? 'green' :
-                                                'gray'
+                                                t.tipo_documento === 'no_deducible' ? 'teal' :
+                                                    'gray'
                             }
                             size="sm"
                         >
@@ -201,16 +206,44 @@ export function TransactionTable({
             </Table.Td>
             <Table.Td>
                 <Group gap={isMobile ? 2 : 4} justify="flex-end" wrap="nowrap">
-                    <ActionIcon
-                        variant="subtle"
-                        color="orange"
-                        onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
-                        disabled={t.tipo_documento === 'sin_factura' || t.tipo_documento === 'deposito' || isReadOnly}
-                        title="Comprobante de Retención"
-                        size={isMobile ? "lg" : "md"}
-                    >
-                        {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={isMobile ? 20 : 16} /> : <IconFileInvoice size={isMobile ? 20 : 16} />}
-                    </ActionIcon>
+                    {/* Botón Marcar No Deducible - solo para sin_factura en caja abierta */}
+                    {cajaEstado === 'abierta' && !isReadOnly && t.tipo_documento === 'sin_factura' && (
+                        <Tooltip label="Marcar como No Deducible para permitir cierre" withArrow>
+                            <ActionIcon
+                                variant="filled"
+                                color="red"
+                                onClick={(e) => { e.stopPropagation(); onMarkNoDeducible?.(t.id); }}
+                                size={isMobile ? "lg" : "md"}
+                            >
+                                <IconAlertTriangle size={isMobile ? 20 : 16} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    {/* Botón Revertir No Deducible - solo para no_deducible en caja abierta */}
+                    {cajaEstado === 'abierta' && !isReadOnly && t.tipo_documento === 'no_deducible' && (
+                        <Tooltip label="Revertir a Sin Factura" withArrow>
+                            <ActionIcon
+                                variant="filled"
+                                color="teal"
+                                onClick={(e) => { e.stopPropagation(); onRevertNoDeducible?.(t.id); }}
+                                size={isMobile ? "lg" : "md"}
+                            >
+                                <IconCheck size={isMobile ? 20 : 16} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    {!(t.tipo_documento === 'sin_factura' || t.tipo_documento === 'no_deducible' || t.tipo_documento === 'deposito') && (
+                        <ActionIcon
+                            variant="subtle"
+                            color="orange"
+                            onClick={(e) => { e.stopPropagation(); onRetention(t.id); }}
+                            disabled={isReadOnly}
+                            title="Comprobante de Retención"
+                            size={isMobile ? "lg" : "md"}
+                        >
+                            {t.retencion && t.retencion.total_retenido > 0 ? <IconFileInvoiceFilled size={isMobile ? 20 : 16} /> : <IconFileInvoice size={isMobile ? 20 : 16} />}
+                        </ActionIcon>
+                    )}
                     <ActionIcon
                         variant="subtle"
                         color="grape"

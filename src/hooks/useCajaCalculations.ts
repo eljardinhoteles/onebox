@@ -5,7 +5,7 @@ export interface Transaction {
     fecha_factura: string;
     numero_factura: string;
     total_factura: number;
-    tipo_documento: 'factura' | 'nota_venta' | 'liquidacion_compra' | 'sin_factura' | 'deposito';
+    tipo_documento: 'factura' | 'nota_venta' | 'liquidacion_compra' | 'sin_factura' | 'no_deducible' | 'deposito';
     proveedor: {
         nombre: string;
         ruc: string;
@@ -38,9 +38,11 @@ export function useCajaCalculations(caja: any, transactions: Transaction[]) {
         const mainTransactions = transactions.filter(t => t.parent_id === null);
 
         const deposits = mainTransactions.filter(t => t.tipo_documento === 'deposito');
-        const expenses = mainTransactions.filter(t => t.tipo_documento !== 'deposito');
+        const noDeducibles = mainTransactions.filter(t => t.tipo_documento === 'no_deducible');
+        const expenses = mainTransactions.filter(t => t.tipo_documento !== 'deposito' && t.tipo_documento !== 'no_deducible');
 
         const totalDepositos = deposits.reduce((acc, t) => acc + t.total_factura, 0);
+        const totalNoDeducibles = noDeducibles.reduce((acc, t) => acc + t.total_factura, 0);
 
         const facturado = expenses.reduce((acc, t) => acc + t.total_factura, 0);
 
@@ -56,8 +58,8 @@ export function useCajaCalculations(caja: any, transactions: Transaction[]) {
         // Las pendientes son un faltante de efectivo (se tomó el dinero pero no se formalizó)
         const neto = facturado - totalRetRecaudada;
 
-        // Efectivo = Monto Inicial - Gastos Netos (con solo ret recaudadas) - Depósitos
-        const efectivo = (caja?.monto_inicial || 0) - neto - totalDepositos;
+        // Efectivo = Monto Inicial - Gastos Netos (con solo ret recaudadas) - No Deducibles - Depósitos
+        const efectivo = (caja?.monto_inicial || 0) - neto - totalNoDeducibles - totalDepositos;
 
         return {
             facturado,
@@ -68,7 +70,8 @@ export function useCajaCalculations(caja: any, transactions: Transaction[]) {
             iva,
             neto,
             efectivo,
-            totalDepositos
+            totalDepositos,
+            totalNoDeducibles
         };
     }, [transactions, caja?.monto_inicial]);
 

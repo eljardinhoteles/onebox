@@ -1,4 +1,5 @@
-import { Table, Text, Stack, Group, Title, Divider, Paper, Flex, Box } from '@mantine/core';
+import { Table, Text, Stack, Group, Divider, Paper, Flex, Box, Badge } from '@mantine/core';
+import { IconFileDescription } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
 import { useEmpresa } from '../context/EmpresaContext';
@@ -8,7 +9,7 @@ interface Transaction {
     fecha_factura: string;
     numero_factura: string;
     total_factura: number;
-    tipo_documento: 'factura' | 'nota_venta' | 'sin_factura' | 'deposito';
+    tipo_documento: 'factura' | 'nota_venta' | 'sin_factura' | 'no_deducible' | 'deposito';
     proveedor: {
         nombre: string;
         ruc: string;
@@ -31,6 +32,7 @@ interface Transaction {
         total_retenido: number;
         recaudada?: boolean;
     } | null;
+    es_justificacion?: boolean;
 }
 
 interface CajaReportProps {
@@ -53,90 +55,102 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
     if (!caja) return null;
 
     const deposits = transactions.filter(t => t.tipo_documento === 'deposito');
-    const gastos = transactions.filter(t => t.tipo_documento !== 'deposito');
+    const noDeducibles = transactions.filter(t => t.tipo_documento === 'no_deducible');
+    const gastos = transactions.filter(t => t.tipo_documento !== 'deposito' && t.tipo_documento !== 'no_deducible');
     const totalDepositos = deposits.reduce((sum, t) => sum + t.total_factura, 0);
+    const totalNoDeducibles = totals.totalNoDeducibles ?? noDeducibles.reduce((sum, t) => sum + t.total_factura, 0);
 
     return (
         <div ref={ref} className="print-only p-8 bg-white text-black font-sans">
-            {/* Membrete / Cabezal */}
-            <Stack gap="xs" mb="xl">
-                <Group justify="space-between" align="flex-start">
-                    <Stack gap={0}>
-                        {empresa && (
-                            <Box mb="md">
-                                <Title order={3} style={{ color: 'black', lineHeight: 1.2 }} tt="uppercase">{empresa.nombre}</Title>
-                                {empresa.ruc && <Text size="xs" fw={700} c="dimmed">RUC: {empresa.ruc}</Text>}
-                                {(empresa.direccion || empresa.ciudad) && <Text size="xs" c="dimmed" style={{ maxWidth: 350 }}>{[empresa.direccion, empresa.ciudad].filter(Boolean).join(' - ')}</Text>}
-                            </Box>
+            {/* Cabezal de Empresa e Impresión */}
+            <Group justify="space-between" align="flex-start" mb="sm">
+                <Box>
+                    {empresa && (
+                        <>
+                            <Text size="md" fw={800} style={{ color: 'black', lineHeight: 1.2 }} tt="uppercase">{empresa.nombre}</Text>
+                            {empresa.ruc && <Text size="10px" fw={700} c="dimmed">RUC: {empresa.ruc}</Text>}
+                            {(empresa.direccion || empresa.ciudad) && <Text size="10px" c="dimmed" style={{ maxWidth: 350 }}>{[empresa.direccion, empresa.ciudad].filter(Boolean).join(' - ')}</Text>}
+                        </>
+                    )}
+                </Box>
+                <Stack gap={0} align="flex-end">
+                    <Text fw={700} size="10px" c="dimmed">FECHA DE IMPRESIÓN</Text>
+                    <Text size="10px" fw={600}>{dayjs().format('DD/MM/YYYY HH:mm')}</Text>
+                </Stack>
+            </Group>
+
+            <Divider my="sm" color="gray.2" />
+
+            {/* Información Principal y Resumen */}
+            <Flex justify="space-between" gap={40} mt="md" mb="xl">
+                <Box style={{ flex: 1 }}>
+                    <Stack gap={6}>
+                        <Box mb="sm">
+                            <Text size="14px" fw={800} tt="uppercase" style={{ color: 'black', lineHeight: 1.2 }}>
+                                {caja.estado === 'cerrada' ? 'REPORTE DE CIERRE DE CAJA' : 'REPORTE DE CAJA (EN CURSO)'}: #{caja.numero ?? caja.id}
+                            </Text>
+                        </Box>
+                        <Group gap="xs"><Text size="10px" fw={700} w={100}>Responsable:</Text><Text size="10px">{caja.responsable}</Text></Group>
+                        <Group gap="xs"><Text size="10px" fw={700} w={100}>Sucursal:</Text><Text size="10px">{caja.sucursal}</Text></Group>
+                        <Group gap="xs"><Text size="10px" fw={700} w={100}>Fecha Apertura:</Text><Text size="10px">{dayjs(caja.fecha_apertura).format('DD/MM/YYYY HH:mm').replace(' 00:00', '')}</Text></Group>
+                        {caja.fecha_cierre && (
+                            <Group gap="xs"><Text size="10px" fw={700} w={100}>Fecha Cierre:</Text><Text size="10px">{dayjs(caja.fecha_cierre).format('DD/MM/YYYY HH:mm').replace(' 00:00', '')}</Text></Group>
                         )}
-                        <Title order={2} style={{ color: 'black', lineHeight: 1.2 }}>{caja.estado === 'cerrada' ? 'REPORTE DE CIERRE DE CAJA' : 'REPORTE DE CAJA (EN CURSO)'}</Title>
-                        <Text fw={700} size="sm" c="dimmed">ID CAJA: #{caja.numero ?? caja.id}</Text>
                     </Stack>
-                    <Stack gap={0} align="flex-end">
-                        <Text fw={700} size="sm">FECHA DE IMPRESIÓN</Text>
-                        <Text size="sm">{dayjs().format('DD/MM/YYYY HH:mm')}</Text>
-                    </Stack>
-                </Group>
-
-                <Divider my="md" color="black" />
-
-                <Flex justify="space-between" gap={40} mt="md">
-                    <Box style={{ flex: 1 }}>
-                        <Stack gap={4}>
-                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Información de la Caja</Text>
-                            <Group gap="xs"><Text size="sm" fw={700}>Responsable:</Text><Text size="sm">{caja.responsable}</Text></Group>
-                            <Group gap="xs"><Text size="sm" fw={700}>Sucursal:</Text><Text size="sm">{caja.sucursal}</Text></Group>
-                            <Group gap="xs"><Text size="sm" fw={700}>Fecha de Apertura:</Text><Text size="sm">{dayjs(caja.fecha_apertura).format('DD/MM/YYYY HH:mm')}</Text></Group>
-                            {caja.fecha_cierre && (
-                                <Group gap="xs"><Text size="sm" fw={700}>Fecha de Cierre:</Text><Text size="sm">{dayjs(caja.fecha_cierre).format('DD/MM/YYYY HH:mm')}</Text></Group>
-                            )}
-                        </Stack>
-                    </Box>
-                    <Box style={{ flex: 1, borderLeft: '1px solid #eee', paddingLeft: '40px' }}>
-                        <Stack gap={4}>
-                            <Text size="xs" fw={700} tt="uppercase" c="dimmed">Resumen Financiero</Text>
-                            <Group justify="space-between"><Text size="sm" fw={700}>Monto Inicial:</Text><Text size="sm">${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
-                            <Group justify="space-between"><Text size="sm" fw={700}>Total Gastos (Neto):</Text><Text size="sm">-${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                </Box>
+                <Box style={{ flex: 1, paddingLeft: '40px' }}>
+                    <Paper bg="gray.0" p="md" radius="sm">
+                        <Stack gap={8}>
+                            <Text size="11px" fw={800} tt="uppercase" c="dark.9">Resumen Financiero</Text>
+                            <Group justify="space-between"><Text size="11px" fw={600} c="dimmed">Monto Inicial:</Text><Text size="11px" fw={700}>${caja.monto_inicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            <Group justify="space-between"><Text size="11px" fw={600} c="dimmed">Total Gastos:</Text><Text size="11px" fw={700} c="red.8">-${(totals.neto + totalNoDeducibles).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             {totals.totalRetPendiente > 0 && (
                                 <Group justify="space-between" align="center">
-                                    <Text size="sm" fw={700} c="red.7">Faltante por Ret. Pendientes:</Text>
-                                    <Text size="sm" c="red.7">-${totals.totalRetPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    <Text size="11px" fw={600} c="dimmed">Faltante (Ret. Pend):</Text>
+                                    <Text size="11px" fw={700} c="red.8">-${totals.totalRetPendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                 </Group>
                             )}
                             {totalDepositos > 0 && (
-                                <Group justify="space-between"><Text size="sm" fw={700}>Depósitos a Banco:</Text><Text size="sm">-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                                <Group justify="space-between"><Text size="11px" fw={600} c="dimmed">Depósitos a Banco:</Text><Text size="11px" fw={700} c="red.8">-${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
                             )}
-                            <Divider variant="dashed" my={4} />
-                            <Group justify="space-between"><Text size="md" fw={700}>EFECTIVO FINAL:</Text><Text size="md" fw={700}>${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text></Group>
+                            <Divider my={4} color="gray.3" />
+                            <Group justify="space-between" bg="green.0" px="xs" py={4} style={{ borderRadius: '4px' }}>
+                                <Text size="12px" fw={800} c="green.9">EFECTIVO FINAL:</Text>
+                                <Text size="12px" fw={800} c="green.9">${totals.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            </Group>
                         </Stack>
-                    </Box>
+                    </Paper>
+                </Box>
                 </Flex>
-            </Stack>
-
             {caja.estado === 'cerrada' && (() => {
                 const metodoReposicion = caja.metodo_reposicion || (caja.reposicion > 0 ? 'cheque' : 'ninguna');
                 return (
-                    <Paper withBorder p="sm" radius="md" mb="xl" style={{ border: '2px solid black' }}>
-                        <Stack gap={4}>
-                            <Text size="xs" fw={700} tt="uppercase">Detalle de Reposición</Text>
-                            <Group justify="space-between" mb="xs">
-                                <Text fw={700} size="lg">MONTO A REPONER:</Text>
-                                <Text fw={700} size="lg">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                            </Group>
-                            <Text size="sm" fw={600}>Método de Reposición: <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{metodoReposicion === 'cheque' ? 'Cheque' : metodoReposicion === 'transferencia' ? 'Transferencia' : 'Sin Reposición'}</span></Text>
-                            {metodoReposicion !== 'ninguna' && (
-                                <>
-                                    <Text size="sm" fw={600}>
-                                        {metodoReposicion === 'transferencia' ? 'Número de Referencia' : 'Número de Cheque'}: <span style={{ fontWeight: 700 }}>{caja.numero_cheque_reposicion || '---'}</span>
-                                    </Text>
-                                    <Text size="sm" fw={600}>Banco: <span style={{ fontWeight: 700 }}>{caja.banco_reposicion || '---'}</span></Text>
-                                </>
-                            )}
-                        </Stack>
+                    <Paper bg="blue.0" p="md" radius="sm" mb="xl">
+                        <Group justify="space-between" align="center">
+                            <Box>
+                                <Text size="11px" fw={800} tt="uppercase" c="blue.9" mb={4}>Detalle de Reposición</Text>
+                                <Text size="11px" fw={600} c="dimmed">
+                                    Método: <span style={{ fontWeight: 700, color: 'black', textTransform: 'capitalize' }}>{metodoReposicion}</span>
+                                </Text>
+                                {metodoReposicion !== 'ninguna' && (
+                                    <Group gap="xl" mt={2}>
+                                        <Text size="11px" fw={600} c="dimmed">
+                                            {metodoReposicion === 'transferencia' ? 'Ref' : 'Cheque'}: <span style={{ fontWeight: 700, color: 'black' }}>{caja.numero_cheque_reposicion || '---'}</span>
+                                        </Text>
+                                        <Text size="11px" fw={600} c="dimmed">
+                                            Banco: <span style={{ fontWeight: 700, color: 'black' }}>{caja.banco_reposicion || '---'}</span>
+                                        </Text>
+                                    </Group>
+                                )}
+                            </Box>
+                            <Box bg="blue.1" px="md" py={8} style={{ borderRadius: '4px' }}>
+                                <Text size="10px" fw={700} c="blue.9" ta="right" mb={2}>MONTO A REPONER</Text>
+                                <Text size="18px" fw={800} c="blue.9" ta="right">${caja.reposicion.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                            </Box>
+                        </Group>
                     </Paper>
                 );
             })()}
-
             {/* Observaciones de Cierre */}
             {caja.observaciones && (
                 <Stack gap={4} mb="xl">
@@ -147,152 +161,216 @@ export const CajaReport = forwardRef<HTMLDivElement, CajaReportProps>(({ caja, t
                 </Stack>
             )}
 
-            {/* Arqueo de Caja */}
-            {arqueoData && (
-                <>
-                    <Title order={4} mb="sm" tt="uppercase">Detalle de Arqueo de Caja</Title>
-                    <Table withTableBorder withColumnBorders style={{ color: 'black' }} mb="xl">
-                        <Table.Thead>
-                            <Table.Tr bg="gray.1">
-                                <Table.Th>Denominación</Table.Th>
-                                <Table.Th ta="center">Cantidad</Table.Th>
-                                <Table.Th ta="right">Total</Table.Th>
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {arqueoData.items.map((item) => (
-                                <Table.Tr key={item.denominacion}>
-                                    <Table.Td>{item.denominacion >= 1 ? `$${item.denominacion}` : `${(item.denominacion * 100).toFixed(0)} ctvs`}</Table.Td>
-                                    <Table.Td ta="center">{item.cantidad}</Table.Td>
-                                    <Table.Td ta="right">${item.subtotal.toFixed(2)}</Table.Td>
-                                </Table.Tr>
-                            ))}
-                            <Table.Tr fw={700} bg="gray.1">
-                                <Table.Td colSpan={2} ta="right">TOTAL CONTADO:</Table.Td>
-                                <Table.Td ta="right">${arqueoData.total_contado.toFixed(2)}</Table.Td>
-                            </Table.Tr>
-                        </Table.Tbody>
-                    </Table>
-                </>
-            )}
-
             {/* Depósitos Bancarios */}
             {deposits.length > 0 && (
-                <>
-                    <Title order={4} mb="sm" tt="uppercase">Depósitos Bancarios de Efectivo</Title>
-                    <Table withTableBorder withColumnBorders style={{ color: 'black' }} mb="xl">
+                <Box mb="xl">
+                    <Text size="10px" fw={800} tt="uppercase" mb="xs">Depósitos Bancarios de Efectivo</Text>
+                    <Table style={{ color: 'black', fontSize: '10px' }} verticalSpacing="xs" horizontalSpacing="sm">
                         <Table.Thead>
                             <Table.Tr bg="gray.1">
-                                <Table.Th w={80} ta="center">Fecha</Table.Th>
-                                <Table.Th>Banco Destino</Table.Th>
-                                <Table.Th ta="right" w={120}>Monto Depositado</Table.Th>
+                                <Table.Th w={80} ta="center">FECHA</Table.Th>
+                                <Table.Th>BANCO DESTINO</Table.Th>
+                                <Table.Th ta="right" w={120}>MONTO DEPOSITADO</Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
                             {deposits.map(d => (
-                                <Table.Tr key={d.id}>
+                                <Table.Tr key={d.id} style={{ borderBottom: '1px dashed #ccc' }}>
                                     <Table.Td ta="center">
-                                        <Text size="xs">{dayjs(d.fecha_factura).format('DD/MM/YYYY')}</Text>
+                                        <Text size="11px">{dayjs(d.fecha_factura).format('DD/MM/YYYY')}</Text>
                                     </Table.Td>
                                     <Table.Td>
-                                        <Text size="sm" fw={700}>{d.banco?.nombre || 'Banco'}</Text>
+                                        <Text size="11px" fw={700}>{d.banco?.nombre || 'Banco'}</Text>
                                     </Table.Td>
                                     <Table.Td ta="right">
-                                        <Text size="sm" fw={700}>${d.total_factura.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                        <Text size="11px" fw={700}>${d.total_factura.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                     </Table.Td>
                                 </Table.Tr>
                             ))}
-                            <Table.Tr bg="gray.1" fw={700}>
+                            <Table.Tr fw={800} style={{ borderTop: '2px solid #ccc' }}>
                                 <Table.Td colSpan={2} ta="right">TOTAL DEPOSITADO:</Table.Td>
                                 <Table.Td ta="right">${totalDepositos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
                             </Table.Tr>
                         </Table.Tbody>
                     </Table>
-                </>
+                </Box>
+            )}
+
+            {/* Gastos No Deducibles */}
+            {noDeducibles.length > 0 && (
+                <Box mb="xl">
+                    <Text size="10px" fw={800} tt="uppercase" mb="xs" c="red.8">Gastos No Deducibles (Sin Factura)</Text>
+                    <Table style={{ color: 'black', fontSize: '10px' }} verticalSpacing="xs" horizontalSpacing="sm">
+                        <Table.Thead>
+                            <Table.Tr bg="red.0">
+                                <Table.Th w={80} ta="center" c="red.9">FECHA</Table.Th>
+                                <Table.Th c="red.9">DESCRIPCIÓN / DETALLE</Table.Th>
+                                <Table.Th ta="right" w={120} c="red.9">MONTO</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {noDeducibles.map(t => (
+                                <Table.Tr key={t.id} style={{ borderBottom: '1px dashed #ccc' }}>
+                                    <Table.Td ta="center">
+                                        <Text size="11px">{dayjs(t.fecha_factura).format('DD/MM/YYYY')}</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="11px" fw={700}>{t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto sin detalle'}</Text>
+                                        {t.items && t.items.length > 0 && (
+                                            <Box mt={2}>
+                                                {t.items.map((i, idx) => (
+                                                    <Text key={idx} size="11px" c="dimmed">• {i.nombre}</Text>
+                                                ))}
+                                            </Box>
+                                        )}
+                                    </Table.Td>
+                                    <Table.Td ta="right">
+                                        <Text size="11px" fw={700} c="red.8">${t.total_factura.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                            ))}
+                            <Table.Tr fw={800} style={{ borderTop: '2px solid #ccc' }}>
+                                <Table.Td colSpan={2} ta="right">TOTAL NO DEDUCIBLES:</Table.Td>
+                                <Table.Td ta="right" c="red.8">${totalNoDeducibles.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                            </Table.Tr>
+                        </Table.Tbody>
+                    </Table>
+                </Box>
             )}
 
             {/* Listado de Gastos */}
-            <Title order={4} mb="sm" tt="uppercase">Detalle de Gastos Registrados</Title>
-            <Table variant="striped" withTableBorder withColumnBorders style={{ color: 'black' }}>
-                <Table.Thead>
-                    <Table.Tr bg="gray.1">
-                        <Table.Th w={80} ta="center">Fecha</Table.Th>
-                        <Table.Th>Proveedor / Detalle</Table.Th>
-                        <Table.Th w={120}>Doc #</Table.Th>
-                        <Table.Th ta="right" w={100}>Subtotal</Table.Th>
-                        <Table.Th ta="right" w={80}>IVA</Table.Th>
-                        <Table.Th ta="right" w={100}>Retención</Table.Th>
-                        <Table.Th ta="right" w={100}>Total Neto</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {gastos.map(t => {
-                        const subtotalGasto = t.total_factura - (t.retencion?.total_iva || 0);
-                        const retencionTotal = t.retencion?.total_retenido || 0;
-                        const netoGasto = t.total_factura - retencionTotal;
+            <Box mb="xl">
+                <Text size="10px" fw={800} tt="uppercase" mb="xs">Detalle de Gastos Registrados</Text>
+                <Table style={{ color: 'black', fontSize: '10px' }} verticalSpacing="xs" horizontalSpacing="sm">
+                    <Table.Thead>
+                        <Table.Tr bg="gray.1">
+                            <Table.Th w={60} ta="center">FECHA</Table.Th>
+                            <Table.Th>DOCUMENTO Y DETALLE</Table.Th>
+                            <Table.Th ta="right" w={90}>SUBTOTAL</Table.Th>
+                            <Table.Th ta="right" w={70}>IVA</Table.Th>
+                            <Table.Th ta="right" w={90}>RETENCIÓN</Table.Th>
+                            <Table.Th ta="right" w={90}>NETO</Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                        {gastos.flatMap(t => {
+                            const subtotalGasto = t.total_factura - (t.retencion?.total_iva || 0);
+                            const retencionTotal = t.retencion?.total_retenido || 0;
+                            const netoGasto = t.total_factura - retencionTotal;
 
-                        return (
-                            <Table.Tr key={t.id}>
-                                <Table.Td ta="center">
-                                    <Text size="xs">{dayjs(t.fecha_factura).format('DD/MM')}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text fw={700} size="sm">{t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'Gasto'}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="xs" fw={700}>
-                                        {(() => {
-                                            const prefijos: Record<string, string> = { factura: 'FAC', nota_venta: 'NV', liquidacion_compra: 'LC' };
-                                            const prefijo = prefijos[t.tipo_documento] ?? '';
-                                            return t.numero_factura ? `${prefijo}${prefijo ? ': ' : ''}${t.numero_factura}` : 'S/N';
-                                        })()}
-                                    </Text>
-                                    {t.items && t.items.length > 0 && (
-                                        <Box mt={4}>
-                                            {t.items.map((i, idx) => {
-                                                const qty = Number(i.cantidad) || 1;
-                                                return (
-                                                    <Text key={idx} size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                                                        • {qty !== 1 ? `${qty} x ` : ''}{i.nombre}
-                                                    </Text>
-                                                );
-                                            })}
-                                        </Box>
-                                    )}
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                    <Text size="sm">${subtotalGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                    <Text size="sm">${(t.retencion?.total_iva || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                    {retencionTotal > 0 ? (
-                                        <Stack gap={0} align="flex-end">
-                                            <Text size="sm" c="red.8">-${retencionTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                            <Text size="xs" fw={600} c={t.retencion?.recaudada ? 'teal.7' : 'orange.7'} style={{ fontSize: 9 }}>
-                                                {t.retencion?.recaudada ? '(Recaudada)' : '(Pendiente)'}
+                            return [
+                                <Table.Tr key={`${t.id}-prov`} style={{ borderBottom: 'none' }}>
+                                    <Table.Td colSpan={6} style={{ paddingTop: '8px', paddingBottom: '0' }}>
+                                        <Group gap="xs">
+                                            <Text fw={600} size="11px" tt="uppercase" c="gray.7">
+                                                {t.proveedor?.nombre || (t.items && t.items[0]?.nombre) || 'GASTO'}
                                             </Text>
-                                        </Stack>
-                                    ) : (
-                                        <Text size="sm" c="red.8">-$0.00</Text>
-                                    )}
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                    <Text fw={700} size="sm">${netoGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                                </Table.Td>
+                                            {t.es_justificacion && (
+                                                <Badge variant="light" color="blue" size="xs" leftSection={<IconFileDescription size={10} />}>
+                                                    Justificativo
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                    </Table.Td>
+                                </Table.Tr>,
+                                <Table.Tr key={`${t.id}-det`} style={{ borderBottom: '1px dashed #ccc' }}>
+                                    <Table.Td ta="center" style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        <Text size="11px">{dayjs(t.fecha_factura).format('DD/MM')}</Text>
+                                    </Table.Td>
+                                    <Table.Td style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        <Text size="11px" fw={700}>
+                                            {(() => {
+                                                const prefijos: Record<string, string> = { factura: 'FAC', nota_venta: 'NV', liquidacion_compra: 'LC' };
+                                                const prefijo = prefijos[t.tipo_documento] ?? '';
+                                                return t.numero_factura ? `${prefijo}${prefijo ? ': ' : ''}${t.numero_factura}` : 'S/N';
+                                            })()}
+                                        </Text>
+                                        {t.items && t.items.length > 0 && (
+                                            <Box mt={2}>
+                                                {t.items.map((i, idx) => {
+                                                    const qty = Number(i.cantidad) || 1;
+                                                    return (
+                                                        <Text key={idx} size="10px" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                                                            • {qty !== 1 ? `${qty} x ` : ''}{i.nombre}
+                                                        </Text>
+                                                    );
+                                                })}
+                                            </Box>
+                                        )}
+                                    </Table.Td>
+                                    <Table.Td ta="right" style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        <Text size="11px">${subtotalGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Table.Td>
+                                    <Table.Td ta="right" style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        <Text size="11px">${(t.retencion?.total_iva || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Table.Td>
+                                    <Table.Td ta="right" style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        {retencionTotal > 0 ? (
+                                            <Stack gap={0} align="flex-end">
+                                                <Text size="11px" c="red.8">-${retencionTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                                <Text size="10px" fw={600} c={t.retencion?.recaudada ? 'teal.7' : 'orange.7'}>
+                                                    {t.retencion?.recaudada ? '(Rec)' : '(Pend)'}
+                                                </Text>
+                                            </Stack>
+                                        ) : (
+                                            <Text size="11px" c="red.8">-$0.00</Text>
+                                        )}
+                                    </Table.Td>
+                                    <Table.Td ta="right" style={{ verticalAlign: 'top', paddingTop: '4px' }}>
+                                        <Text fw={700} size="11px">${netoGasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                            ];
+                        })}
+                        <Table.Tr fw={800} style={{ borderTop: '2px solid #ccc' }}>
+                            <Table.Td colSpan={2} ta="right">TOTAL CON DOCUMENTO:</Table.Td>
+                            <Table.Td ta="right">${totals.facturado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                            <Table.Td ta="right">${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                            <Table.Td ta="right" c="red.8">-${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                            <Table.Td ta="right">${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
+                        </Table.Tr>
+                    </Table.Tbody>
+                </Table>
+            </Box>
+
+            {/* Total General */}
+            <Group justify="flex-end" mb="xl">
+                <Box p="xs" style={{ borderTop: '2px solid black', borderBottom: '2px solid black', minWidth: '350px' }}>
+                    <Group justify="space-between">
+                        <Text fw={800} size="12px">TOTAL GENERAL REPORTE:</Text>
+                        <Text fw={800} size="14px">${(totals.neto + totalNoDeducibles).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                    </Group>
+                </Box>
+            </Group>
+
+            {/* Anexo: Arqueo de Caja */}
+            {arqueoData && (
+                <Box mb="xl" mt="xl" style={{ pageBreakInside: 'avoid' }}>
+                    <Text size="10px" fw={800} tt="uppercase" mb="xs">Anexo: Detalle de Arqueo de Caja</Text>
+                    <Table style={{ color: 'black', fontSize: '10px' }} verticalSpacing="xs" horizontalSpacing="sm">
+                        <Table.Thead>
+                            <Table.Tr bg="gray.1">
+                                <Table.Th>DENOMINACIÓN</Table.Th>
+                                <Table.Th ta="center">CANTIDAD</Table.Th>
+                                <Table.Th ta="right">TOTAL</Table.Th>
                             </Table.Tr>
-                        );
-                    })}
-                    <Table.Tr bg="gray.1">
-                        <Table.Td colSpan={3} ta="right" fw={700}>TOTALES ACUMULADOS:</Table.Td>
-                        <Table.Td ta="right" fw={700}>${totals.facturado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                        <Table.Td ta="right" fw={700}>${totals.iva.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                        <Table.Td ta="right" fw={700} c="red.8">-${totals.totalRet.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                        <Table.Td ta="right" fw={700}>${totals.neto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Table.Td>
-                    </Table.Tr>
-                </Table.Tbody>
-            </Table>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {arqueoData.items.map((item) => (
+                                <Table.Tr key={item.denominacion} style={{ borderBottom: '1px dashed #ccc' }}>
+                                    <Table.Td>{item.denominacion >= 1 ? `$${item.denominacion}` : `${(item.denominacion * 100).toFixed(0)} ctvs`}</Table.Td>
+                                    <Table.Td ta="center">{item.cantidad}</Table.Td>
+                                    <Table.Td ta="right">${item.subtotal.toFixed(2)}</Table.Td>
+                                </Table.Tr>
+                            ))}
+                            <Table.Tr fw={800} style={{ borderTop: '2px solid #ccc' }}>
+                                <Table.Td colSpan={2} ta="right">TOTAL CONTADO:</Table.Td>
+                                <Table.Td ta="right">${arqueoData.total_contado.toFixed(2)}</Table.Td>
+                            </Table.Tr>
+                        </Table.Tbody>
+                    </Table>
+                </Box>
+            )}
 
             {/* Firmas de Responsabilidad */}
             <Group grow mt={100} align="flex-end" px="xl">

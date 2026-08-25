@@ -32,6 +32,28 @@ interface CajaCardProps {
     layout?: 'grid' | 'list';
 }
 
+const SUCURSAL_COLORS = [
+    'blue',
+    'cyan',
+    'teal',
+    'green',
+    'lime',
+    'yellow',
+    'grape',
+    'violet',
+    'indigo'
+];
+
+const getSucursalColor = (sucursal: string) => {
+    if (!sucursal) return 'gray';
+    let hash = 0;
+    for (let i = 0; i < sucursal.length; i++) {
+        hash = hash * 31 + sucursal.charCodeAt(i);
+    }
+    const index = Math.abs(hash) % SUCURSAL_COLORS.length;
+    return SUCURSAL_COLORS[index];
+};
+
 export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadOnly, layout = 'grid' }: CajaCardProps) {
     const totalDepositos = caja.total_depositos || 0;
     const montoInicial = caja.monto_inicial;
@@ -42,7 +64,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
         : 0;
 
     const isLowBalance = percentageRemaining <= alertThreshold && caja.estado === 'abierta';
-
+    const sucursalColor = getSucursalColor(caja.sucursal);
 
     const [showDelete, setShowDelete] = useState(false);
     const [strictDeleteOpen, setStrictDeleteOpen] = useState(false);
@@ -124,12 +146,12 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                 radius="md"
                 withBorder
                 bg="gray.0"
-                className="transition-all hover:bg-gray-50"
+                className="transition-all hover:bg-gray-50 relative"
             >
-                <Group wrap="nowrap" justify="space-between" align="center" gap="lg">
+                <Group wrap="nowrap" justify="space-between" align="center" gap="lg" pl={6}>
                     {/* Sección Izquierda: Sucursal y Fechas */}
                     <Group gap="md" style={{ flex: '1 1 30%', minWidth: 200 }} wrap="nowrap">
-                        <ThemeIcon size={48} radius="xl" color="gray" variant="light">
+                        <ThemeIcon size={48} radius="xl" color={caja.estado === 'abierta' ? sucursalColor : 'gray'} variant="light">
                             <IconBuildingStore size={24} stroke={1.5} />
                         </ThemeIcon>
                         <Stack gap={2}>
@@ -221,7 +243,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                 radius="lg"
                 withBorder
                 bg={caja.estado === 'abierta' ? 'white' : 'gray.1'}
-                className={`transition-all group ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
+                className={`transition-all group relative ${caja.estado === 'abierta' ? 'hover:shadow-md' : 'opacity-60 grayscale'}`}
                 style={isLowBalance ? { border: '1px solid var(--mantine-color-orange-4)', boxShadow: '0 0 0 1px var(--mantine-color-orange-1)' } : {}}
             >
                 <Group justify="space-between" align="center" mb="md" wrap="nowrap">
@@ -238,8 +260,8 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                                     variant="light"
                                     size={42}
                                     radius="xl"
-                                    className={`transition-all duration-200 ${showDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-blue-600 hover:bg-blue-50'}`}
-                                    color={showDelete ? 'red' : (caja.estado === 'abierta' ? 'blue' : 'gray')}
+                                    className={`transition-all duration-200 ${showDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'hover:opacity-80'}`}
+                                    color={showDelete ? 'red' : (caja.estado === 'abierta' ? sucursalColor : 'gray')}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (!showDelete) {
@@ -259,7 +281,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
                                 </ActionIcon>
                             </Tooltip>
                         ) : (
-                            <ThemeIcon size={42} radius="xl" color="gray" variant="light">
+                            <ThemeIcon size={42} radius="xl" color={caja.estado === 'abierta' ? sucursalColor : 'gray'} variant="light">
                                 <IconBuildingStore size={22} stroke={1.5} />
                             </ThemeIcon>
                         )}
@@ -344,7 +366,7 @@ export function CajaCard({ caja, alertThreshold, onSelectCaja, onDelete, isReadO
 
                     <Button
                         variant="light"
-                        color={caja.estado === 'abierta' && !isReadOnly ? (isLowBalance ? 'orange' : 'blue') : 'gray'}
+                        color={isLowBalance && !isReadOnly && caja.estado === 'abierta' ? 'orange' : 'gray'}
                         style={{ flex: '1 1 50%' }}
                         leftSection={caja.estado === 'abierta' && !isReadOnly ? undefined : <IconLock size={16} />}
                         rightSection={caja.estado === 'abierta' && !isReadOnly ? <IconArrowRight size={16} /> : undefined}
