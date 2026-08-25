@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Stack, Title, Text, Paper, Button, Group, TextInput, NumberInput, Select, ActionIcon, Divider, Box, Badge, Center } from '@mantine/core';
+import { Stack, Title, Text, Paper, Button, Group, TextInput, NumberInput, Select, ActionIcon, Box, Badge } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { IconDeviceFloppy, IconPlus, IconTrash, IconArrowLeft, IconUser, IconFileText, IconEdit } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconPlus, IconTrash, IconArrowLeft, IconEdit } from '@tabler/icons-react';
 import { supabase } from '../lib/supabaseClient';
 import { useEmpresa } from '../context/EmpresaContext';
 import { notifications } from '@mantine/notifications';
@@ -322,7 +322,7 @@ export function PayCashFormPage() {
                                                         {prov.ruc?.length === 10 ? 'CED' : prov.ruc?.length === 13 ? 'RUC' : 'PAS'}: {prov.ruc || 'S/N'} &bull; {prov.tipo_cuenta === 'AHO' ? 'Ahorros' : prov.tipo_cuenta === 'CTE' ? 'Corriente' : 'Cta'} {prov.numero_cuenta || 'S/N'} &bull; {prov.banco || 'Banco'} {prov.codigo_banco || 'S/C'}
                                                     </Text>
                                                     {!isCompleted && (
-                                                        <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => { setEditingProveedor(prov); setIsProveedorModalOpen(true); }}>
+                                                        <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => { setEditingProveedor(prov as Proveedor); setIsProveedorModalOpen(true); }}>
                                                             <IconEdit size={14} />
                                                         </ActionIcon>
                                                     )}

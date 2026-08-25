@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Stack, Title, Text, Paper, Group, Badge, SimpleGrid, ActionIcon, Menu, Center, Loader, Divider, Modal, Button, Textarea, CopyButton, SegmentedControl, ThemeIcon, Box, Popover, Tooltip } from '@mantine/core';
-import { IconDownload, IconDotsVertical, IconCheck, IconX, IconFileSpreadsheet, IconEdit, IconPlus, IconTrash, IconLock, IconCalendar, IconLockOpen, IconBuildingBank, IconAlertTriangle } from '@tabler/icons-react';
+import { Stack, Title, Text, Paper, Group, Badge, SimpleGrid, ActionIcon, Center, Loader, Divider, Modal, Button, Textarea, CopyButton, SegmentedControl, Box, Popover, Tooltip } from '@mantine/core';
+import { IconDownload, IconCheck, IconFileSpreadsheet, IconEdit, IconTrash, IconLock, IconCalendar, IconLockOpen, IconAlertTriangle } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useEmpresa } from '../context/EmpresaContext';
@@ -284,7 +284,7 @@ export function PayCashPage({ opened, close }: PayCashPageProps) {
                             <DatePicker 
                                 type="range"
                                 value={dateRange}
-                                onChange={setDateRange}
+                                onChange={setDateRange as any}
                                 locale="es"
                                 maxDate={new Date()}
                             />
