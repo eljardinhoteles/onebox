@@ -55,9 +55,10 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
     const arqueoTotal = arqueoDesglose?.total ?? 0;
     const arqueoConcuerda = Math.abs(arqueoTotal - efectivoEsperado) < 0.005;
     const tieneItemsArqueo = (arqueoDesglose?.items.length ?? 0) > 0;
+    const cajaEnCero = efectivoEsperado < 0.005;
     const esCierreDefinitivo = metodo === 'ninguna';
     const requiereDepositoParaCerrar = esCierreDefinitivo && efectivoEsperado > 0.005;
-    const canSubmit = arqueoConcuerda && tieneItemsArqueo && !readOnly && !requiereDepositoParaCerrar;
+    const canSubmit = arqueoConcuerda && (tieneItemsArqueo || cajaEnCero) && !readOnly && !requiereDepositoParaCerrar;
 
     const { data: bancos = [] } = useQuery({
         queryKey: ['bancos'],
@@ -166,7 +167,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
         close();
     };
 
-    const canGoToStep2 = arqueoConcuerda && tieneItemsArqueo;
+    const canGoToStep2 = arqueoConcuerda && (tieneItemsArqueo || cajaEnCero);
 
     const metodoColor = metodo === 'transferencia' ? 'violet' : metodo === 'ninguna' ? 'red' : 'blue';
     const metodoLabel = metodo === 'cheque' ? 'Cheque' : metodo === 'transferencia' ? 'Transferencia' : 'Sin Reposición';
@@ -270,7 +271,7 @@ export function CierreCajaModal({ opened, close, caja, totals, onSuccess, readOn
                                 onClick={() => setActiveStep(1)}
                                 disabled={!canGoToStep2}
                             >
-                                {!tieneItemsArqueo
+                                {!tieneItemsArqueo && !cajaEnCero
                                     ? 'Ingrese el arqueo para continuar'
                                     : !arqueoConcuerda
                                         ? `Diferencia: $${Math.abs(arqueoTotal - efectivoEsperado).toFixed(2)}`

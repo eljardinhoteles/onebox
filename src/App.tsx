@@ -12,6 +12,8 @@ const CajasPage = lazy(() => import('./pages/CajasPage').then(m => ({ default: m
 const CajaDetalle = lazy(() => import('./pages/CajaDetalle').then(m => ({ default: m.CajaDetalle })));
 const ProveedoresPage = lazy(() => import('./pages/ProveedoresPage').then(m => ({ default: m.ProveedoresPage })));
 const AjustesPage = lazy(() => import('./pages/AjustesPage').then(m => ({ default: m.AjustesPage })));
+const PayCashPage = lazy(() => import('./pages/PayCashPage').then(m => ({ default: m.PayCashPage })));
+const PayCashFormPage = lazy(() => import('./pages/PayCashFormPage').then(m => ({ default: m.PayCashFormPage })));
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
@@ -56,10 +58,12 @@ export default function App() {
 
   const [proveedoresModalOpened, { open: openProveedoresModal, close: closeProveedoresModal }] = useDisclosure(false);
   const [cajasModalOpened, { open: openCajasModal, close: closeCajasModal }] = useDisclosure(false);
+  const [paycashModalOpened, { open: openPaycashModal, close: closePaycashModal }] = useDisclosure(false);
 
   const isCajas = location.pathname.startsWith('/cajas');
   const isCajaDetail = location.pathname.match(/^\/cajas\/\d+$/);
   const isProveedores = location.pathname.startsWith('/proveedores');
+  const isPayCash = location.pathname.startsWith('/paycash');
   
   const queryParams = new URLSearchParams(location.search);
   const hasAuthParams = queryParams.has('invite') || queryParams.has('mode');
@@ -73,6 +77,7 @@ export default function App() {
       if (!isReadOnly) {
         if (isCajas && !isCajaDetail) openCajasModal();
         if (isProveedores) openProveedoresModal();
+        if (isPayCash) openPaycashModal();
       }
     }],
   ]);
@@ -193,9 +198,10 @@ export default function App() {
   const handleFabAction = () => {
     if (isCajas && !isCajaDetail) openCajasModal();
     else if (isProveedores) openProveedoresModal();
+    else if (isPayCash) openPaycashModal();
   };
 
-  const showFab = !isReadOnly && ((isCajas && !isCajaDetail) || isProveedores);
+  const showFab = !isReadOnly && ((isCajas && !isCajaDetail) || isProveedores || (isPayCash && location.pathname === '/paycash'));
 
   // Superadmin sin empresa: mostrar admin directamente
   const isAdminRoute = location.pathname === '/admin';
@@ -224,6 +230,8 @@ export default function App() {
               <Route path="/cajas" element={<CajasRoute opened={cajasModalOpened} close={closeCajasModal} />} />
               <Route path="/cajas/:id" element={<CajaDetalleRoute />} />
               <Route path="/proveedores" element={<ProveedoresPage opened={proveedoresModalOpened} close={closeProveedoresModal} />} />
+              <Route path="/paycash" element={<PayCashPage opened={paycashModalOpened} close={closePaycashModal} />} />
+              <Route path="/paycash/edit/:id" element={<PayCashFormPage />} />
               <Route path="/ajustes" element={<AjustesPage />} />
               {isSuperAdmin && <Route path="/admin" element={<AdminPage />} />}
             </Routes>

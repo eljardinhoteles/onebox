@@ -7,7 +7,8 @@ import {
     IconPlus,
     IconBrandWhatsapp,
     IconTransfer,
-    IconUserPlus
+    IconUserPlus,
+    IconBuildingBank
 } from '@tabler/icons-react';
 import { NotificationCenter } from './NotificationCenter';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -15,6 +16,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const NAV_ITEMS = [
     { value: 'cajas', path: '/cajas', label: 'Cajas', icon: IconReceipt2, color: '#228be6' },
     { value: 'proveedores', path: '/proveedores', label: 'Proveedores', icon: IconUsers, color: '#228be6' },
+    { value: 'paycash', path: '/paycash', label: 'PayCash', icon: IconBuildingBank, color: '#228be6' },
     { value: 'ajustes', path: '/ajustes', label: 'Ajustes', icon: IconSettings, color: '#228be6' },
 ];
 
@@ -60,6 +62,11 @@ export function Navbar({ onAdd }: NavbarProps) {
     } else if (location.pathname.startsWith('/proveedores')) {
         actionLabel = "Nuevo Proveedor";
         ActionIconComponent = IconUserPlus;
+    } else if (location.pathname.startsWith('/paycash')) {
+        actionLabel = "Nueva Orden de Pago";
+        ActionIconComponent = IconPlus;
+        actionColor = "teal";
+        actionShadowRGB = "18, 184, 134";
     }
 
     return (

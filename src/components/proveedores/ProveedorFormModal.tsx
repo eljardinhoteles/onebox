@@ -5,7 +5,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { supabase } from '../../lib/supabaseClient';
 import { useEmpresa } from '../../context/EmpresaContext';
-import { AppModal } from '../ui/AppModal';
+import { AppDrawer } from '../ui/AppDrawer';
 import { AppActionButtons } from '../ui/AppActionButtons';
 
 export interface Proveedor {
@@ -16,6 +16,10 @@ export interface Proveedor {
     regimen: string;
     telefono?: string;
     sucursales?: string[];
+    banco?: string;
+    codigo_banco?: string;
+    tipo_cuenta?: string;
+    numero_cuenta?: string;
 }
 
 interface ProveedorFormModalProps {
@@ -94,6 +98,10 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
             regimen: '',
             telefono: '',
             sucursales: [] as string[],
+            banco: '',
+            codigo_banco: '',
+            tipo_cuenta: '',
+            numero_cuenta: '',
             bypassRucValidation: false,
         },
         validate: (values) => {
@@ -131,6 +139,10 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                     regimen: editingProveedor.regimen || '',
                     telefono: editingProveedor.telefono || '',
                     sucursales: editingProveedor.sucursales || [],
+                    banco: editingProveedor.banco || '',
+                    codigo_banco: editingProveedor.codigo_banco || '',
+                    tipo_cuenta: editingProveedor.tipo_cuenta || '',
+                    numero_cuenta: editingProveedor.numero_cuenta || '',
                     bypassRucValidation: false,
                 });
             } else {
@@ -172,7 +184,11 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                 actividad_economica: values.actividad_economica,
                 regimen: values.regimen,
                 telefono: values.telefono,
-                sucursales: values.sucursales
+                sucursales: values.sucursales,
+                banco: values.banco || null,
+                codigo_banco: values.codigo_banco || null,
+                tipo_cuenta: values.tipo_cuenta || null,
+                numero_cuenta: values.numero_cuenta || null
             };
 
             // 1. Si es creación, verificar duplicidad por RUC
@@ -229,7 +245,7 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
     });
 
     return (
-        <AppModal
+        <AppDrawer
             opened={opened}
             onClose={onClose}
             title={editingProveedor ? 'Editar Proveedor' : 'Nuevo Proveedor'}
@@ -291,6 +307,39 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                         autosize
                         {...form.getInputProps('actividad_economica')}
                     />
+
+                    {/* Datos Bancarios */}
+                    <Stack gap="xs" mt="sm">
+                        <Group grow>
+                            <TextInput
+                                label="Banco"
+                                placeholder="Ej: Pichincha"
+                                {...form.getInputProps('banco')}
+                            />
+                            <TextInput
+                                label="Código Banco"
+                                placeholder="Ej: 10"
+                                {...form.getInputProps('codigo_banco')}
+                            />
+                        </Group>
+                        <Group grow>
+                            <Select
+                                label="Tipo de Cuenta"
+                                placeholder="Seleccione..."
+                                data={[
+                                    { value: 'Ahorros', label: 'Ahorros' },
+                                    { value: 'Corriente', label: 'Corriente' }
+                                ]}
+                                {...form.getInputProps('tipo_cuenta')}
+                            />
+                            <TextInput
+                                label="Número de Cuenta"
+                                placeholder="Ej: 22000..."
+                                {...form.getInputProps('numero_cuenta')}
+                            />
+                        </Group>
+                    </Stack>
+
                     <AppActionButtons
                         onCancel={onClose}
                         loading={mutation.isPending}
@@ -299,6 +348,6 @@ export function ProveedorFormModal({ opened, onClose, editingProveedor, onSucces
                     />
                 </Stack>
             </form>
-        </AppModal>
+        </AppDrawer>
     );
 }
